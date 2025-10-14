@@ -1,0 +1,254 @@
+---
+title: "Data Dictionary: SBA 7(A) Data"
+author: "Inder Majumdar"
+format: pdf
+---
+
+```{r config}
+#| echo: false
+#| message: false
+#| output: false
+
+# Setup ------------------------------------------------------------------------
+
+library('tidyverse')
+
+path <- '/Users/indermajumdar/Downloads/sba_7a'
+
+
+##############
+#Load Data
+##############
+
+loans <- tibble()
+
+loansdir <- dir(path)
+
+for (file in loansdir) {
+  temp <- read.csv(paste(path, file, sep = "/"))
+  loans <- rbind(loans, temp)
+}
+
+rm(temp)
+
+
+##############
+# Typecast items
+##############
+
+# Approval Date
+loans$ApprovalDate <- as.Date(loans$ApprovalDate, format = "%m/%d/%Y")
+
+#Initial Interest Rate
+loans$InitialInterestRate = readr::parse_number(loans$InitialInterestRate)
+
+
+library(tidyverse)
+library(lubridate)   # you use year()
+library(scales)      # label_dollar, label_percent, pretty_breaks
+
+# --- Minimal, clean theme
+theme_im <- function(base_size = 12) {
+  theme_minimal(base_size = base_size) +
+    theme(
+      plot.title.position = "plot",
+      plot.caption.position = "plot",
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_line(linewidth = 0.3),
+      panel.grid.major.y = element_line(linewidth = 0.3),
+      legend.position = "top",
+      legend.title = element_text(face = "bold"),
+      plot.title = element_text(face = "bold"),
+      axis.title = element_text(face = "bold")
+    )
+}
+
+# --- Helper to save with consistent spec
+save_fig <- function(p, filename, w = 7, h = 4.2, dpi = 320) {
+  ggsave(filename, p, width = w, height = h, dpi = dpi, bg = "white")
+}
+
+# Dates
+loans$ApprovalDate <- as.Date(loans$ApprovalDate, format = "%m/%d/%Y")
+
+```
+
+## Institutions with both NCUA, FDIC #:
+
+My understanding is that an institution is either a credit union or bank. The institutions listed 
+below have both an NCUA Number and a FDIC Deposit Number. Do you know why this might be the case?
+
+```{r NCUA_FDIC_check}
+#| echo: false
+loans |>
+  mutate(ApprovalYear = year(ApprovalDate)) |>
+  filter(BankFDICNumber != '', BankFDICNumber != 'None') |>
+  filter(BankNCUANumber != '', BankNCUANumber != 'None') -> x
+
+print("Banking Institutions with both a FDIC Number and NCUA Number")
+print(unique(x$BankName))
+
+##############
+# Clean Data: Remove banks with both an NCUA and FDIC Deposit # 
+##############
+  
+unique(x$BankName) -> dudbanks 
+
+rm(x)
+
+```
+```{r remove_dudbanks}
+#| echo: False
+
+loans |>
+  filter(!(BankName %in% dudbanks)) -> loans
+
+rm(dudbanks)
+
+```
+
+## Unique Count of Credit Union, Bank by Year
+
+```{r create_loan_shares}
+#| echo: false
+
+loans |>
+  mutate(ApprovalYear = year(ApprovalDate)) |>
+  group_by(ApprovalYear) |>
+  summarise(
+    bank_count = n_distinct(BankFDICNumber[BankFDICNumber != "" & BankFDICNumber != "None" & !is.na(BankFDICNumber)]),
+    credit_union_count = n_distinct(BankNCUANumber[BankNCUANumber != "" & BankNCUANumber != "None" & !is.na(BankNCUANumber)]),
+    total = bank_count + credit_union_count,
+    bank_shares = bank_count / total,
+    credit_union_shares = credit_union_count / total
+  ) -> loan_shares
+
+```
+
+```{r bank_shares_time_series}
+#| echo: false
+
+bank_shares <- ggplot(loan_shares, aes(x = ApprovalYear)) +
+  geom_line(aes(y = bank_shares, linetype = "Banks"), linewidth = 0.9) +
+  geom_line(aes(y = credit_union_shares, linetype = "Credit unions"), linewidth = 0.9) +
+  scale_linetype_manual(values = c("Banks" = "solid", "Credit unions" = "dashed"), name = NULL) +
+  scale_x_continuous(breaks = pretty_breaks()) +
+  scale_y_continuous(labels = label_percent()) +
+  labs(
+    title = "Share of Institutions Issuing 7(a) Loans: Credit Unions Vs. Banks",
+    x = "Approval year",
+    y = "Share of Institutions",
+    caption = "Annotated values are the number unique institutions in that year"
+  ) +
+  theme_im()
+
+decade_ends <- loan_shares |>
+  mutate(decade = floor(ApprovalYear/10)*10) |>
+  group_by(decade) |>
+  filter(ApprovalYear == max(ApprovalYear)) |>
+  ungroup() |>
+  transmute(
+    x = ApprovalYear,
+    y = 0.92,                                # fixed y within [0,1] share scale
+    lab = paste0(comma(total))   # show the raw count
+  )
+
+bank_shares +
+  geom_text(
+    data = decade_ends,
+    aes(x = x, y = y, label = lab),
+    inherit.aes = FALSE,
+    vjust = 0,
+    fontface = "bold",
+    size = 3.6
+  )
+
+rm(bank_shares, decade_ends, loan_shares)
+
+```
+
+```{r create_loan_volumes}
+#| echo: False
+
+# 1) Classify each lender once
+loans_typed <- loans |>
+  mutate(
+    ApprovalYear = year(ApprovalDate),
+    lender_type = case_when(
+      !is.na(BankFDICNumber)  & BankFDICNumber  != "" & BankFDICNumber  != "None" ~ "Bank",
+      !is.na(BankNCUANumber)  & BankNCUANumber  != "" & BankNCUANumber  != "None" ~ "Credit union",
+      TRUE ~ "Other/unknown"
+    )
+  )
+
+# 2) Total loan volume per year by lender type
+loan_volume <- loans_typed |>
+  summarise(
+    bank_volume = sum(GrossApproval[lender_type == "Bank"], na.rm = TRUE),
+    cu_volume   = sum(GrossApproval[lender_type == "Credit union"], na.rm = TRUE),
+    .by = ApprovalYear
+  ) |>
+  mutate(
+    total_volume = bank_volume + cu_volume,
+    bank_volume_share = bank_volume / total_volume,
+    cu_volume_share   = cu_volume   / total_volume
+  )
+
+# 3) Total loan count per year by lender type
+
+loan_count <- loans_typed |>
+  summarise(
+    bank_loans = sum(lender_type == "Bank", na.rm = TRUE),
+    credit_union_loans = sum(lender_type == "Credit union", na.rm = TRUE),
+    .by = ApprovalYear
+  ) |>
+  mutate(
+    total_loans = bank_loans + credit_union_loans,
+    bank_share = bank_loans / total_loans,
+    credit_union_share = credit_union_loans / total_loans
+  )
+
+```
+
+
+```{r plot_Loan_Volumes}
+#| echo: False
+
+bank_volumes <- ggplot(loan_volume, aes(x = ApprovalYear)) +
+  geom_line(aes(y = bank_volume_share, linetype = "Banks"), linewidth = 0.9) +
+  geom_line(aes(y = cu_volume_share, linetype = "Credit unions"), linewidth = 0.9) +
+  scale_linetype_manual(values = c("Banks" = "solid", "Credit unions" = "dashed"), name = NULL) +
+  scale_x_continuous(breaks = pretty_breaks()) +
+  scale_y_continuous(labels = label_percent()) +
+  labs(
+    title = "Share of Count, 7(a) Loans Issued: Credit Unions Vs. Banks",
+    x = "Approval year",
+    y = "Share of Institutions",
+    caption = "Annotated values are the dollar value of underwritten loans in that year"
+  ) +
+  theme_im()
+
+decade_ends <- loan_volume |>
+  mutate(decade = floor(ApprovalYear/10)*10) |>
+  group_by(decade) |>
+  filter(ApprovalYear == max(ApprovalYear)) |>
+  ungroup() |>
+  transmute(
+    x = ApprovalYear,
+    y = 0.92,                                # fixed y within [0,1] share scale
+    lab = paste0(comma(total_volume))   # show the raw count
+  )
+
+bank_volumes +
+  geom_text(
+    data = decade_ends,
+    aes(x = x, y = y, label = lab),
+    inherit.aes = FALSE,
+    vjust = 0,
+    fontface = "bold",
+    size = 3.6
+  )
+
+```
+
+
