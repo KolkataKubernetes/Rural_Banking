@@ -152,6 +152,8 @@ vol_ts <- ggplot(vol_ts_data, aes(x = year)) +
   theme_im()
 vol_ts
 
+rm(vol_iqr, count_iqr)
+
 # Descriptives:  How has the distribution of Dealflow changed over time? Where does WI sit on that distribution?  --------------------------------------------------------
 
 # helper to get WI value for a given year
@@ -287,6 +289,7 @@ p_overlay <- ggplot(hist_df, aes(x = deal_count, fill = year)) +
 
 p_overlay
 
+rm(top_states)
 
 # Descriptives:  Over the last 10 years, where does Wisconsin rank in total dealflow? (ECDF)  --------------------------------------------------------
 
@@ -323,6 +326,8 @@ ecdf_vol <- ggplot(data_ecdf, aes(x = capital_billion)) +
   theme_im()
 
 ecdf_vol
+
+rm(data_ecdf)
 
 #  Descriptives: Map of total change over 10 year period?  --------------------------------------------------------
 
@@ -388,4 +393,44 @@ p_map_change <- ggplot(map_change, aes(long, lat, group = group, fill = percent_
   )
 
 p_map_change
+
+#  Descriptives: Stacked Bar/Sankey: 10 year average  --------------------------------------------------------
+
+region_midwest <- c("Iowa", "Minnesota", "Wisconsin", "Illinois", "Indiana", "Michigan", "Ohio")
+region_west    <- c("California", "Washington", "Oregon")
+region_east    <- c("Connecticut", "Maine", "Massachusetts", "New Hampshire", "New Jersey",
+                    "New York", "Pennsylvania", "Rhode Island", "Vermont")
+region_southeast <- c("Alabama", "Arkansas", "Florida", "Georgia", "Kentucky",
+                      "Louisiana", "Mississippi", "North Carolina", "South Carolina",
+                      "Tennessee", "Virginia", "West Virginia")
+
+vol_wide |>
+  group_by(State) |>
+  filter(year != 2025) |>
+  summarise(mean_vol = mean(count, na.rm = TRUE), .groups = "drop") |>
+  mutate(
+    Country = "USA",
+    region = case_when(
+      State %in% region_midwest   ~ "Midwest",
+      State %in% region_west      ~ "West",
+      State %in% region_east      ~ "East",
+      State %in% region_southeast ~ "Southeast",
+      TRUE                        ~ "Other"
+    )
+  ) -> vol_avg
+
+# Build "From-To" USA to Regions
+
+## "From-To" Layer 1: US to regions
+i
+
+
+
+
+
+
+#  Descriptives: Stacked Bar Charts/Flow Diagrams: Most recent year --------------------------------------------------------
+
+
+
 
