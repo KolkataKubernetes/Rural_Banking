@@ -421,13 +421,59 @@ vol_wide |>
 
 # Build "From-To" USA to Regions
 
-## "From-To" Layer 1: US to regions
-i
+## "From-To" Layer 1: USA to regions
+
+vol_avg |>
+  ungroup() |>
+  group_by(region) |>
+  summarise(
+    Country  = "USA",
+    total_vol = sum(mean_vol),
+    .groups = "drop"
+  ) |>
+  select(from = Country, to = region, value = total_vol) -> usa_regions
+
+## "From-To" Layer 2: Regions to states
+
+vol_avg |>
+  ungroup() |>
+  summarise(
+    from = region,
+    to = State,
+    value = mean_vol
+  ) -> regions_state
+
+## merge
+
+sankeydata <- rbind(usa_regions, regions_state)
+
+#mod: remove 'other' sub bullet
+sankeydata |>
+  filter(from != 'Other') -> sankeydata
+
+## Build Sankey
+
+# From these flows we need to create a node data frame: it lists every entities involved in the flow
+nodes <- data.frame(
+  name=c(as.character(sankeydata$from), 
+         as.character(sankeydata$to)) %>% unique()
+)
+
+# With networkD3, connection must be provided using id, not using real name like in the links dataframe.. So we need to reformat it.
+sankeydata$IDfrom <- match(sankeydata$from, nodes$name)-1 
+sankeydata$IDto <- match(sankeydata$to, nodes$name)-1
+
+# Make the Network
+library(networkD3)
+p <- sankeyNetwork(Links = sankeydata, Nodes = nodes,
+                   Source = "IDfrom", Target = "IDto",
+                   Value = "value", NodeID = "name", 
+                   sinksRight=FALSE)
+p
 
 
 
-
-
+library(networkD3)
 
 #  Descriptives: Stacked Bar Charts/Flow Diagrams: Most recent year --------------------------------------------------------
 
