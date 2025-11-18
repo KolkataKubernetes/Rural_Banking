@@ -4,7 +4,7 @@
 # Previous author:  -
 # Current author:   Inder Majumdar
 # Creation date:    October 25 2025
-# Last updated: October 26 2025
+# Last updated: November 17 2025
 # Description: 4A Data Ingest with Matching between Issuers and Offerings
 # API Information: https://github.com/matthewjrogers/dform, https://github.com/ruralinnovation/formd-interactive-map
 # Change log:
@@ -86,7 +86,7 @@ issuers |>
 zip_county_crosswalk |>
   group_by(ZIP) |>
   filter(BUS_RATIO == max(BUS_RATIO)) |> # Rule 1: Majority of business rule
-  filter(TOT_RATIO == max(TOT_RATIO)) -> x # Rule 2: Majority of total 
+  filter(TOT_RATIO == max(TOT_RATIO)) -> x # Rule 2, after rule 1: Majority of total 
 
 # 1) Normalize issuer ZIP and classify patterns
 
@@ -143,38 +143,112 @@ issuers_match |>
     )
   ) |> 
   ungroup() |>
-  select(-minyear_value, -fallback) -> temp
+  select(-minyear_value, -fallback) -> issuers_match
 
-  
-rm(temp)
-##################################
-# 4) Collapse Industry Specification
-##################################
 
+##################################
+# 4) join issuers_match and offerings
+##################################
+## It looks like industry group type is attached to offerings, not issuers.
+
+## For now I'll join and then concatenate industry group types
+
+issuers_match |>
+  filter(is_primaryissuer_flag == 'YES') -> issuers_match_primary
+
+issuers_offerings <- left_join(issuers_match_primary, offerings, by = c('accessionnumber', 'year', 'quarter'))
 
 ##################################
 # 5) Collapse Industry Specification
 ##################################
 
+# Ask about this later... Do I use CIK number?
+
 
 ##################################
-# 6) Join Issuers, Offerings Dataset
+# 6) Correct totalamountsold: Wrangling biz id, funding round
 ##################################
 
+summary(issuers_offerings$totalamountsold)
+
+issuers_offerings |>
+  mutate(cik = as.character(cik)) -> issuers_offerings
+
+  class(issuers_offerings$accessionnumber)
+  
+issuers_offerings |>
+  mutate(biz_id = case_when(
+    substr(accessionnumber,1,10) == cik ~ cik,
+    TRUE                               ~ paste0(as.character(cik), "_", substr(accessionnumber,1,10))
+                           )) -> issuers_offerings
+  
+  
+# Create funding round
+
+issuers_offerings <- issuers_offerings %>%
+  group_by(
+    biz_id,
+    sale_date,
+    isequitytype,
+    isdebttype,
+    ispooledinvestmentfundtype,
+    isbusinesscombinationtrans
+  ) %>%
+  # one row per (biz_id, combo) to rank
+  mutate(.round_key = dplyr::cur_group_id()) %>%
+  ungroup() %>%
+  group_by(biz_id) %>%
+  mutate(
+    funding_round_id = dplyr::dense_rank(.round_key)
+  ) %>%
+  ungroup() %>%
+  select(-.round_key)
 
 
 
+sort(table(issuers_offerings$funding_round_id), decreasing = TRUE)
+
+issuers_offerings |> 
+  filter(biz_id == "1557354_0000897069", funding_round_id == 1)
+  
+issuers_offerings |>
+  group_by(biz_id) |>
+  summarise(n_rounds = n_distinct(funding_round_id)) |>
+  arrange(desc(n_rounds)) |>
+  filter(n_rounds == 3)
+
+issuers_offerings |>
+  filter(biz_id == '1045390_0001441557') -> example
 
 
+##################################
+# 7) Correct totalamountsold: Calculating Increments
+##################################
+issuers_offerings <- issuers_offerings %>%
+  group_by(biz_id) %>%
+  arrange(accessionnumber, .by_group = TRUE) %>%
+  mutate(
+    incremental_amount = totalamountsold - lag(totalamountsold),
+    incremental_amount = if_else(
+      is.na(incremental_amount),     # first filing in each round
+      totalamountsold,               # take the whole value
+      incremental_amount             # the diff
+    )
+  ) %>%
+  ungroup()
 
+issuers_offerings |>
+  filter(biz_id == '1045390_0001441557') -> example
 
-
-
-
-
-
-
-
+issuers_offerings %>%
+  group_by(biz_id, funding_round_id) %>%
+  summarise(
+    filings   = n(),
+    total     = max(totalamountsold, na.rm = TRUE),
+    incr_sum  = sum(incremental_amount, na.rm = TRUE),
+    difference = total - incr_sum
+  ) %>%
+  arrange(desc(abs(difference)))
 
 
 
