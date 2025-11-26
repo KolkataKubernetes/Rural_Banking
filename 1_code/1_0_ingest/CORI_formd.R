@@ -47,7 +47,7 @@ options(HTTPUserAgent = "UW–Madison AAE (imajumdar@wisc.edu)")
 
 dfm <- dForm$new()
 
-data <- dfm$load_data(2020, quarter = c(1:4), remove_duplicates = TRUE, use_cache = TRUE)
+data <- dfm$load_data(2024, quarter = c(1:4), remove_duplicates = TRUE, use_cache = TRUE)
 
 ##################################
 # 1.b) LOADING EXCEL DEPENDENCIES
@@ -113,7 +113,6 @@ rm(x)
 
 # Two issues here. First: let's categorize the NA mismatches.
 
-
 # --------------------- # N.A. Analysis ---------------------
 
 # How many are unmatched, overall?
@@ -133,7 +132,7 @@ issuers_match |>
 issuers_match |>
   group_by(cik, entityname) |>
   mutate(
-    minyear_value = suppressWarnings(min(yearofinc_value_entered, na.rm = TRUE)), #min val excluding NA. Suprressing warnings since nonfinite issues handled below
+    minyear_value = suppressWarnings(min(yearofinc_value_entered, na.rm = TRUE)), #min val excluding NA. Supressing warnings since nonfinite issues handled below
     fallback = dplyr::first(na.omit(yearofinc_timespan_choice)), #get fallback text val
     #Apply CORI rule
     minyear = if_else(
@@ -162,11 +161,12 @@ issuers_offerings <- left_join(issuers_match_primary, offerings, by = c('accessi
 # 5) Collapse Industry Specification
 ##################################
 
-# Ask about this later... Do I use CIK number?
+# Ask about this later... Do I use CIK number on the issuers side? Or some other identifier o
 
+names(offerings)
 
 ##################################
-# 6) Correct totalamountsold: Wrangling biz id, funding round
+# 6) Correct totalamountsold: Wrangling biz id, funding round. Adjust for iterative rounds
 ##################################
 
 summary(issuers_offerings$totalamountsold)
@@ -176,12 +176,22 @@ issuers_offerings |>
 
   class(issuers_offerings$accessionnumber)
   
-issuers_offerings |>
-  mutate(biz_id = case_when(
-    substr(accessionnumber,1,10) == cik ~ cik,
-    TRUE                               ~ paste0(as.character(cik), "_", substr(accessionnumber,1,10))
-                           )) -> issuers_offerings
+# Create business ID
   
+  ## Old logic: I think the below is wrong
+  
+#issuers_offerings |>
+#  mutate(biz_id = case_when(
+#    substr(accessionnumber,1,10) == cik ~ cik, #Use CIK if match
+#    TRUE                               ~ paste0(as.character(cik), "_", substr(accessionnumber,1,10))
+#                           )) -> issuers_offerings
+
+## Use combination only:
+
+issuers_offerings |>
+  mutate(
+    biz_id = paste0(as.character(cik), "_", substr(accessionnumber, 1, 10))
+  ) -> issuers_offerings
   
 # Create funding round
 
@@ -208,24 +218,32 @@ issuers_offerings <- issuers_offerings %>%
 
 sort(table(issuers_offerings$funding_round_id), decreasing = TRUE)
 
-issuers_offerings |> 
-  filter(biz_id == "1557354_0000897069", funding_round_id == 1)
+
   
 issuers_offerings |>
   group_by(biz_id) |>
   summarise(n_rounds = n_distinct(funding_round_id)) |>
   arrange(desc(n_rounds)) |>
-  filter(n_rounds == 3)
+  filter(n_rounds > 2) |>
+  arrange(n_rounds)
+
+head(issuers_offerings$biz_id)
 
 issuers_offerings |>
-  filter(biz_id == '1045390_0001441557') -> example
+  filter(biz_id == '1092289_0001092289') |>
+  arrange(accessionnumber) -> example
+
+issuers_offerings |>
+  filter(biz_id == '1080429_0001104659') |>
+  arrange(accessionnumber) -> example
+
 
 
 ##################################
 # 7) Correct totalamountsold: Calculating Increments
 ##################################
 issuers_offerings <- issuers_offerings %>%
-  group_by(biz_id) %>%
+  group_by(biz_id, funding_round_id) %>%
   arrange(accessionnumber, .by_group = TRUE) %>%
   mutate(
     incremental_amount = totalamountsold - lag(totalamountsold),
@@ -237,18 +255,28 @@ issuers_offerings <- issuers_offerings %>%
   ) %>%
   ungroup()
 
+# issuers_offerings %>%
+#   group_by(biz_id, funding_round_id) %>%
+#   summarise(
+#     filings   = n(),
+#     total     = max(totalamountsold, na.rm = TRUE),
+#     incr_sum  = sum(incremental_amount, na.rm = TRUE),
+#     difference = total - incr_sum
+#   ) %>%
+#   arrange(desc(abs(difference)))
+
+# Check for less than 0 values
+
 issuers_offerings |>
-  filter(biz_id == '1045390_0001441557') -> example
+  filter(incremental_amount < 0) -> temp
 
-issuers_offerings %>%
-  group_by(biz_id, funding_round_id) %>%
-  summarise(
-    filings   = n(),
-    total     = max(totalamountsold, na.rm = TRUE),
-    incr_sum  = sum(incremental_amount, na.rm = TRUE),
-    difference = total - incr_sum
-  ) %>%
-  arrange(desc(abs(difference)))
+head(temp$biz_id)
 
+table(temp$stateorcountry)
+
+issuers_offerings |>
+  filter(!(incremental_amount <0)) -> export
+
+write.csv(export, '/Volumes/aae/users/imajumdar/Rural_Banking/1_processed_data/formd_2024.csv')
 
 
