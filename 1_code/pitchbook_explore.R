@@ -18,7 +18,7 @@ library(plotly)
 
 # set filepath
 path <- "/Users/indermajumdar/Downloads"
-
+ 
 countdir <- file.path(path, "Pitchbook_dealcount.xlsx")
 voldir   <- file.path(path, "Pitchbook_dealvol.xlsx")
 
@@ -97,7 +97,8 @@ count_ts_data <- count_iqr |>
       transmute(year, dealcount_wi = count),
     by = "year"
   ) |>
-  mutate(year = as.numeric(year))
+  mutate(year = as.numeric(year)) |>
+  mutate(wi_percent = dealcount_wi/dealcount_national) # add WI percent
 
 vol_ts_data <- vol_iqr |>
   left_join(
@@ -113,7 +114,8 @@ vol_ts_data <- vol_iqr |>
       transmute(year, dealvol_wi = count),
     by = "year"
   ) |>
-  mutate(year = as.numeric(year))
+  mutate(year = as.numeric(year)) |>
+  mutate(wi_percent = dealvol_wi/dealvol_national) # Add WI percent
 
 # 4) plot: COUNT with IQR ribbon
 count_ts <- ggplot(count_ts_data, aes(x = year)) +
@@ -130,6 +132,63 @@ count_ts <- ggplot(count_ts_data, aes(x = year)) +
     x = "Year",
     y = "Dealcount",
     caption = "Source: Pitchbook Venture Capital Monitor Q3 2025. National average excludes California."
+  ) +
+  theme_im()
+
+# 4 b): Barplot of dealcount over time: Per Tessa's feedback
+
+count_ts_data |>
+  select(year, dealcount_national, dealcount_wi, wi_percent) |>
+  ggplot(aes(x = factor(year))) +
+  geom_col(aes(y = dealcount_national, fill = "National avg."),
+           position = position_dodge(width = 0.7), width = 0.65) +
+  geom_col(aes(y = dealcount_wi, fill = "Wisconsin"),
+           position = position_dodge(width = 0.7), width = 0.65) +
+  geom_text(
+    aes(
+      y     = dealcount_wi,
+      label = scales::percent(wi_percent, accuracy = 0.1)
+    ),
+    position = position_dodge(width = 0.7),
+    vjust = -0.6,
+    size = 3
+  ) +
+  scale_fill_manual(values = c("Wisconsin" = "#c5050c", "National avg." = "grey60")) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    title = "Venture Capital Deal Count: Wisconsin vs National Average",
+    subtitle = "2015-2024",
+    x = "Year",
+    y = "Number of deals",
+    fill = NULL,
+    caption = "Source: Pitchbook Venture Capital Monitor Q3 2025."
+  ) +
+  theme_im()
+
+
+
+count_ts_data |>
+  select(year, dealcount_national, dealcount_wi) |>
+  pivot_longer(
+    cols = c(dealcount_national, dealcount_wi),
+      names_to = "series",
+      values_to = "dealcount"
+  ) |>
+  mutate(series = recode(series,
+                         "dealcount_national" = "National avg.",
+                         "dealcount_wi" = "Wisconsin")
+         ) |>
+  ggplot(aes(x = factor(year), y = dealcount, fill = series)) +
+  geom_col(position = position_dodge(width = 0.7), width = 0.65) +
+  scale_fill_manual(values = c("Wisconsin" = "#c5050c", "National avg." = "grey60")) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    title = "Venture Capital Deal Count: Wisconsin vs National Average",
+    subtitle = "2015-2024",
+    x = "Year",
+    y = "Number of deals",
+    fill = NULL,
+    caption = "Source: Pitchbook Venture Capital Monitor Q3 2025."
   ) +
   theme_im()
 
@@ -150,6 +209,64 @@ vol_ts <- ggplot(vol_ts_data, aes(x = year)) +
     caption = "Source: Pitchbook Venture Capital Monitor Q3 2025. National average excludes California."
   ) +
   theme_im()
+
+# 5 b) plot: Volume bar plot
+
+vol_ts_data |>
+  select(year, dealvol_national, dealvol_wi, wi_percent) |>
+  ggplot(aes(x = factor(year))) +
+  geom_col(aes(y = dealvol_national, fill = "National avg."),
+           position = position_dodge(width = 0.7), width = 0.65) +
+  geom_col(aes(y = dealvol_wi, fill = "Wisconsin"),
+           position = position_dodge(width = 0.7), width = 0.65) +
+  geom_text(
+    aes(
+      y     = dealvol_wi,
+      label = scales::percent(wi_percent, accuracy = 0.1)
+    ),
+    position = position_dodge(width = 0.7),
+    vjust = -0.6,
+    size = 3
+  ) +
+  scale_fill_manual(values = c("Wisconsin" = "#c5050c", "National avg." = "grey60")) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    title = "Venture Capital Capital Committed: Wisconsin vs National Average",
+    subtitle = "2015-2024",
+    x = "Year",
+    y = "Number of deals",
+    fill = NULL,
+    caption = "Source: Pitchbook Venture Capital Monitor Q3 2025."
+  ) +
+  theme_im()
+
+
+
+vol_ts_data |>
+  select(year, dealvol_national, dealvol_wi) |>
+  pivot_longer(
+    cols = c(dealvol_national, dealvol_wi),
+    names_to = "series",
+    values_to = "dealvol"
+  ) |>
+  mutate(series = recode(series,
+                         "dealvol_national" = "National avg.",
+                         "dealvol_wi" = "Wisconsin")
+  ) |>
+  ggplot(aes(x = factor(year), y = dealvol, fill = series)) +
+  geom_col(position = position_dodge(width = 0.7), width = 0.65) +
+  scale_fill_manual(values = c("Wisconsin" = "#c5050c", "National avg." = "grey60")) +
+  scale_y_continuous(labels = label_comma()) + 
+  labs(
+    title = "Venture Capital Capital Committed: Wisconsin vs National Average",
+    subtitle = "2015-2024",
+    x = "Year",
+    y = "USD (million)",
+    fill = NULL,
+    caption = "Source: Pitchbook Venture Capital Monitor Q3 2025. National average excludes California."
+  ) +
+  theme_im()
+
 
 rm(vol_iqr, count_iqr)
 
@@ -352,6 +469,56 @@ p_map_change <- ggplot(map_change, aes(long, lat, group = group, fill = percent_
     )
   )
 
+# Map: 2024 levels --------------------------------------
+
+vol_2024 <- vol_wide |>
+  filter(year %in% c("2024")) |>
+  filter(!(State %in% c('California','Massachusetts', 'New York'))) |>
+  pivot_wider(names_from = year, values_from = count) |>
+  rename(total = '2024')
+    
+
+map_df <- map_data("state") |>
+  mutate(State = str_to_title(region))
+
+map_level <- map_df |>
+  left_join(vol_2024, by = "State")
+
+p_map_level <- ggplot(map_level, aes(long, lat, group = group, fill = total)) +
+  geom_polygon(color = "grey50", linewidth = 0.25) +
+  coord_fixed(1.3) +
+  scale_fill_gradient2(
+    low = "#b2182b",
+    mid = "white",
+    high = "#2166ac",
+    midpoint = 0,
+    labels = percent_format(accuracy = 1),
+    na.value = "grey90",
+    name = "2024 deal volumes",
+    limits = c(min(map_level$total, na.rm = TRUE),
+               max(map_level$total, na.rm = TRUE))
+  ) +
+  labs(
+    title = "VC capital committed, 2024",
+    subtitle = "VC capital committed, by receiver HQ state",
+    caption = "Source: Pitchbook Venture Capital Monitor Q3 2025. States with no 2015 value shown in grey. California omitted."
+  ) +
+  theme_im() +
+  theme(
+    axis.title = element_blank(),
+    axis.text  = element_blank(),
+    axis.ticks = element_blank(),
+    legend.position = "right",
+    legend.title = element_text(lineheight = 1.1)
+  ) +
+  guides(
+    fill = guide_colorbar(
+      barheight = unit(4.5, "cm"),
+      barwidth  = unit(0.45, "cm")
+    )
+  )
+
+p_map_level
 # ---------------------------------------------------------------
 # Regions + Sankey-style flows
 # ---------------------------------------------------------------
@@ -865,6 +1032,7 @@ htmlwidgets::saveWidget(p_sankey_10yr, "vc_sankey_10yr_vol.html", selfcontained 
      legend.position = "none",
      axis.text.x = element_text(face = "bold")
    )
+ 
  
  
  

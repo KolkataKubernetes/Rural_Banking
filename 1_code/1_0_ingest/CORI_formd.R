@@ -255,6 +255,21 @@ issuers_offerings <- issuers_offerings %>%
   ) %>%
   ungroup()
 
+issuers_offerings |>
+  filter(accessionnumber == '0001976866-23-000008') -> x
+
+issuers_offerings %>%
+  filter(accessionnumber %in% c("0001976866-23-000008", "0001757557-24-000008")) %>%
+  select(
+    accessionnumber,
+    biz_id,
+    funding_round_id,
+    sale_date,
+    totalamountsold,
+    incremental_amount
+  ) %>%
+  arrange(accessionnumber)
+
 # issuers_offerings %>%
 #   group_by(biz_id, funding_round_id) %>%
 #   summarise(
