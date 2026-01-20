@@ -2,3 +2,9 @@
 .Rhistory
 .RData
 .Ruserdata
+.DS_Store
+1_code/.DS_Store
+0_inputs/CORI
+0_inputs/Pitchbook
+0_inputs/SBA
+agent-docs/agent_context/docs
