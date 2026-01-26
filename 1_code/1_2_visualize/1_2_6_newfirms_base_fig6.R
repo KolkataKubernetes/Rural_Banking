@@ -1,8 +1,60 @@
+#///////////////////////////////////////////////////////////////////////////////
+#----            Figure 6: Age 0 Business Births (Raw)                   ----
+# File name:  1_2_6_newfirms_base_fig6.R
+# Author:     Codex (based on Inder Majumdar's workflow)
+# Created:    2026-01-26
+# Purpose:    Plot raw age-0 business births per average state.
+#///////////////////////////////////////////////////////////////////////////////
+
+# -----------------------------
+# 0) Setup and configuration
+# -----------------------------
+
+suppressPackageStartupMessages({
+  library(tidyverse)
+})
+
+output_dir <- "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/test_figures"
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir, recursive = TRUE)
+}
+
+# --- Minimal, clean theme
+theme_im <- function(base_size = 12) {
+  theme_minimal(base_size = base_size) +
+    theme(
+      plot.title.position = "plot",
+      plot.caption.position = "plot",
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_line(linewidth = 0.3),
+      panel.grid.major.y = element_line(linewidth = 0.3),
+      legend.position = "top",
+      legend.title = element_text(face = "bold"),
+      plot.title = element_text(face = "bold"),
+      axis.title = element_text(face = "bold")
+    )
+}
+
+# --- Helper to save with consistent spec
+save_fig <- function(p, filename, w = 7, h = 4.2, dpi = 320) {
+  ggsave(filename, p, width = w, height = h, dpi = dpi, bg = "white")
+}
+
+# -----------------------------
+# 1) Load intermediate data
+# -----------------------------
+
+grp_all <- readRDS(file.path("2_processed_data", "grp_all.rds"))
+
+# -----------------------------
+# 2) Plot
+# -----------------------------
+
 grp_all |>
   select(year, firmcount, group, pct_of_nat) |>
   mutate(
     series = factor(
-      group, 
+      group,
       levels = c(
         "National avg.",
         "National avg. (excl. CA, MA, NY)",
@@ -13,15 +65,15 @@ grp_all |>
   ) |>
   ggplot(aes(x = factor(year), y = firmcount, fill = series)) +
   geom_col(position = position_dodge(width = 0.75), width = 0.65) +
-  # ONE text layer, all series; only label WI + non-outlier
   geom_text(
     aes(
       label = dplyr::case_when(
         series == "Wisconsin" ~ scales::percent(pct_of_nat, accuracy = 1.0),
         series == "Midwest avg. (excl. WI)" ~ scales::percent(pct_of_nat, accuracy = 1.0),
         series == "National avg. (excl. CA, MA, NY)" ~ scales::percent(pct_of_nat, accuracy = 1.0),
-        TRUE ~ NA_character_ # no label for plain national avg.
-      )),
+        TRUE ~ NA_character_
+      )
+    ),
     position = position_dodge(width = 0.75),
     vjust = -0.6,
     size = 3,
@@ -45,5 +97,9 @@ grp_all |>
   ) +
   theme_im() -> new_firms_base
 
-
-save_fig(p = new_firms_base, filename = '/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/figures/6_new_firms_base.jpeg', w = 16.5, h = 5.5)
+save_fig(
+  p = new_firms_base,
+  filename = file.path(output_dir, "6_new_firms_base.jpeg"),
+  w = 16.5,
+  h = 5.5
+)

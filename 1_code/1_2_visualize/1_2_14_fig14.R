@@ -1,85 +1,55 @@
-#--------------------------------------------------
-# Figure 14: Form D deal size per average state (rural)
-#--------------------------------------------------
+#///////////////////////////////////////////////////////////////////////////////
+#----             Figure 14: Form D Deal Size (Rural)                      ----
+# File name:  1_2_14_fig14.R
+# Author:     Codex (based on Inder Majumdar's workflow)
+# Created:    2026-01-26
+# Purpose:    Plot Form D deal size per average rural state.
+#///////////////////////////////////////////////////////////////////////////////
 
-# 14.1  State-level rural deal size
-rural_base <- formd_complete |>
-  filter(rucc_grp == "rural") |>
-  group_by(year, st) |>
-  summarise(
-    incremental_dollars = sum(incremental_dollars, na.rm = TRUE),
-    dealcount           = sum(dealcount,           na.rm = TRUE),
-    .groups             = "drop"
-  ) |>
-  mutate(
-    dealsize = ifelse(dealcount > 0,
-                      incremental_dollars / dealcount,
-                      NA_real_)
-  )
+# -----------------------------
+# 0) Setup and configuration
+# -----------------------------
 
-# 14.2  Average-state values for the 4 regions
+suppressPackageStartupMessages({
+  library(tidyverse)
+  library(scales)
+})
 
-rural_nat <- rural_base |>
-  group_by(year) |>
-  summarise(
-    value = mean(dealsize, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  mutate(series = "National avg.")
+output_dir <- "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/test_figures"
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir, recursive = TRUE)
+}
 
-rural_nat_excl <- rural_base |>
-  filter(!st %in% big3) |>
-  group_by(year) |>
-  summarise(
-    value = mean(dealsize, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  mutate(series = "National avg. (excl. CA, MA, NY)")
-
-rural_midwest <- rural_base |>
-  filter(st %in% midwest_excl_wi) |>
-  group_by(year) |>
-  summarise(
-    value = mean(dealsize, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  mutate(series = "Midwest avg. (excl. WI)")
-
-rural_wi <- rural_base |>
-  filter(st == wi_fips) |>
-  group_by(year) |>
-  summarise(
-    value = mean(dealsize, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  mutate(series = "Wisconsin")
-
-rural_all <- bind_rows(rural_nat, rural_nat_excl, rural_midwest, rural_wi)
-
-# 14.3  Percent of national average
-
-rural_all <- rural_all |>
-  mutate(
-    series = factor(
-      series,
-      levels = c(
-        "National avg.",
-        "National avg. (excl. CA, MA, NY)",
-        "Midwest avg. (excl. WI)",
-        "Wisconsin"
-      )
+# --- Minimal, clean theme
+theme_im <- function(base_size = 12) {
+  theme_minimal(base_size = base_size) +
+    theme(
+      plot.title.position = "plot",
+      plot.caption.position = "plot",
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_line(linewidth = 0.3),
+      panel.grid.major.y = element_line(linewidth = 0.3),
+      legend.position = "top",
+      legend.title = element_text(face = "bold"),
+      plot.title = element_text(face = "bold"),
+      axis.title = element_text(face = "bold")
     )
-  )
+}
 
-rural_nat_ref <- rural_all |>
-  filter(series == "National avg.") |>
-  select(year, nat_value = value)
+# --- Helper to save with consistent spec
+save_fig <- function(p, filename, w = 7, h = 4.2, dpi = 320) {
+  ggsave(filename, p, width = w, height = h, dpi = dpi, bg = "white")
+}
 
-rural_all <- rural_all |>
-  left_join(rural_nat_ref, by = "year") |>
-  mutate(pct_of_nat = value / nat_value)
+# -----------------------------
+# 1) Load intermediate data
+# -----------------------------
 
-# 14.4  Plot
+rural_all <- readRDS(file.path("2_processed_data", "rural_all.rds"))
+
+# -----------------------------
+# 2) Plot
+# -----------------------------
 
 vc_formd_dealsize_rural <- rural_all |>
   ggplot(aes(x = factor(year), y = value, fill = series)) +
@@ -115,11 +85,9 @@ vc_formd_dealsize_rural <- rural_all |>
   ) +
   theme_im()
 
-vc_formd_dealsize_rural
-
 save_fig(
   p        = vc_formd_dealsize_rural,
-  filename = "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/figures/14_formD_dealsize_rural.jpeg",
+  filename = file.path(output_dir, "14_formD_dealsize_rural.jpeg"),
   w        = 16.5,
   h        = 5.5
 )

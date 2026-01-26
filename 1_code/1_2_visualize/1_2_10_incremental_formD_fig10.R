@@ -1,10 +1,70 @@
+#///////////////////////////////////////////////////////////////////////////////
+#----      Figure 10: Incremental Form D Capital by Region and RUCC        ----
+# File name:  1_2_10_incremental_formD_fig10.R
+# Author:     Codex (based on Inder Majumdar's workflow)
+# Created:    2026-01-26
+# Purpose:    Plot incremental Form D capital per average state by region.
+#///////////////////////////////////////////////////////////////////////////////
+
+# -----------------------------
+# 0) Setup and configuration
+# -----------------------------
+
+suppressPackageStartupMessages({
+  library(tidyverse)
+  library(scales)
+})
+
+output_dir <- "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/test_figures"
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir, recursive = TRUE)
+}
+
+# --- Minimal, clean theme
+theme_im <- function(base_size = 12) {
+  theme_minimal(base_size = base_size) +
+    theme(
+      plot.title.position = "plot",
+      plot.caption.position = "plot",
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_line(linewidth = 0.3),
+      panel.grid.major.y = element_line(linewidth = 0.3),
+      legend.position = "top",
+      legend.title = element_text(face = "bold"),
+      plot.title = element_text(face = "bold"),
+      axis.title = element_text(face = "bold")
+    )
+}
+
+# --- Helper to save with consistent spec
+save_fig <- function(p, filename, w = 7, h = 4.2, dpi = 320) {
+  ggsave(filename, p, width = w, height = h, dpi = dpi, bg = "white")
+}
+
+# -----------------------------
+# 1) Load intermediate data
+# -----------------------------
+
+vol_all <- readRDS(file.path("2_processed_data", "vol_all.rds"))
+
+# -----------------------------
+# 2) Plot
+# -----------------------------
+
+label_df <- vol_all |>
+  group_by(year, year_idx, series, x_pos, pct_of_nat) |>
+  summarise(total_value = sum(value, na.rm = TRUE), .groups = "drop")
+
+x_breaks <- unique(vol_all$year_idx)
+x_labels <- as.character(sort(unique(vol_all$year)))
+
 vc_formd_vol <- ggplot(
   vol_all,
   aes(
     x       = x_pos,
     y       = value,
-    fill    = series,      # region colors
-    pattern = rucc_grp     # metro vs rural as pattern
+    fill    = series,
+    pattern = rucc_grp
   )
 ) +
   ggpattern::geom_col_pattern(
@@ -13,7 +73,6 @@ vc_formd_vol <- ggplot(
     pattern_spacing = 0.02,
     pattern_colour  = "black"
   ) +
-  # Percent-of-national label on top of each region bar
   geom_text(
     data = label_df,
     mapping = aes(
@@ -34,7 +93,6 @@ vc_formd_vol <- ggplot(
     breaks = x_breaks,
     labels = x_labels
   ) +
-  # --- region colors: same code as your previous items
   scale_fill_manual(
     values = c(
       "National avg."                    = "black",
@@ -44,8 +102,7 @@ vc_formd_vol <- ggplot(
     ),
     name = NULL
   ) +
-  # --- RUCC patterns: metro solid, rural striped
-  scale_pattern_manual(
+  ggpattern::scale_pattern_manual(
     values = c(
       "metro/metro-adjacent" = "none",
       "rural"                = "stripe"
@@ -63,11 +120,9 @@ vc_formd_vol <- ggplot(
   theme_im() +
   theme(legend.position = "bottom")
 
-vc_formd_vol
-
 save_fig(
   p        = vc_formd_vol,
-  filename = "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/figures/10_incremental_formD_time.jpeg",
+  filename = file.path(output_dir, "10_incremental_formD_time.jpeg"),
   w        = 16.5,
   h        = 5.5
 )

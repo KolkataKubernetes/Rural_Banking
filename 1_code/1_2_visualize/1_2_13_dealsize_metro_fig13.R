@@ -1,85 +1,55 @@
-#--------------------------------------------------
-# Figure 13: Form D deal size per average state (metro / metro-adjacent)
-#--------------------------------------------------
+#///////////////////////////////////////////////////////////////////////////////
+#----     Figure 13: Form D Deal Size (Metro/Metro-Adjacent)               ----
+# File name:  1_2_13_dealsize_metro_fig13.R
+# Author:     Codex (based on Inder Majumdar's workflow)
+# Created:    2026-01-26
+# Purpose:    Plot Form D deal size per average metro/adjacent state.
+#///////////////////////////////////////////////////////////////////////////////
 
-# 13.1  State-level metro deal size
-metro_base <- formd_complete |>
-  filter(rucc_grp == "metro/metro-adjacent") |>
-  group_by(year, st) |>
-  summarise(
-    incremental_dollars = sum(incremental_dollars, na.rm = TRUE),
-    dealcount           = sum(dealcount,           na.rm = TRUE),
-    .groups             = "drop"
-  ) |>
-  mutate(
-    dealsize = ifelse(dealcount > 0,
-                      incremental_dollars / dealcount,
-                      NA_real_)
-  )
+# -----------------------------
+# 0) Setup and configuration
+# -----------------------------
 
-# 13.2  Average-state values for the 4 regions
+suppressPackageStartupMessages({
+  library(tidyverse)
+  library(scales)
+})
 
-metro_nat <- metro_base |>
-  group_by(year) |>
-  summarise(
-    value = mean(dealsize, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  mutate(series = "National avg.")
+output_dir <- "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/test_figures"
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir, recursive = TRUE)
+}
 
-metro_nat_excl <- metro_base |>
-  filter(!st %in% big3) |>
-  group_by(year) |>
-  summarise(
-    value = mean(dealsize, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  mutate(series = "National avg. (excl. CA, MA, NY)")
-
-metro_midwest <- metro_base |>
-  filter(st %in% midwest_excl_wi) |>
-  group_by(year) |>
-  summarise(
-    value = mean(dealsize, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  mutate(series = "Midwest avg. (excl. WI)")
-
-metro_wi <- metro_base |>
-  filter(st == wi_fips) |>
-  group_by(year) |>
-  summarise(
-    value = mean(dealsize, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  mutate(series = "Wisconsin")
-
-metro_all <- bind_rows(metro_nat, metro_nat_excl, metro_midwest, metro_wi)
-
-# 13.3  Percent of national average
-
-metro_all <- metro_all |>
-  mutate(
-    series = factor(
-      series,
-      levels = c(
-        "National avg.",
-        "National avg. (excl. CA, MA, NY)",
-        "Midwest avg. (excl. WI)",
-        "Wisconsin"
-      )
+# --- Minimal, clean theme
+theme_im <- function(base_size = 12) {
+  theme_minimal(base_size = base_size) +
+    theme(
+      plot.title.position = "plot",
+      plot.caption.position = "plot",
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_line(linewidth = 0.3),
+      panel.grid.major.y = element_line(linewidth = 0.3),
+      legend.position = "top",
+      legend.title = element_text(face = "bold"),
+      plot.title = element_text(face = "bold"),
+      axis.title = element_text(face = "bold")
     )
-  )
+}
 
-metro_nat_ref <- metro_all |>
-  filter(series == "National avg.") |>
-  select(year, nat_value = value)
+# --- Helper to save with consistent spec
+save_fig <- function(p, filename, w = 7, h = 4.2, dpi = 320) {
+  ggsave(filename, p, width = w, height = h, dpi = dpi, bg = "white")
+}
 
-metro_all <- metro_all |>
-  left_join(metro_nat_ref, by = "year") |>
-  mutate(pct_of_nat = value / nat_value)
+# -----------------------------
+# 1) Load intermediate data
+# -----------------------------
 
-# 13.4  Plot
+metro_all <- readRDS(file.path("2_processed_data", "metro_all.rds"))
+
+# -----------------------------
+# 2) Plot
+# -----------------------------
 
 vc_formd_dealsize_metro <- metro_all |>
   ggplot(aes(x = factor(year), y = value, fill = series)) +
@@ -115,11 +85,9 @@ vc_formd_dealsize_metro <- metro_all |>
   ) +
   theme_im()
 
-vc_formd_dealsize_metro
-
 save_fig(
   p        = vc_formd_dealsize_metro,
-  filename = "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/figures/13_formD_dealsize_metro.jpeg",
+  filename = file.path(output_dir, "13_formD_dealsize_metro.jpeg"),
   w        = 16.5,
   h        = 5.5
 )

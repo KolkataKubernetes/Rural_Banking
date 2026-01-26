@@ -1,3 +1,63 @@
+#///////////////////////////////////////////////////////////////////////////////
+#----     Figure 11: Incremental Form D Capital per 100k Labor Force       ----
+# File name:  1_2_11_incremental_formD_perlf_fig11.R
+# Author:     Codex (based on Inder Majumdar's workflow)
+# Created:    2026-01-26
+# Purpose:    Plot labor-force-adjusted Form D capital by region and RUCC.
+#///////////////////////////////////////////////////////////////////////////////
+
+# -----------------------------
+# 0) Setup and configuration
+# -----------------------------
+
+suppressPackageStartupMessages({
+  library(tidyverse)
+  library(scales)
+})
+
+output_dir <- "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/test_figures"
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir, recursive = TRUE)
+}
+
+# --- Minimal, clean theme
+theme_im <- function(base_size = 12) {
+  theme_minimal(base_size = base_size) +
+    theme(
+      plot.title.position = "plot",
+      plot.caption.position = "plot",
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_line(linewidth = 0.3),
+      panel.grid.major.y = element_line(linewidth = 0.3),
+      legend.position = "top",
+      legend.title = element_text(face = "bold"),
+      plot.title = element_text(face = "bold"),
+      axis.title = element_text(face = "bold")
+    )
+}
+
+# --- Helper to save with consistent spec
+save_fig <- function(p, filename, w = 7, h = 4.2, dpi = 320) {
+  ggsave(filename, p, width = w, height = h, dpi = dpi, bg = "white")
+}
+
+# -----------------------------
+# 1) Load intermediate data
+# -----------------------------
+
+adj_all <- readRDS(file.path("2_processed_data", "adj_all.rds"))
+
+# -----------------------------
+# 2) Plot
+# -----------------------------
+
+adj_label_df <- adj_all |>
+  group_by(year, year_idx, series, x_pos, pct_of_nat) |>
+  summarise(total_value = sum(value, na.rm = TRUE), .groups = "drop")
+
+adj_x_breaks <- unique(adj_all$year_idx)
+adj_x_labels <- as.character(sort(unique(adj_all$year)))
+
 vc_formd_vol_adj <- ggplot(
   adj_all,
   aes(
@@ -42,7 +102,7 @@ vc_formd_vol_adj <- ggplot(
     ),
     name = NULL
   ) +
-  scale_pattern_manual(
+  ggpattern::scale_pattern_manual(
     values = c(
       "metro/metro-adjacent" = "none",
       "rural"                = "stripe"
@@ -60,11 +120,9 @@ vc_formd_vol_adj <- ggplot(
   theme_im() +
   theme(legend.position = "bottom")
 
-vc_formd_vol_adj
-
 save_fig(
   p        = vc_formd_vol_adj,
-  filename = "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/figures/11_incremental_formD_per_lf_time.jpeg",
+  filename = file.path(output_dir, "11_incremental_formD_per_lf_time.jpeg"),
   w        = 16.5,
   h        = 5.5
 )

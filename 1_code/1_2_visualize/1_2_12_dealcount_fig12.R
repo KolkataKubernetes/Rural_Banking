@@ -1,85 +1,62 @@
+#///////////////////////////////////////////////////////////////////////////////
+#----         Figure 12: Form D Deal Count by Region and RUCC             ----
+# File name:  1_2_12_dealcount_fig12.R
+# Author:     Codex (based on Inder Majumdar's workflow)
+# Created:    2026-01-26
+# Purpose:    Plot Form D deal counts per average state by region.
+#///////////////////////////////////////////////////////////////////////////////
 
-# 3B. Construct the 4-group average-state values for dealcount
+# -----------------------------
+# 0) Setup and configuration
+# -----------------------------
 
-cnt_nat <- formd_complete |>
-  group_by(year, rucc_grp) |>
-  summarise(value = mean(dealcount, na.rm = TRUE), .groups = "drop") |>
-  mutate(group = "National avg.")
+suppressPackageStartupMessages({
+  library(tidyverse)
+  library(scales)
+})
 
-cnt_nat_excl <- formd_complete |>
-  filter(!st %in% big3) |>
-  group_by(year, rucc_grp) |>
-  summarise(value = mean(dealcount, na.rm = TRUE), .groups = "drop") |>
-  mutate(group = "National avg. (excl. CA, MA, NY)")
+output_dir <- "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/test_figures"
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir, recursive = TRUE)
+}
 
-cnt_midwest <- formd_complete |>
-  filter(st %in% midwest_excl_wi) |>
-  group_by(year, rucc_grp) |>
-  summarise(value = mean(dealcount, na.rm = TRUE), .groups = "drop") |>
-  mutate(group = "Midwest avg. (excl. WI)")
+# --- Minimal, clean theme
+theme_im <- function(base_size = 12) {
+  theme_minimal(base_size = base_size) +
+    theme(
+      plot.title.position = "plot",
+      plot.caption.position = "plot",
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_line(linewidth = 0.3),
+      panel.grid.major.y = element_line(linewidth = 0.3),
+      legend.position = "top",
+      legend.title = element_text(face = "bold"),
+      plot.title = element_text(face = "bold"),
+      axis.title = element_text(face = "bold")
+    )
+}
 
-cnt_wi <- formd_complete |>
-  filter(st == wi_fips) |>
-  group_by(year, rucc_grp) |>
-  summarise(value = mean(dealcount, na.rm = TRUE), .groups = "drop") |>
-  mutate(group = "Wisconsin")
+# --- Helper to save with consistent spec
+save_fig <- function(p, filename, w = 7, h = 4.2, dpi = 320) {
+  ggsave(filename, p, width = w, height = h, dpi = dpi, bg = "white")
+}
 
-cnt_all <- bind_rows(cnt_nat, cnt_nat_excl, cnt_midwest, cnt_wi)
+# -----------------------------
+# 1) Load intermediate data
+# -----------------------------
 
-# 4B. Percent of national average (sum over RUCC)
+cnt_all <- readRDS(file.path("2_processed_data", "cnt_all.rds"))
 
-series_levels <- c(
-  "National avg.",
-  "National avg. (excl. CA, MA, NY)",
-  "Midwest avg. (excl. WI)",
-  "Wisconsin"
-)
-
-cnt_all <- cnt_all |>
-  mutate(
-    series = factor(group, levels = series_levels)
-  )
-
-cnt_totals <- cnt_all |>
-  group_by(year, series) |>
-  summarise(
-    region_total = sum(value, na.rm = TRUE),
-    .groups      = "drop"
-  )
-
-cnt_nat_totals <- cnt_totals |>
-  filter(series == "National avg.") |>
-  rename(nat_total = region_total) |>
-  select(year, nat_total)
-
-cnt_all <- cnt_all |>
-  left_join(cnt_totals,     by = c("year", "series")) |>
-  left_join(cnt_nat_totals, by = "year") |>
-  mutate(pct_of_nat = region_total / nat_total)
-
-# 5B. Manual x-positions
-
-cnt_years <- sort(unique(cnt_all$year))
-cnt_year_index <- setNames(seq_along(cnt_years), cnt_years)
-
-cnt_all <- cnt_all |>
-  mutate(
-    year_idx   = cnt_year_index[as.character(year)],
-    series_idx = as.numeric(series),
-    x_pos      = year_idx + (series_idx - 2.5) * 0.18
-  )
+# -----------------------------
+# 2) Plot
+# -----------------------------
 
 cnt_label_df <- cnt_all |>
   group_by(year, year_idx, series, x_pos, pct_of_nat) |>
-  summarise(
-    total_value = sum(value, na.rm = TRUE),
-    .groups     = "drop"
-  )
+  summarise(total_value = sum(value, na.rm = TRUE), .groups = "drop")
 
 cnt_x_breaks <- unique(cnt_all$year_idx)
-cnt_x_labels <- names(cnt_year_index)[match(cnt_x_breaks, cnt_year_index)]
-
-# 6B. Plot: deal count
+cnt_x_labels <- as.character(sort(unique(cnt_all$year)))
 
 vc_formd_dealcount <- ggplot(
   cnt_all,
@@ -125,7 +102,7 @@ vc_formd_dealcount <- ggplot(
     ),
     name = NULL
   ) +
-  scale_pattern_manual(
+  ggpattern::scale_pattern_manual(
     values = c(
       "metro/metro-adjacent" = "none",
       "rural"                = "stripe"
@@ -143,11 +120,9 @@ vc_formd_dealcount <- ggplot(
   theme_im() +
   theme(legend.position = "bottom")
 
-vc_formd_dealcount
-
 save_fig(
   p        = vc_formd_dealcount,
-  filename = "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/figures/12_formD_dealcount_time.jpeg",
+  filename = file.path(output_dir, "12_formD_dealcount_time.jpeg"),
   w        = 16.5,
   h        = 5.5
 )
