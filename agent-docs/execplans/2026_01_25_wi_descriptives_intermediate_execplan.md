@@ -15,16 +15,18 @@ After this change, a user can run one R script to generate intermediate `.rds` d
 
 - [x] (2026-01-25 00:00Z) Reviewed `agent-docs/agent_context/2026_1_25_intermediate_output.md`, `agent-docs/ExecPlan_TEMPLATE.md`, and `agent-docs/PLANS.md` to scope requirements.
 - [x] (2026-01-25 00:00Z) Reviewed `1_code/legacy/WI_report_descriptives.R` and `1_code/1_2_visualize` to enumerate the transformations and plotting dependencies.
-- [ ] Draft `1_code/1_1_transform/1_0_1_wi_descriptives.R` to generate intermediate `.rds` outputs in `2_processed_data`.
-- [ ] Update all scripts in `1_code/1_2_visualize` to load only intermediate outputs and run in isolation with required preamble structure.
-- [ ] Create figure-to-filepath markdown index in `agent-docs/agent_context` and update `README.md` for the new script.
-- [ ] Validate full run (intermediate script + each visualization script).
+- [x] (2026-01-26 00:00Z) Drafted `1_code/1_1_transform/1_0_1_wi_descriptives.R` to generate intermediate `.rds` outputs in `2_processed_data`.
+- [x] (2026-01-26 00:00Z) Updated all scripts in `1_code/1_2_visualize` to load intermediate outputs, include the required preamble, and save to the test output directory.
+- [x] (2026-01-26 00:00Z) Created the figure-to-filepath markdown index and updated `README.md` for the new script.
+- [ ] (2026-01-26 00:00Z) Ran the intermediate script successfully; visualization runs were blocked from writing to the test output folder due to permissions. See Surprises & Discoveries.
 
 ## Surprises & Discoveries
 
 
 - Observation: RUCC and BDS inputs are now available as repo-local files under `0_inputs`.
   Evidence: User confirmation that `0_inputs/Ruralurbancontinuumcodes2023.xlsx` and `0_inputs/bds2023_st_fa.csv` exist.
+- Observation: Visualization scripts cannot write to `/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/test_figures` from this execution environment.
+  Evidence: `touch` to that directory returned “Operation not permitted”, and `ggsave` emitted “agg could not write to the given file.”
 
 ## Decision Log
 
@@ -189,3 +191,5 @@ Visualization scripts contracts:
 - 2026-01-25 / Codex: Initial draft created based on `agent-docs/agent_context/2026_1_25_intermediate_output.md`, `agent-docs/ExecPlan_TEMPLATE.md`, and `agent-docs/PLANS.md`.
 - 2026-01-26 / Codex: Updated input paths to repo-local RUCC/BDS files and Form D yearly CSVs per user guidance; removed external input_root references from execution steps.
 - 2026-01-26 / Codex: Updated visualization output paths to the test output directory for side-by-side comparison.
+- 2026-01-26 / Codex: Marked implementation steps complete and deferred validation pending execution runs.
+- 2026-01-26 / Codex: Logged validation attempt results and write-permission constraint in Progress and Surprises.
