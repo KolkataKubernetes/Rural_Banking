@@ -52,10 +52,11 @@ wi_counties <- tigris::counties(state = "WI", cb = TRUE, year = 2023) |>
 
 wi_map <- wi_counties |>
   mutate(geoid_co = GEOID) |>
-  left_join(formd_props, by = "geoid_co")
+  left_join(formd_props, by = "geoid_co") |>
+  mutate(fill_count = if_else(num_funded_entities == 0, NA_real_, num_funded_entities))
 
 ggplot(wi_map) +
-  geom_sf(aes(fill = num_funded_entities), color = "white", linewidth = 0.2) +
+  geom_sf(aes(fill = fill_count), color = "white", linewidth = 0.2) +
   scale_fill_viridis_c(
     option = "plasma",
     na.value = "grey90",
@@ -64,7 +65,7 @@ ggplot(wi_map) +
   ) +
   labs(
     title    = "Form D Filing Count in Wisconsin by County",
-    subtitle = "CORI interactive map totals",
+    subtitle = "CORI interactive map totals; grey counties have zero filings",
     caption  = "Source: CORI Form D interactive map JSON"
   ) +
   coord_sf() +
