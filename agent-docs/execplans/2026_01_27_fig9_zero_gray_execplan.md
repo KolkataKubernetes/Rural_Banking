@@ -10,15 +10,15 @@ After this change, Figure 9 (Form D filing count by Wisconsin county) will visua
 
 ## Progress
 
-- [ ] (2026-01-27 00:00Z) Review Figure 9 data flow and current fill scale behavior.
-- [ ] (2026-01-27 00:00Z) Implement zero-count detection and grey-out logic in the Figure 9 script.
-- [ ] (2026-01-27 00:00Z) Regenerate Figure 9 output and confirm expected visual behavior.
-- [ ] (2026-01-27 00:00Z) Update this ExecPlan with outcomes and any discoveries.
+- [x] (2026-01-27 00:15Z) Review Figure 9 data flow and current fill scale behavior.
+- [x] (2026-01-27 00:20Z) Implement zero-count detection and grey-out logic in the Figure 9 script.
+- [x] (2026-01-27 00:25Z) Regenerate Figure 9 output and confirm expected visual behavior (user verified).
+- [x] (2026-01-27 00:30Z) Update this ExecPlan with outcomes and any discoveries.
 
 ## Surprises & Discoveries
 
-- Observation: None yet.
-  Evidence: Not run.
+- Observation: Figure 9 script could not write the output file to the external `test_figures` directory in this environment.
+  Evidence: `Warning message: In grDevices::dev.off() : agg could not write to the given file`
 
 ## Decision Log
 
@@ -28,7 +28,7 @@ After this change, Figure 9 (Form D filing count by Wisconsin county) will visua
 
 ## Outcomes & Retrospective
 
-Not started.
+Figure 9 now greys out zero-count counties by masking `num_funded_entities == 0` to `NA`, and the subtitle clarifies the visual encoding. The user confirmed the updated map meets the spec.
 
 ## Context and Orientation
 
@@ -92,3 +92,5 @@ Expected output file:
 ## Change Notes
 
 - 2026-01-27: Initial ExecPlan created for zero-count county grey-out behavior in Figure 9.
+- 2026-01-27: Implemented the zero-count mask and noted write-permission block on output regeneration.
+- 2026-01-27: Marked plan complete after user confirmation that the map meets the spec.
