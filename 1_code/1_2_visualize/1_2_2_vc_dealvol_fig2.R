@@ -46,15 +46,22 @@ save_fig <- function(p, filename, w = 7, h = 4.2, dpi = 320) {
 
 vol_ts_data <- readRDS(file.path("2_processed_data", "vol_ts_data.rds"))
 
-# -----------------------------
-# 2) Plot
-# -----------------------------
-
-vol_ts_data |>
-  select(year, dealvol_national, dealvol_wi, dealvol_national_nonoutlier, dealvol_midwest,
-         wi_pct, nonoutlier_pct, midwest_pct) |>
+avg_label <- "2015–2025 average"
+avg_data <- vol_ts_data |>
+  filter(year >= 2015, year <= 2025) |>
+  summarise(
+    dealvol_national = mean(dealvol_national, na.rm = TRUE),
+    dealvol_national_nonoutlier = mean(dealvol_national_nonoutlier, na.rm = TRUE),
+    dealvol_midwest = mean(dealvol_midwest, na.rm = TRUE),
+    dealvol_wi = mean(dealvol_wi, na.rm = TRUE)
+  ) |>
   pivot_longer(
-    cols = c(dealvol_national, dealvol_national_nonoutlier, dealvol_wi, dealvol_midwest),
+    cols = c(
+      dealvol_national,
+      dealvol_national_nonoutlier,
+      dealvol_midwest,
+      dealvol_wi
+    ),
     names_to = "series",
     values_to = "dealvol"
   ) |>
@@ -64,8 +71,7 @@ vol_ts_data |>
                     dealvol_national_nonoutlier = "National avg. (excl. CA, MA, NY)",
                     dealvol_midwest = "Midwest avg. (excl. WI)",
                     dealvol_wi = "Wisconsin"
-    )) |>
-  mutate(
+    ),
     series = factor(
       series,
       levels = c(
@@ -75,15 +81,29 @@ vol_ts_data |>
         "Wisconsin"
       )
     )
-  ) |>
-  ggplot(aes(x = factor(year), y = dealvol, fill = series)) +
+  )
+
+nat_avg <- avg_data |>
+  filter(series == "National avg.") |>
+  summarise(nat_avg = first(dealvol)) |>
+  pull(nat_avg)
+
+avg_data <- avg_data |>
+  mutate(pct_of_nat = dealvol / nat_avg)
+
+# -----------------------------
+# 2) Plot
+# -----------------------------
+
+avg_data |>
+  ggplot(aes(x = avg_label, y = dealvol, fill = series)) +
   geom_col(position = position_dodge(width = 0.75), width = 0.65) +
   geom_text(
     aes(
       label = dplyr::case_when(
-        series == "Wisconsin" ~ scales::percent(wi_pct, accuracy = 1.0),
-        series == "Midwest avg. (excl. WI)" ~ scales::percent(midwest_pct, accuracy = 1.0),
-        series == "National avg. (excl. CA, MA, NY)" ~ scales::percent(nonoutlier_pct, accuracy = 1.0),
+        series == "Wisconsin" ~ scales::percent(pct_of_nat, accuracy = 1.0),
+        series == "Midwest avg. (excl. WI)" ~ scales::percent(pct_of_nat, accuracy = 1.0),
+        series == "National avg. (excl. CA, MA, NY)" ~ scales::percent(pct_of_nat, accuracy = 1.0),
         TRUE ~ NA_character_
       )),
     position = position_dodge(width = 0.75),
@@ -101,8 +121,8 @@ vol_ts_data |>
   scale_y_continuous(labels = scales::label_comma()) +
   labs(
     title    = "Venture Capital Capital Committed: Wisconsin vs National Average",
-    subtitle = "2015–2024",
-    x        = "Year",
+    subtitle = "2015–2025 average",
+    x        = NULL,
     y        = "USD (Millions)",
     fill     = NULL,
     caption  = "Source: Pitchbook Venture Capital Monitor Q3 2025. Percents above each bar refer to the percent of National Average. Midwest states include Minnesota, Iowa, Illinois, Indiana, and Michigan."

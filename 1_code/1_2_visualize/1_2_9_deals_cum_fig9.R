@@ -12,6 +12,7 @@
 
 suppressPackageStartupMessages({
   library(tidyverse)
+  library(jsonlite)
   library(sf)
   library(scales)
 })
@@ -32,7 +33,15 @@ save_fig <- function(p, filename, w = 7, h = 4.2, dpi = 320) {
 # 1) Load intermediate data
 # -----------------------------
 
-formd_wi_county <- readRDS(file.path("2_processed_data", "formd_wi_county.rds"))
+formd_json <- fromJSON(
+  file.path("0_inputs", "upstream", "formd-interactive-map", "src", "data", "formd_map.json")
+)
+
+# Match logic: filter `name_co` ending in "WI" and join to tigris counties by FIPS
+# (`geoid_co` -> `GEOID`). JSON geometry is present but not used for matching.
+formd_props <- as_tibble(formd_json$features$properties) |>
+  filter(str_ends(name_co, "WI")) |>
+  mutate(geoid_co = as.character(geoid_co))
 
 # -----------------------------
 # 2) Plot
@@ -42,11 +51,11 @@ wi_counties <- tigris::counties(state = "WI", cb = TRUE, year = 2023) |>
   st_transform(5070)
 
 wi_map <- wi_counties |>
-  mutate(county_fips = GEOID) |>
-  left_join(formd_wi_county, by = "county_fips")
+  mutate(geoid_co = GEOID) |>
+  left_join(formd_props, by = "geoid_co")
 
 ggplot(wi_map) +
-  geom_sf(aes(fill = n_filings), color = "white", linewidth = 0.2) +
+  geom_sf(aes(fill = num_funded_entities), color = "white", linewidth = 0.2) +
   scale_fill_viridis_c(
     option = "plasma",
     na.value = "grey90",
@@ -55,8 +64,8 @@ ggplot(wi_map) +
   ) +
   labs(
     title    = "Form D Filing Count in Wisconsin by County",
-    subtitle = "Number of filings, 2015-2014",
-    caption  = "Source: SEC Form D (via dform); author calculations"
+    subtitle = "CORI interactive map totals",
+    caption  = "Source: CORI Form D interactive map JSON"
   ) +
   coord_sf() +
   theme_minimal(base_size = 12) -> total_deals_cumulative

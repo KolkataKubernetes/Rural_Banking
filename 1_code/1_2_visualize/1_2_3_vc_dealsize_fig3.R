@@ -44,27 +44,42 @@ save_fig <- function(p, filename, w = 7, h = 4.2, dpi = 320) {
 # 1) Load intermediate data
 # -----------------------------
 
-dealsize_ts_data <- readRDS(file.path("2_processed_data", "dealsize_ts_data.rds"))
+count_ts_data <- readRDS(file.path("2_processed_data", "count_ts_data.rds"))
+vol_ts_data <- readRDS(file.path("2_processed_data", "vol_ts_data.rds"))
 
-# -----------------------------
-# 2) Plot
-# -----------------------------
+avg_label <- "2015–2025 average"
+count_totals <- count_ts_data |>
+  filter(year >= 2015, year <= 2025) |>
+  summarise(
+    dealcount_national = sum(dealcount_national, na.rm = TRUE),
+    dealcount_national_nonoutlier = sum(dealcount_national_nonoutlier, na.rm = TRUE),
+    dealcount_midwest = sum(dealcount_midwest, na.rm = TRUE),
+    dealcount_wi = sum(dealcount_wi, na.rm = TRUE)
+  )
 
-dealsize_ts_data |>
-  select(year, dealsize_national, dealsize_wi, dealsize_national_nonoutlier, dealsize_midwest,
-         wi_pct, nonoutlier_pct, midwest_pct) |>
-  pivot_longer(
-    cols = c(dealsize_national, dealsize_national_nonoutlier, dealsize_wi, dealsize_midwest),
-    names_to = "series",
-    values_to = "dealsize"
-  ) |>
-  mutate(
-    series = recode(series,
-                    dealsize_national = "National avg.",
-                    dealsize_midwest = "Midwest avg. (excl. WI)",
-                    dealsize_national_nonoutlier = "National avg. (excl. CA, MA, NY)",
-                    dealsize_wi = "Wisconsin"
-    )) |>
+vol_totals <- vol_ts_data |>
+  filter(year >= 2015, year <= 2025) |>
+  summarise(
+    dealvol_national = sum(dealvol_national, na.rm = TRUE),
+    dealvol_national_nonoutlier = sum(dealvol_national_nonoutlier, na.rm = TRUE),
+    dealvol_midwest = sum(dealvol_midwest, na.rm = TRUE),
+    dealvol_wi = sum(dealvol_wi, na.rm = TRUE)
+  )
+
+avg_data <- tibble(
+  series = c(
+    "National avg.",
+    "National avg. (excl. CA, MA, NY)",
+    "Midwest avg. (excl. WI)",
+    "Wisconsin"
+  ),
+  dealsize = c(
+    vol_totals$dealvol_national / count_totals$dealcount_national,
+    vol_totals$dealvol_national_nonoutlier / count_totals$dealcount_national_nonoutlier,
+    vol_totals$dealvol_midwest / count_totals$dealcount_midwest,
+    vol_totals$dealvol_wi / count_totals$dealcount_wi
+  )
+) |>
   mutate(
     series = factor(
       series,
@@ -75,15 +90,29 @@ dealsize_ts_data |>
         "Wisconsin"
       )
     )
-  ) |>
-  ggplot(aes(x = factor(year), y = dealsize, fill = series)) +
+  )
+
+nat_avg <- avg_data |>
+  filter(series == "National avg.") |>
+  summarise(nat_avg = first(dealsize)) |>
+  pull(nat_avg)
+
+avg_data <- avg_data |>
+  mutate(pct_of_nat = dealsize / nat_avg)
+
+# -----------------------------
+# 2) Plot
+# -----------------------------
+
+avg_data |>
+  ggplot(aes(x = avg_label, y = dealsize, fill = series)) +
   geom_col(position = position_dodge(width = 0.75), width = 0.65) +
   geom_text(
     aes(
       label = dplyr::case_when(
-        series == "Wisconsin" ~ scales::percent(wi_pct, accuracy = 1.0),
-        series == "Midwest avg. (excl. WI)" ~ scales::percent(midwest_pct, accuracy = 1.0),
-        series == "National avg. (excl. CA, MA, NY)" ~ scales::percent(nonoutlier_pct, accuracy = 1.0),
+        series == "Wisconsin" ~ scales::percent(pct_of_nat, accuracy = 1.0),
+        series == "Midwest avg. (excl. WI)" ~ scales::percent(pct_of_nat, accuracy = 1.0),
+        series == "National avg. (excl. CA, MA, NY)" ~ scales::percent(pct_of_nat, accuracy = 1.0),
         TRUE ~ NA_character_
       )),
     position = position_dodge(width = 0.75),
@@ -101,8 +130,8 @@ dealsize_ts_data |>
   scale_y_continuous(labels = scales::label_comma()) +
   labs(
     title    = "Venture Capital Deal Size: Wisconsin vs National Average",
-    subtitle = "2015–2024",
-    x        = "Year",
+    subtitle = "2015–2025 average",
+    x        = NULL,
     y        = "USD (Millions)",
     fill     = NULL,
     caption  = "Source: Pitchbook Venture Capital Monitor Q3 2025. Percents above each bar refer to the percent of National Average. Midwest states include Minnesota, Iowa, Illinois, Indiana, and Michigan."

@@ -1,9 +1,9 @@
 #///////////////////////////////////////////////////////////////////////////////
-#----     Figure 11: Incremental Form D Capital per 100k Labor Force       ----
-# File name:  1_2_11_incremental_formD_perlf_fig11.R
+#----           Figure 18: Form D Deal Size Across States (Avg)          ----
+# File name:  1_2_18_formd_dealsize_avg_fig18.R
 # Author:     Codex (based on Inder Majumdar's workflow)
 # Created:    2026-01-26
-# Purpose:    Plot labor-force-adjusted Form D capital by region and RUCC.
+# Purpose:    Plot average Form D deal size across states, 2016–2025 average.
 #///////////////////////////////////////////////////////////////////////////////
 
 # -----------------------------
@@ -45,52 +45,58 @@ save_fig <- function(p, filename, w = 7, h = 4.2, dpi = 320) {
 # 1) Load intermediate data
 # -----------------------------
 
-adj_all <- readRDS(file.path("2_processed_data", "adj_all.rds"))
+vol_all <- readRDS(file.path("2_processed_data", "vol_all.rds"))
+cnt_all <- readRDS(file.path("2_processed_data", "cnt_all.rds"))
+
+# -----------------------------
+# 2) Aggregate to 2016–2025 average deal size
+# -----------------------------
 
 avg_label <- "2016–2025 average"
-adj_avg <- adj_all |>
+
+vol_year <- vol_all |>
   filter(year >= 2016, year <= 2025) |>
   group_by(year, series) |>
-  summarise(region_total = sum(value, na.rm = TRUE), .groups = "drop") |>
-  group_by(series) |>
-  summarise(avg_value = mean(region_total, na.rm = TRUE), .groups = "drop") |>
-  mutate(series = factor(series, levels = levels(adj_all$series)))
+  summarise(vol_total = sum(value, na.rm = TRUE), .groups = "drop")
 
-nat_avg <- adj_avg |>
+cnt_year <- cnt_all |>
+  filter(year >= 2016, year <= 2025) |>
+  group_by(year, series) |>
+  summarise(cnt_total = sum(value, na.rm = TRUE), .groups = "drop")
+
+avg_dealsize <- vol_year |>
+  left_join(cnt_year, by = c("year", "series")) |>
+  mutate(dealsize = vol_total / cnt_total) |>
+  group_by(series) |>
+  summarise(avg_value = mean(dealsize, na.rm = TRUE), .groups = "drop") |>
+  mutate(series = factor(series, levels = levels(vol_all$series)))
+
+nat_avg <- avg_dealsize |>
   filter(series == "National avg.") |>
   summarise(nat_avg = first(avg_value)) |>
   pull(nat_avg)
 
-adj_avg <- adj_avg |>
-  mutate(
-    pct_of_nat = avg_value / nat_avg,
-    value_per_million = avg_value * 10
-  )
+avg_dealsize <- avg_dealsize |>
+  mutate(pct_of_nat = avg_value / nat_avg)
 
 # -----------------------------
-# 2) Plot
+# 3) Plot
 # -----------------------------
 
-vc_formd_vol_adj <- ggplot(
-  adj_avg,
-  aes(
-    x    = avg_label,
-    y    = value_per_million,
-    fill = series
-  )
+formd_dealsize_avg <- ggplot(
+  avg_dealsize,
+  aes(x = avg_label, y = avg_value, fill = series)
 ) +
-  geom_col(position = position_dodge(width = 0.75), width = 0.65, color = "grey30") +
+  geom_col(position = position_dodge(width = 0.75), width = 0.65) +
   geom_text(
-    mapping = aes(
-      y     = value_per_million,
+    aes(
       label = dplyr::case_when(
         series == "National avg." ~ NA_character_,
-        TRUE                      ~ scales::percent(pct_of_nat, accuracy = 1)
-      ),
-      group = series
+        TRUE                      ~ scales::percent(pct_of_nat, accuracy = 1.0)
+      )
     ),
     position = position_dodge(width = 0.75),
-    vjust = -0.4,
+    vjust = -0.6,
     size = 3,
     na.rm = TRUE
   ) +
@@ -103,20 +109,19 @@ vc_formd_vol_adj <- ggplot(
     ),
     name = NULL
   ) +
-  scale_y_continuous(labels = label_comma()) +
+  scale_y_continuous(labels = scales::label_comma()) +
   labs(
-    title    = "Incremental Form D Capital per 1,000,000 Labor Force Participants",
+    title    = "Form D Deal Size per Average State",
     subtitle = "2016–2025 average",
     x        = NULL,
-    y        = "Dollars per 1,000,000 labor force participants",
-    caption  = "Source: SEC Form D; USDA RUCC; CPS/LAUS labor force participation. Percent labels show each group's average state relative to national average."
+    y        = "Average deal size (USD)",
+    caption  = "Source: SEC Form D; USDA RUCC. Percent labels show each group's average state relative to national average."
   ) +
-  theme_im() +
-  theme(legend.position = "bottom")
+  theme_im()
 
 save_fig(
-  p        = vc_formd_vol_adj,
-  filename = file.path(output_dir, "11_incremental_formD_per_lf_avg.jpeg"),
+  p        = formd_dealsize_avg,
+  filename = file.path(output_dir, "18_formD_dealsize_avg.jpeg"),
   w        = 16.5,
   h        = 5.5
 )

@@ -46,15 +46,22 @@ save_fig <- function(p, filename, w = 7, h = 4.2, dpi = 320) {
 
 count_ts_data <- readRDS(file.path("2_processed_data", "count_ts_data.rds"))
 
-# -----------------------------
-# 2) Plot
-# -----------------------------
-
-count_ts_data |>
-  select(year, dealcount_national, dealcount_wi, dealcount_national_nonoutlier, dealcount_midwest,
-         wi_pct, nonoutlier_pct, midwest_pct) |>
+avg_label <- "2015–2025 average"
+avg_data <- count_ts_data |>
+  filter(year >= 2015, year <= 2025) |>
+  summarise(
+    dealcount_national = mean(dealcount_national, na.rm = TRUE),
+    dealcount_national_nonoutlier = mean(dealcount_national_nonoutlier, na.rm = TRUE),
+    dealcount_midwest = mean(dealcount_midwest, na.rm = TRUE),
+    dealcount_wi = mean(dealcount_wi, na.rm = TRUE)
+  ) |>
   pivot_longer(
-    cols = c(dealcount_national, dealcount_national_nonoutlier, dealcount_wi, dealcount_midwest),
+    cols = c(
+      dealcount_national,
+      dealcount_national_nonoutlier,
+      dealcount_midwest,
+      dealcount_wi
+    ),
     names_to = "series",
     values_to = "dealcount"
   ) |>
@@ -64,8 +71,7 @@ count_ts_data |>
                     dealcount_national_nonoutlier = "National avg. (excl. CA, MA, NY)",
                     dealcount_wi = "Wisconsin",
                     dealcount_midwest = "Midwest avg. (excl. WI)"
-    )) |>
-  mutate(
+    ),
     series = factor(
       series,
       levels = c(
@@ -75,15 +81,29 @@ count_ts_data |>
         "Wisconsin"
       )
     )
-  ) |>
-  ggplot(aes(x = factor(year), y = dealcount, fill = series)) +
+  )
+
+nat_avg <- avg_data |>
+  filter(series == "National avg.") |>
+  summarise(nat_avg = first(dealcount)) |>
+  pull(nat_avg)
+
+avg_data <- avg_data |>
+  mutate(pct_of_nat = dealcount / nat_avg)
+
+# -----------------------------
+# 2) Plot
+# -----------------------------
+
+avg_data |>
+  ggplot(aes(x = avg_label, y = dealcount, fill = series)) +
   geom_col(position = position_dodge(width = 0.75), width = 0.65) +
   geom_text(
     aes(
       label = dplyr::case_when(
-        series == "Wisconsin" ~ scales::percent(wi_pct, accuracy = 1.0),
-        series == "National avg. (excl. CA, MA, NY)" ~ scales::percent(nonoutlier_pct, accuracy = 1.0),
-        series == "Midwest avg. (excl. WI)" ~ scales::percent(midwest_pct, accuracy = 1.0),
+        series == "Wisconsin" ~ scales::percent(pct_of_nat, accuracy = 1.0),
+        series == "National avg. (excl. CA, MA, NY)" ~ scales::percent(pct_of_nat, accuracy = 1.0),
+        series == "Midwest avg. (excl. WI)" ~ scales::percent(pct_of_nat, accuracy = 1.0),
         TRUE ~ NA_character_
       )),
     position = position_dodge(width = 0.75),
@@ -101,8 +121,8 @@ count_ts_data |>
   scale_y_continuous(labels = scales::label_comma()) +
   labs(
     title    = "Venture Capital Deal Count: Wisconsin vs National Average",
-    subtitle = "2015–2024",
-    x        = "Year",
+    subtitle = "2015–2025 average",
+    x        = NULL,
     y        = "Number of deals",
     fill     = NULL,
     caption  = "Source: Pitchbook Venture Capital Monitor Q3 2025. Percents above each bar refer to the percent of National Average. Midwest states include Minnesota, Iowa, Illinois, Indiana, and Michigan."
