@@ -10,17 +10,19 @@ After this change, the figure scripts under `1_code/1_2_visualize` will align wi
 
 ## Progress
 
-- [ ] (2026-01-26 00:00Z) Review figure feedback requirements and identify affected figure scripts.
-- [ ] (2026-01-26 00:00Z) Implement updated averaging logic in figures 1–3, 11–12 with single-category x-axis labels.
-- [ ] (2026-01-26 00:00Z) Update figures 8–9 to use CORI map JSON county-level totals for Wisconsin.
-- [ ] (2026-01-26 00:00Z) Prefix dropped figure scripts with `DROP_` and add new figure script.
-- [ ] (2026-01-26 00:00Z) Run updated scripts and confirm outputs in `test_figures`.
-- [ ] (2026-01-26 00:00Z) Record outcomes and update this ExecPlan.
+- [x] (2026-01-26 00:30Z) Review figure feedback requirements and identify affected figure scripts.
+- [x] (2026-01-26 00:40Z) Implement updated averaging logic in figures 1–3, 11–12 with single-category x-axis labels.
+- [x] (2026-01-26 00:45Z) Update figures 8–9 to use CORI map JSON county-level totals for Wisconsin.
+- [x] (2026-01-26 00:50Z) Prefix dropped figure scripts with `DROP_` and add new figure script.
+- [x] (2026-01-26 01:10Z) Run updated scripts and confirm outputs in `test_figures`.
+- [x] (2026-01-26 01:20Z) Record outcomes and update this ExecPlan.
 
 ## Surprises & Discoveries
 
-- Observation: None yet.
-  Evidence: Not run.
+- Observation: `ggplot2` emitted a build-version warning under R 4.5.2 when running the figure scripts.
+  Evidence: `Warning message: package ‘ggplot2’ was built under R version 4.5.2`
+- Observation: Figure 8 produced a warning that log10 scaling introduced infinite values (zero or missing totals).
+  Evidence: `log-10 transformation introduced infinite values.`
 
 ## Decision Log
 
@@ -42,7 +44,7 @@ After this change, the figure scripts under `1_code/1_2_visualize` will align wi
 
 ## Outcomes & Retrospective
 
-Not started.
+Updated figure scripts now produce averaged figures per the feedback, dropped figures are prefixed with `DROP_`, and a new Form D deal size average figure was added. Figures 1–3, 8–9, 11–12, and 18 were executed and outputs were written to the `test_figures` directory, with the expected warning about log scaling in Figure 8.
 
 ## Context and Orientation
 
@@ -144,6 +146,11 @@ Example filename expectations (exact names to be updated in the scripts):
   /Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/test_figures/12_formD_dealcount_avg.jpeg
   /Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/test_figures/18_formD_dealsize_avg.jpeg
 
+Execution notes (excerpt):
+
+  Warning message:
+  In scale_fill_viridis_c(...): log-10 transformation introduced infinite values.
+
 ## Data Contracts, Inputs, and Dependencies
 
 - R and libraries: Use the same R package set already imported in the figure scripts (primarily `tidyverse`, `scales`, and `ggpattern` where already present). No new packages should be added.
@@ -180,3 +187,4 @@ Example filename expectations (exact names to be updated in the scripts):
 - 2026-01-26: Initial ExecPlan created from `agent-docs/agent_context/2026_1_25_figfeedback.md`.
 - 2026-01-26: Updated ExecPlan with clarified averaging windows, single-category x-axis labels, and JSON county-level field requirements from `# ANSWERS TO AGENT QUERIES`.
 - 2026-01-26: Added guidance to document county-matching fields and allow geospatial attributes as a fallback if `name_co` matching is infeasible.
+- 2026-01-26: Marked progress complete and documented run-time warnings and outputs produced during execution.
