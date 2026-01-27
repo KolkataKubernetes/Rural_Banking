@@ -45,27 +45,76 @@ save_fig <- function(p, filename, w = 7, h = 4.2, dpi = 320) {
 # 1) Load intermediate data
 # -----------------------------
 
-adj_all <- readRDS(file.path("2_processed_data", "adj_all.rds"))
+formd_complete <- readRDS(file.path("2_processed_data", "formd_complete.rds"))
+participation <- readr::read_csv(
+  file.path("0_inputs", "CORI", "fips_participation.csv"),
+  show_col_types = FALSE
+) |>
+  mutate(FIPS = stringr::str_pad(as.character(FIPS), width = 2, pad = "0"))
 
-avg_label <- "2016–2025 average"
-adj_avg <- adj_all |>
+midwest_excl_wi <- c("27", "19", "17", "26", "18")
+big3            <- c("06", "25", "36")
+wi_fips         <- "55"
+
+avg_label <- "2016–2025 total"
+
+state_year <- formd_complete |>
   filter(year >= 2016, year <= 2025) |>
-  group_by(year, series) |>
-  summarise(region_total = sum(value, na.rm = TRUE), .groups = "drop") |>
-  group_by(series) |>
-  summarise(avg_value = mean(region_total, na.rm = TRUE), .groups = "drop") |>
-  mutate(series = factor(series, levels = levels(adj_all$series)))
+  group_by(year, st) |>
+  summarise(incremental_dollars = sum(incremental_dollars, na.rm = TRUE), .groups = "drop") |>
+  left_join(
+    participation |> select(FIPS, year, Force),
+    by = c("st" = "FIPS", "year" = "year")
+  ) |>
+  filter(!is.na(Force), Force > 0)
+
+state_totals <- state_year |>
+  group_by(st) |>
+  summarise(
+    total_incremental = sum(incremental_dollars, na.rm = TRUE),
+    total_force = sum(Force, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+summarise_group <- function(df, states, label) {
+  df |>
+    filter(st %in% states) |>
+    summarise(
+      total_incremental = sum(total_incremental, na.rm = TRUE),
+      total_force = sum(total_force, na.rm = TRUE),
+      .groups = "drop"
+    ) |>
+    mutate(series = label)
+}
+
+all_states <- sort(unique(state_totals$st))
+
+adj_avg <- bind_rows(
+  summarise_group(state_totals, all_states, "National avg."),
+  summarise_group(state_totals, setdiff(all_states, big3), "National avg. (excl. CA, MA, NY)"),
+  summarise_group(state_totals, midwest_excl_wi, "Midwest avg. (excl. WI)"),
+  summarise_group(state_totals, wi_fips, "Wisconsin")
+) |>
+  mutate(
+    value_per_100k = total_incremental / (total_force / 100000),
+    series = factor(
+      series,
+      levels = c(
+        "National avg.",
+        "National avg. (excl. CA, MA, NY)",
+        "Midwest avg. (excl. WI)",
+        "Wisconsin"
+      )
+    )
+  )
 
 nat_avg <- adj_avg |>
   filter(series == "National avg.") |>
-  summarise(nat_avg = first(avg_value)) |>
+  summarise(nat_avg = first(value_per_100k)) |>
   pull(nat_avg)
 
 adj_avg <- adj_avg |>
-  mutate(
-    pct_of_nat = avg_value / nat_avg,
-    value_per_million = avg_value * 10
-  )
+  mutate(pct_of_nat = value_per_100k / nat_avg)
 
 # -----------------------------
 # 2) Plot
@@ -75,14 +124,14 @@ vc_formd_vol_adj <- ggplot(
   adj_avg,
   aes(
     x    = avg_label,
-    y    = value_per_million,
+    y    = value_per_100k,
     fill = series
   )
 ) +
   geom_col(position = position_dodge(width = 0.75), width = 0.65, color = "grey30") +
   geom_text(
     mapping = aes(
-      y     = value_per_million,
+      y     = value_per_100k,
       label = dplyr::case_when(
         series == "National avg." ~ NA_character_,
         TRUE                      ~ scales::percent(pct_of_nat, accuracy = 1)
@@ -105,11 +154,11 @@ vc_formd_vol_adj <- ggplot(
   ) +
   scale_y_continuous(labels = label_comma()) +
   labs(
-    title    = "Incremental Form D Capital per 1,000,000 Labor Force Participants",
-    subtitle = "2016–2025 average",
+    title    = "Form D Capital Raised per 100,000 Workers",
+    subtitle = "2016–2025 total",
     x        = NULL,
-    y        = "Dollars per 1,000,000 labor force participants",
-    caption  = "Source: SEC Form D; USDA RUCC; CPS/LAUS labor force participation. Percent labels show each group's average state relative to national average."
+    y        = "Dollars per 100,000 workers",
+    caption  = "How much Form D capital per worker was raised over 2016–2025?"
   ) +
   theme_im() +
   theme(legend.position = "bottom")

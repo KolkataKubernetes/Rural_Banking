@@ -53,15 +53,35 @@ wi_counties <- tigris::counties(state = "WI", cb = TRUE, year = 2023) |>
 wi_map <- wi_counties |>
   mutate(geoid_co = GEOID) |>
   left_join(formd_props, by = "geoid_co") |>
-  mutate(fill_count = if_else(num_funded_entities == 0, NA_real_, num_funded_entities))
+  mutate(
+    fill_bin = case_when(
+      num_funded_entities == 0 ~ NA_character_,
+      num_funded_entities <= 25 ~ "1–25",
+      num_funded_entities <= 50 ~ "26–50",
+      num_funded_entities <= 75 ~ "51–75",
+      num_funded_entities <= 100 ~ "76–100",
+      TRUE ~ ">100"
+    ),
+    fill_bin = factor(
+      fill_bin,
+      levels = c("1–25", "26–50", "51–75", "76–100", ">100")
+    )
+  )
 
 ggplot(wi_map) +
-  geom_sf(aes(fill = fill_count), color = "white", linewidth = 0.2) +
-  scale_fill_viridis_c(
-    option = "plasma",
+  geom_sf(aes(fill = fill_bin), color = "white", linewidth = 0.2) +
+  scale_fill_manual(
+    values = c(
+      "1–25" = scales::viridis_pal(option = "plasma")(4)[1],
+      "26–50" = scales::viridis_pal(option = "plasma")(4)[2],
+      "51–75" = scales::viridis_pal(option = "plasma")(4)[3],
+      "76–100" = scales::viridis_pal(option = "plasma")(4)[4],
+      ">100" = "black"
+    ),
     na.value = "grey90",
-    labels = label_comma(),
-    name = "Number of Form D\nfilings"
+    name = "Number of Form D\nfilings",
+    drop = FALSE,
+    guide = guide_legend(na.translate = TRUE)
   ) +
   labs(
     title    = "Form D Filing Count in Wisconsin by County",
@@ -69,7 +89,16 @@ ggplot(wi_map) +
     caption  = "Source: CORI Form D interactive map JSON"
   ) +
   coord_sf() +
-  theme_minimal(base_size = 12) -> total_deals_cumulative
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "bottom",
+    legend.box = "vertical",
+    legend.title.align = 0.5,
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid = element_blank()
+  ) -> total_deals_cumulative
 
 save_fig(
   p = total_deals_cumulative,

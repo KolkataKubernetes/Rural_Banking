@@ -69,7 +69,13 @@ ggplot(wi_map) +
     caption  = "Source: CORI Form D interactive map JSON"
   ) +
   coord_sf() +
-  theme_minimal(base_size = 12) -> increment_sold_cumulative
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid = element_blank()
+  ) -> increment_sold_cumulative
 
 save_fig(
   p = increment_sold_cumulative,

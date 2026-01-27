@@ -63,7 +63,7 @@ formd_yearly_averages |>
   ) +
   labs(
     title    = "Form D filing amounts, yearly averages",
-    subtitle = "2015–2024; average incremental dollars per Form D filing",
+    subtitle = "2015–2024; average annual total incremental dollars per state",
     x        = "Amount Raised (USD)",
     y        = "",
     caption  = "Source: SEC Form D; USDA RUCC. Values calculated by averaging across years for each group."

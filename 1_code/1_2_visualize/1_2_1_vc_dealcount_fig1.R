@@ -50,10 +50,10 @@ avg_label <- "2015–2025 average"
 avg_data <- count_ts_data |>
   filter(year >= 2015, year <= 2025) |>
   summarise(
-    dealcount_national = mean(dealcount_national, na.rm = TRUE),
-    dealcount_national_nonoutlier = mean(dealcount_national_nonoutlier, na.rm = TRUE),
-    dealcount_midwest = mean(dealcount_midwest, na.rm = TRUE),
-    dealcount_wi = mean(dealcount_wi, na.rm = TRUE)
+    dealcount_national = sum(dealcount_national, na.rm = TRUE),
+    dealcount_national_nonoutlier = sum(dealcount_national_nonoutlier, na.rm = TRUE),
+    dealcount_midwest = sum(dealcount_midwest, na.rm = TRUE),
+    dealcount_wi = sum(dealcount_wi, na.rm = TRUE)
   ) |>
   pivot_longer(
     cols = c(
@@ -121,7 +121,7 @@ avg_data |>
   scale_y_continuous(labels = scales::label_comma()) +
   labs(
     title    = "Venture Capital Deal Count: Wisconsin vs National Average",
-    subtitle = "2015–2025 average",
+    subtitle = "2015–2025 total",
     x        = NULL,
     y        = "Number of deals",
     fill     = NULL,

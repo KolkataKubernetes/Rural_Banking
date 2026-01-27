@@ -130,7 +130,7 @@ avg_data |>
   scale_y_continuous(labels = scales::label_comma()) +
   labs(
     title    = "Venture Capital Deal Size: Wisconsin vs National Average",
-    subtitle = "2015–2025 average",
+    subtitle = "2015–2025 total",
     x        = NULL,
     y        = "USD (Millions)",
     fill     = NULL,

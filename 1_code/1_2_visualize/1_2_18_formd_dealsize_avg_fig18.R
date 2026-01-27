@@ -45,31 +45,66 @@ save_fig <- function(p, filename, w = 7, h = 4.2, dpi = 320) {
 # 1) Load intermediate data
 # -----------------------------
 
-vol_all <- readRDS(file.path("2_processed_data", "vol_all.rds"))
-cnt_all <- readRDS(file.path("2_processed_data", "cnt_all.rds"))
+formd_complete <- readRDS(file.path("2_processed_data", "formd_complete.rds"))
+
+midwest_excl_wi <- c("27", "19", "17", "26", "18")
+big3            <- c("06", "25", "36")
+wi_fips         <- "55"
 
 # -----------------------------
 # 2) Aggregate to 2016–2025 average deal size
 # -----------------------------
 
-avg_label <- "2016–2025 average"
+avg_label <- "2016–2025 total"
 
-vol_year <- vol_all |>
+state_year <- formd_complete |>
   filter(year >= 2016, year <= 2025) |>
-  group_by(year, series) |>
-  summarise(vol_total = sum(value, na.rm = TRUE), .groups = "drop")
+  group_by(year, st) |>
+  summarise(
+    incremental_dollars = sum(incremental_dollars, na.rm = TRUE),
+    dealcount = sum(dealcount, na.rm = TRUE),
+    .groups = "drop"
+  )
 
-cnt_year <- cnt_all |>
-  filter(year >= 2016, year <= 2025) |>
-  group_by(year, series) |>
-  summarise(cnt_total = sum(value, na.rm = TRUE), .groups = "drop")
+state_totals <- state_year |>
+  group_by(st) |>
+  summarise(
+    total_incremental = sum(incremental_dollars, na.rm = TRUE),
+    total_dealcount = sum(dealcount, na.rm = TRUE),
+    .groups = "drop"
+  )
 
-avg_dealsize <- vol_year |>
-  left_join(cnt_year, by = c("year", "series")) |>
-  mutate(dealsize = vol_total / cnt_total) |>
-  group_by(series) |>
-  summarise(avg_value = mean(dealsize, na.rm = TRUE), .groups = "drop") |>
-  mutate(series = factor(series, levels = levels(vol_all$series)))
+summarise_group <- function(df, states, label) {
+  df |>
+    filter(st %in% states) |>
+    summarise(
+      total_incremental = sum(total_incremental, na.rm = TRUE),
+      total_dealcount = sum(total_dealcount, na.rm = TRUE),
+      .groups = "drop"
+    ) |>
+    mutate(series = label)
+}
+
+all_states <- sort(unique(state_totals$st))
+
+avg_dealsize <- bind_rows(
+  summarise_group(state_totals, all_states, "National avg."),
+  summarise_group(state_totals, setdiff(all_states, big3), "National avg. (excl. CA, MA, NY)"),
+  summarise_group(state_totals, midwest_excl_wi, "Midwest avg. (excl. WI)"),
+  summarise_group(state_totals, wi_fips, "Wisconsin")
+) |>
+  mutate(
+    avg_value = total_incremental / total_dealcount,
+    series = factor(
+      series,
+      levels = c(
+        "National avg.",
+        "National avg. (excl. CA, MA, NY)",
+        "Midwest avg. (excl. WI)",
+        "Wisconsin"
+      )
+    )
+  )
 
 nat_avg <- avg_dealsize |>
   filter(series == "National avg.") |>
@@ -112,7 +147,7 @@ formd_dealsize_avg <- ggplot(
   scale_y_continuous(labels = scales::label_comma()) +
   labs(
     title    = "Form D Deal Size per Average State",
-    subtitle = "2016–2025 average",
+    subtitle = "2016–2025 total",
     x        = NULL,
     y        = "Average deal size (USD)",
     caption  = "Source: SEC Form D; USDA RUCC. Percent labels show each group's average state relative to national average."

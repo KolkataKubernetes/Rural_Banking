@@ -50,10 +50,10 @@ avg_label <- "2015–2025 average"
 avg_data <- vol_ts_data |>
   filter(year >= 2015, year <= 2025) |>
   summarise(
-    dealvol_national = mean(dealvol_national, na.rm = TRUE),
-    dealvol_national_nonoutlier = mean(dealvol_national_nonoutlier, na.rm = TRUE),
-    dealvol_midwest = mean(dealvol_midwest, na.rm = TRUE),
-    dealvol_wi = mean(dealvol_wi, na.rm = TRUE)
+    dealvol_national = sum(dealvol_national, na.rm = TRUE),
+    dealvol_national_nonoutlier = sum(dealvol_national_nonoutlier, na.rm = TRUE),
+    dealvol_midwest = sum(dealvol_midwest, na.rm = TRUE),
+    dealvol_wi = sum(dealvol_wi, na.rm = TRUE)
   ) |>
   pivot_longer(
     cols = c(
@@ -121,7 +121,7 @@ avg_data |>
   scale_y_continuous(labels = scales::label_comma()) +
   labs(
     title    = "Venture Capital Capital Committed: Wisconsin vs National Average",
-    subtitle = "2015–2025 average",
+    subtitle = "2015–2025 total",
     x        = NULL,
     y        = "USD (Millions)",
     fill     = NULL,

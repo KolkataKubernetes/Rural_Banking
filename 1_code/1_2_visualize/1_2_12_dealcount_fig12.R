@@ -45,16 +45,49 @@ save_fig <- function(p, filename, w = 7, h = 4.2, dpi = 320) {
 # 1) Load intermediate data
 # -----------------------------
 
-cnt_all <- readRDS(file.path("2_processed_data", "cnt_all.rds"))
+formd_complete <- readRDS(file.path("2_processed_data", "formd_complete.rds"))
 
-avg_label <- "2016–2025 average"
-cnt_avg <- cnt_all |>
+midwest_excl_wi <- c("27", "19", "17", "26", "18")
+big3            <- c("06", "25", "36")
+wi_fips         <- "55"
+
+avg_label <- "2016–2025 total"
+
+state_year <- formd_complete |>
   filter(year >= 2016, year <= 2025) |>
-  group_by(year, series) |>
-  summarise(region_total = sum(value, na.rm = TRUE), .groups = "drop") |>
-  group_by(series) |>
-  summarise(avg_value = mean(region_total, na.rm = TRUE), .groups = "drop") |>
-  mutate(series = factor(series, levels = levels(cnt_all$series)))
+  group_by(year, st) |>
+  summarise(dealcount = sum(dealcount, na.rm = TRUE), .groups = "drop")
+
+state_totals <- state_year |>
+  group_by(st) |>
+  summarise(total_dealcount = sum(dealcount, na.rm = TRUE), .groups = "drop")
+
+summarise_group <- function(df, states, label) {
+  df |>
+    filter(st %in% states) |>
+    summarise(avg_value = mean(total_dealcount, na.rm = TRUE), .groups = "drop") |>
+    mutate(series = label)
+}
+
+all_states <- sort(unique(state_totals$st))
+
+cnt_avg <- bind_rows(
+  summarise_group(state_totals, all_states, "National avg."),
+  summarise_group(state_totals, setdiff(all_states, big3), "National avg. (excl. CA, MA, NY)"),
+  summarise_group(state_totals, midwest_excl_wi, "Midwest avg. (excl. WI)"),
+  summarise_group(state_totals, wi_fips, "Wisconsin")
+) |>
+  mutate(
+    series = factor(
+      series,
+      levels = c(
+        "National avg.",
+        "National avg. (excl. CA, MA, NY)",
+        "Midwest avg. (excl. WI)",
+        "Wisconsin"
+      )
+    )
+  )
 
 nat_avg <- cnt_avg |>
   filter(series == "National avg.") |>
@@ -103,7 +136,7 @@ vc_formd_dealcount <- ggplot(
   scale_y_continuous(labels = label_comma()) +
   labs(
     title    = "Form D Deal Count per Average State",
-    subtitle = "2016–2025 average",
+    subtitle = "2016–2025 total",
     x        = NULL,
     y        = "Average Form D filings per state",
     caption  = "Source: SEC Form D; USDA RUCC. Percent labels show each group's average state relative to national average."
