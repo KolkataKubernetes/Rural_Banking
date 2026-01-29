@@ -12,8 +12,9 @@ After this change, Figures 1–3, 8–9, 11–12, 15, and 18 will reflect the Ja
 
 - [x] (2026-01-29 18:32Z) Read `agent-docs/agent_context/2026_01_29_figfeedback.md` and inventory target figure scripts.
 - [x] (2026-01-29 18:32Z) Review current Figure 1–3, 8–9, 11–12, 15, and 18 scripts for labels, normalization, and output paths.
-- [ ] (2026-01-29 19:00Z) Pause this ExecPlan pending a county-level labor force data plan and implementation.
-- [ ] Decide how to implement “per million population” normalization (transform step vs visualization step), including how to handle county-level Figure 8 with state-level participation data.
+- [x] (2026-01-29 19:00Z) Pause this ExecPlan pending a county-level labor force data plan and implementation.
+- [x] (2026-01-29 20:05Z) Complete county-level labor force plan (`agent-docs/execplans/2026_01_29_laborforce_county.md`) and adopt its outputs for Figure 8 denominators.
+- [x] (2026-01-29 20:05Z) Decide to keep state-level participation denominators for all figures except Figure 8; Figure 8 uses county population sums from the county LAUS pipeline.
 - [ ] Update output directory path in all affected figure scripts and update `agent-docs/agent_context/wi_figure_filepath_index.md` to the new output location.
 - [ ] Implement figure-specific edits and update captions/labels to reflect level values and per-million normalization.
 - [ ] Document outcomes, acceptance checks, and any discrepancies or caveats discovered during updates.
@@ -29,25 +30,21 @@ After this change, Figures 1–3, 8–9, 11–12, 15, and 18 will reflect the Ja
   Rationale: The requested normalization requires county-level population estimates; a new ExecPlan is needed to implement the county-level labor force ingestion and transformations before resuming figure edits.
   Date/Author: 2026-01-29 (Codex)
 
-- Decision: When resuming, compute county population using county labor force multiplied by state-level participation rates from `0_inputs/CORI/fips_participation.csv` (`population = labor_force / (participation_rate / 100)`), and clearly disclose this approximation in figure captions.
+- Decision: Compute county population using county labor force multiplied by state-level participation rates from `0_inputs/CORI/fips_participation.csv` (`population = labor_force / (participation_rate / 100)`), and clearly disclose this approximation in Figure 8 captions.
   Rationale: County LAUS files do not include participation rates; this provides a consistent, documented approximation needed for per‑million population normalization.
   Date/Author: 2026-01-29 (Codex)
 
-- Decision: Use `0_inputs/CORI/fips_participation.csv` for population normalization in all figures except Figure 8; Figure 8 will use county labor force Excel files combined with state-level participation rates as a proxy for county population.
+- Decision: Use `0_inputs/CORI/fips_participation.csv` for population normalization in all figures except Figure 8; Figure 8 will use county LAUS Excel files combined with state-level participation rates as a proxy for county population, summed across 2010–2024.
   Rationale: Only Figure 8 requires county-level denominators, while other figures are state/region aggregates where state-level participation data are sufficient.
   Date/Author: 2026-01-29 (Codex)
 
-- Decision: Pending — choose whether to implement “per million population” normalization in `1_code/1_1_transform/1_0_1_wi_descriptives.R` or solely in the visualization scripts.
-  Rationale: Transform-level changes could affect multiple downstream outputs, while visualization-only changes keep the adjustment scoped to the requested figures.
-  Date/Author: 2026-01-29 (Codex)
-
-- Decision: Pending — confirm how to apply “per million population” normalization to Figure 8 (county map) using state-level participation data, or whether an alternate denominator should be used.
-  Rationale: The provided participation data is state-level; applying a single state population denominator to all counties may not match the intended interpretation.
+Decision: For Figure 8, use CORI JSON totals as the numerator and `2_processed_data/county_population_sum.rds` (sum of annual county populations, 2010–2024) as the denominator.
+  Rationale: Figure 8’s numerator is cumulative since 2010; the denominator must be the summed annual population for the same period.
   Date/Author: 2026-01-29 (Codex)
 
 ## Outcomes & Retrospective
 
-No changes implemented yet. This plan defines the scope, open decisions, and concrete steps needed to update the figures.
+County-level denominator work for Figure 8 has been completed in `agent-docs/execplans/2026_01_29_laborforce_county.md`. This plan now proceeds with figure edits using those outputs plus state-level participation data for other figures.
 
 ## Context and Orientation
 
@@ -63,7 +60,7 @@ Figure scripts live in `1_code/1_2_visualize` and write JPEG outputs to a hardco
 - `1_code/1_2_visualize/1_2_15_yearlyaverages_fig15.R`
 - `1_code/1_2_visualize/1_2_18_formd_dealsize_avg_fig18.R`
 
-Figures 1–3 read `2_processed_data/count_ts_data.rds` and `2_processed_data/vol_ts_data.rds`. Figures 8–9, 11–12, 15, and 18 use `0_inputs/upstream/formd-interactive-map/src/data/formd_map.json`. Figures 11 and 15 also use `0_inputs/CORI/fips_participation.csv` to compute labor force normalization. The participation dataset includes `FIPS`, `Participation`, `Force`, and `year` columns; it does not include 2025 data.
+Figures 1–3 read `2_processed_data/count_ts_data.rds` and `2_processed_data/vol_ts_data.rds`. Figures 8–9, 11–12, 15, and 18 use `0_inputs/upstream/formd-interactive-map/src/data/formd_map.json`. Figures 11 and 15 also use `0_inputs/CORI/fips_participation.csv` to compute labor force normalization. Figure 8 additionally uses `2_processed_data/county_population_sum.rds` (sum of annual county populations, 2010–2024) generated by `1_code/1_1_transform/1_0_1_wi_descriptives.R`. The participation dataset includes `FIPS`, `Participation`, `Force`, and `year` columns; it does not include 2025 data.
 
 The requested “per million population” normalization is defined as: for a given state-year, estimate population as `Force / (Participation / 100)` and then compute “per million” by dividing the numerator by `(population / 1,000,000)`. When year-based series are used, 2025 values must be removed because the participation file lacks 2025 data. The plan must also document that the BLS annual data website was checked for 2025 data and none was found; the implementation should note that the BLS site was checked but 2025 data are not available.
 
@@ -75,7 +72,7 @@ Figure 2 (VC capital committed): Remove percent-of-national labels and display l
 
 Figure 3 (VC deal size): Remove percent-of-national labels and display level values only; keep deal size as a level value (no per-million normalization requested here).
 
-Figure 8 (Form D capital by Wisconsin county): Normalize to “per million population” using the participation-based population estimate; clarify in labels/caption what denominator is used (pending decision on county vs state denominator).
+Figure 8 (Form D capital by Wisconsin county): Normalize to “per million population” using `county_population_sum.rds` (sum of annual county populations, 2010–2024) as the denominator; clarify in labels/caption that county population is estimated from county labor force and state participation rates.
 
 Figure 9 (Form D filings by Wisconsin county): Add explicit year coverage language in subtitle or caption; use the same “since 2010” verbiage used in other Form D JSON figures, while noting that 2025 coverage is unknown.
 
@@ -89,7 +86,7 @@ Figure 18 (Form D deal size across states): Remove percent-of-national labels an
 
 ## Plan of Work
 
-First, resolve the per-million normalization strategy. The least disruptive approach is to compute per-million values inside the visualization scripts because it localizes the change to the requested figures. If this approach is chosen, add a shared helper block to each relevant script that reads `0_inputs/CORI/fips_participation.csv`, converts `Force` to numeric, computes population as `Force / (Participation / 100)`, filters out year 2025, and aggregates population across the relevant state groups (National, National excl. CA/MA/NY, Midwest excl. WI, Wisconsin). Then divide each figure’s numerator by `(population / 1,000,000)` to yield per-million values. If transform-level changes are preferred, update `1_code/1_1_transform/1_0_1_wi_descriptives.R` to compute and store per-million series in new RDS outputs and adjust all figure scripts to read those new fields; this will require updating output documentation for new artifacts.
+First, implement per‑million normalization for Figures 1–2, 11–12, and 15 using `0_inputs/CORI/fips_participation.csv` directly in the visualization scripts (no new transform outputs required for these figures). For Figure 8, use the already‑built `2_processed_data/county_population_sum.rds` from the county LAUS pipeline and the CORI JSON numerator.
 
 Second, update the output directory in each affected script to `/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/2026_01_29_v2`. Ensure the directory is created if missing. Update `agent-docs/agent_context/wi_figure_filepath_index.md` so each affected figure points to the new output files.
 
@@ -97,7 +94,7 @@ Third, implement figure-specific label and normalization changes:
 
 - Figures 1–2: remove `pct_of_nat` calculations and `geom_text` annotations; ensure captions no longer mention percent-of-national. Apply per-million normalization with the new denominator and update titles/subtitles to the correct year range (likely 2015–2024 if 2025 is dropped). Update the y-axis label to indicate “per million population.”
 - Figure 3: remove `pct_of_nat` calculations and `geom_text` annotations; keep y-axis as a level value; update caption to remove percent-of-national wording.
-- Figure 8: compute a per-million value for `total_amount_raised` and use that for `fill`. Update the legend title and caption to specify the denominator. If using a state-level denominator, explicitly say “per million Wisconsin residents (statewide denominator)” to avoid ambiguity.
+- Figure 8: compute a per-million value for `total_amount_raised` (from the CORI JSON) using `county_population_sum.rds` as the denominator and use that for `fill`. Update the legend title and caption to specify the county population proxy denominator.
 - Figure 9: update the subtitle or caption to “Since 2010 (CORI Form D interactive map totals; year coverage may not include 2025)” or matching the established verbiage in Figures 11–12/18; do not invent a specific end year.
 - Figure 11: replace `value_per_100k` with `value_per_million` using population estimates; remove percent-of-national `geom_text`; update y-axis label, subtitle, and caption to reflect per-million normalization and the missing 2025 participation data (including that BLS was checked for 2025 and none found).
 - Figure 12: remove percent-of-national `geom_text`; compute per-million normalization similarly to Figure 11; update labels and caption.
