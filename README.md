@@ -15,11 +15,18 @@ This project evaluates how small business finance trends have evolved in Wiscons
   Outputs: `.rds` files in `2_processed_data/` (see ExecPlan for the full list).
   Dependencies: `tidyverse`, `readxl`.
 
+## Ingest Outputs
+- `1_code/1_0_ingest/CORI_formd_new.R`: writes year-split Form D CSVs to `1_processed_data/formd_years/formd_YYYY.csv` (one file per year in `config$years`).
+
 ## Visualization Outputs
 - `1_code/1_2_visualize/1_2_18_formd_dealsize_avg_fig18.R`: Form D deal size per average state (2016–2025 average).
   Inputs: `2_processed_data/vol_all.rds`, `2_processed_data/cnt_all.rds`.
   Output: `/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/test_figures/18_formD_dealsize_avg.jpeg`.
   Dependencies: `tidyverse`, `scales`.
+
+## Figure Data Notes
+- Figures 11, 12, 15, and 18 now use the CORI Form D interactive map JSON (since 2010) and may not reflect 2025 updates.
+- Figure 15 includes per‑100,000 labor force normalization based on `0_inputs/CORI/fips_participation.csv` (years since 2010).
 
 ## Known Notes
 - The CORI API workflow previously relied on `htmltab`, which was removed from CRAN; a workaround using GitHub/devtools may be required.

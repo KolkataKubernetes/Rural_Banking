@@ -24,6 +24,10 @@ After this change, Figures 1–3 will show totals summed across 2015–2025 (rat
   Evidence: `Warning message: In grDevices::dev.off() : agg could not write to the given file`
 - Observation: RUCC-based metro/rural rule (RUCC 1–3 = metro) does not perfectly match the CORI JSON `rurality` field for WI counties.
   Evidence: 70/72 WI counties match; mismatches are Lincoln County (55069, JSON Metro vs RUCC 6 Nonmetro) and Vernon County (55123, JSON Nonmetro vs RUCC 3 Metro).
+- Observation: `state.fips` lookup failed in Figure 11; switched to deriving state FIPS from JSON `geoid_co` instead.
+  Evidence: `Error: object 'state.fips' not found` during script run; fixed by extracting state FIPS from `geoid_co`.
+- Observation: Figure 15 now uses JSON `geoid_co` to derive state FIPS for labor force normalization (per 100,000 workers) to stay consistent with Figure 11.
+  Evidence: Updated `1_2_15_yearlyaverages_fig15.R` to use `state_fips = substr(geoid_co, 1, 2)` and join to `fips_participation.csv`.
 
 ## Decision Log
 
@@ -43,6 +47,7 @@ After this change, Figures 1–3 will show totals summed across 2015–2025 (rat
 
 Figures 1–3, 9, 11, 12, and 18 were updated per the spec, but output regeneration to `test_figures` was blocked by write permissions. Rerun is required in an environment with access to `/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/test_figures`.
 Open items remain for final review/approval; revisit and finalize this plan after the next visual QA pass.
+Figure 15 was later updated to use CORI JSON totals (since 2010), include per‑100k labor force normalization, and dynamically label the Top 3 states by total amount raised.
 
 ## Context and Orientation
 
@@ -162,3 +167,6 @@ Expected output files:
 - 2026-01-27: Marked implementation complete; noted write-permission block on output regeneration.
 - 2026-01-27: Documented RUCC vs CORI JSON rurality mismatch (2 WI counties) for future reference.
 - 2026-01-27: Marked plan closed for now with a note to revisit and finalize after review.
+- 2026-01-27: Logged Figure 11 fix to use JSON-derived state FIPS instead of `state.fips`.
+- 2026-01-27: Noted Figure 15 switch to JSON-derived state FIPS and per‑100k labor force normalization.
+- 2026-01-27: Added final note that Figure 15 now uses JSON totals since 2010 with dynamic Top 3 labeling.
