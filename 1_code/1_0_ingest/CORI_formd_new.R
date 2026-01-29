@@ -305,10 +305,18 @@ qc_summary <- tibble(
 # 11) Outputs
 # -----------------------------
 
-write_csv(
-  issuers_offerings,
-  file.path(config$output_dir, "formd_2014_2023_joined.csv")
-)
+year_output_dir <- file.path(config$output_dir, "formd_years")
+if (!dir.exists(year_output_dir)) {
+  dir.create(year_output_dir, recursive = TRUE)
+}
+
+issuers_offerings |>
+  filter(!is.na(year)) |>
+  group_by(year) |>
+  group_walk(~{
+    year_val <- .y$year
+    write_csv(.x, file.path(year_output_dir, paste0("formd_", year_val, ".csv")))
+  })
 
 write_csv(
   qc_summary,
@@ -325,4 +333,10 @@ write_csv(
   file.path(config$output_dir, "formd_fig11_summary.csv")
 )
 
-message("Form D pull complete. Outputs written to: ", config$output_dir)
+message(
+  "Form D pull complete. Outputs written to: ",
+  config$output_dir,
+  " (yearly files in ",
+  year_output_dir,
+  ")"
+)

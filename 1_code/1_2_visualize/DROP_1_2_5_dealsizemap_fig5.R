@@ -73,7 +73,7 @@ p_map_level_dealsize <- ggplot(map_level, aes(long, lat, group = group, fill = t
   labs(
     title = "VC deal size, 2024",
     subtitle = "VC deal size, by receiver HQ state",
-    caption = "Source: Pitchbook Venture Capital Monitor Q3 2025. California, New York, and Massachusetts omitted."
+    caption = "Source: Pitchbook Venture Capital Monitor Q4 2025. California, New York, and Massachusetts omitted."
   ) +
   theme_im() +
   theme(

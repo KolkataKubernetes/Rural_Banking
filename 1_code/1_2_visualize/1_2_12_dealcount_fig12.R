@@ -12,6 +12,7 @@
 
 suppressPackageStartupMessages({
   library(tidyverse)
+  library(jsonlite)
   library(scales)
 })
 
@@ -45,52 +46,55 @@ save_fig <- function(p, filename, w = 7, h = 4.2, dpi = 320) {
 # 1) Load intermediate data
 # -----------------------------
 
-formd_complete <- readRDS(file.path("2_processed_data", "formd_complete.rds"))
+formd_json <- jsonlite::fromJSON(
+  file.path("0_inputs", "upstream", "formd-interactive-map", "src", "data", "formd_map.json")
+)
 
-midwest_excl_wi <- c("27", "19", "17", "26", "18")
-big3            <- c("06", "25", "36")
-wi_fips         <- "55"
+county_props <- as_tibble(formd_json$features$properties) |>
+  mutate(
+    state_abbr = stringr::str_extract(name_co, "[A-Z]{2}$")
+  )
 
-avg_label <- "2016–2025 total"
+midwest_excl_wi <- c("MN", "IA", "IL", "MI", "IN")
+big3            <- c("CA", "MA", "NY")
+wi_abbr         <- "WI"
 
-state_year <- formd_complete |>
-  filter(year >= 2016, year <= 2025) |>
-  group_by(year, st) |>
-  summarise(dealcount = sum(dealcount, na.rm = TRUE), .groups = "drop")
+avg_label <- "Since 2010"
 
-state_totals <- state_year |>
-  group_by(st) |>
-  summarise(total_dealcount = sum(dealcount, na.rm = TRUE), .groups = "drop")
+state_totals <- county_props |>
+  group_by(state_abbr) |>
+  summarise(total_dealcount = sum(num_funded_entities, na.rm = TRUE), .groups = "drop")
 
 summarise_group <- function(df, states, label) {
   df |>
-    filter(st %in% states) |>
-    summarise(avg_value = mean(total_dealcount, na.rm = TRUE), .groups = "drop") |>
+    filter(state_abbr %in% states) |>
+    summarise(total_value = sum(total_dealcount, na.rm = TRUE), .groups = "drop") |>
     mutate(series = label)
 }
 
-all_states <- sort(unique(state_totals$st))
+all_states <- sort(unique(state_totals$state_abbr))
 
 cnt_avg <- bind_rows(
-  summarise_group(state_totals, all_states, "National avg."),
-  summarise_group(state_totals, setdiff(all_states, big3), "National avg. (excl. CA, MA, NY)"),
-  summarise_group(state_totals, midwest_excl_wi, "Midwest avg. (excl. WI)"),
-  summarise_group(state_totals, wi_fips, "Wisconsin")
+  summarise_group(state_totals, all_states, "National"),
+  summarise_group(state_totals, setdiff(all_states, big3), "National (excl. CA, MA, NY)"),
+  summarise_group(state_totals, midwest_excl_wi, "Midwest (excl. WI)"),
+  summarise_group(state_totals, wi_abbr, "Wisconsin")
 ) |>
   mutate(
+    avg_value = total_value,
     series = factor(
       series,
       levels = c(
-        "National avg.",
-        "National avg. (excl. CA, MA, NY)",
-        "Midwest avg. (excl. WI)",
+        "National",
+        "National (excl. CA, MA, NY)",
+        "Midwest (excl. WI)",
         "Wisconsin"
       )
     )
   )
 
 nat_avg <- cnt_avg |>
-  filter(series == "National avg.") |>
+  filter(series == "National") |>
   summarise(nat_avg = first(avg_value)) |>
   pull(nat_avg)
 
@@ -114,7 +118,7 @@ vc_formd_dealcount <- ggplot(
     mapping = aes(
       y     = avg_value,
       label = dplyr::case_when(
-        series == "National avg." ~ NA_character_,
+        series == "National" ~ NA_character_,
         TRUE                      ~ scales::percent(pct_of_nat, accuracy = 1)
       ),
       group = series
@@ -126,20 +130,20 @@ vc_formd_dealcount <- ggplot(
   ) +
   scale_fill_manual(
     values = c(
-      "National avg."                    = "black",
-      "National avg. (excl. CA, MA, NY)" = "grey60",
-      "Midwest avg. (excl. WI)"          = "blue",
+      "National"                    = "black",
+      "National (excl. CA, MA, NY)" = "grey60",
+      "Midwest (excl. WI)"          = "blue",
       "Wisconsin"                        = "#c5050c"
     ),
     name = NULL
   ) +
   scale_y_continuous(labels = label_comma()) +
   labs(
-    title    = "Form D Deal Count per Average State",
-    subtitle = "2016–2025 total",
+    title    = "Form D Deal Count",
+    subtitle = "Since 2010",
     x        = NULL,
-    y        = "Average Form D filings per state",
-    caption  = "Source: SEC Form D; USDA RUCC. Percent labels show each group's average state relative to national average."
+    y        = "Form D filings",
+    caption  = "Source: CORI Form D interactive map (since 2010). Values may not reflect 2025 updates."
   ) +
   theme_im() +
   theme(legend.position = "bottom")

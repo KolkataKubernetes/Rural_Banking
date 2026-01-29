@@ -68,9 +68,9 @@ vol_totals <- vol_ts_data |>
 
 avg_data <- tibble(
   series = c(
-    "National avg.",
-    "National avg. (excl. CA, MA, NY)",
-    "Midwest avg. (excl. WI)",
+    "National",
+    "National (excl. CA, MA, NY)",
+    "Midwest (excl. WI)",
     "Wisconsin"
   ),
   dealsize = c(
@@ -84,16 +84,16 @@ avg_data <- tibble(
     series = factor(
       series,
       levels = c(
-        "National avg.",
-        "National avg. (excl. CA, MA, NY)",
-        "Midwest avg. (excl. WI)",
+        "National",
+        "National (excl. CA, MA, NY)",
+        "Midwest (excl. WI)",
         "Wisconsin"
       )
     )
   )
 
 nat_avg <- avg_data |>
-  filter(series == "National avg.") |>
+  filter(series == "National") |>
   summarise(nat_avg = first(dealsize)) |>
   pull(nat_avg)
 
@@ -111,8 +111,8 @@ avg_data |>
     aes(
       label = dplyr::case_when(
         series == "Wisconsin" ~ scales::percent(pct_of_nat, accuracy = 1.0),
-        series == "Midwest avg. (excl. WI)" ~ scales::percent(pct_of_nat, accuracy = 1.0),
-        series == "National avg. (excl. CA, MA, NY)" ~ scales::percent(pct_of_nat, accuracy = 1.0),
+        series == "Midwest (excl. WI)" ~ scales::percent(pct_of_nat, accuracy = 1.0),
+        series == "National (excl. CA, MA, NY)" ~ scales::percent(pct_of_nat, accuracy = 1.0),
         TRUE ~ NA_character_
       )),
     position = position_dodge(width = 0.75),
@@ -123,9 +123,9 @@ avg_data |>
   scale_fill_manual(
     values = c(
       "Wisconsin" = "#c5050c",
-      "Midwest avg. (excl. WI)" = "blue",
-      "National avg. (excl. CA, MA, NY)" = "grey60",
-      "National avg." = "black"
+      "Midwest (excl. WI)" = "blue",
+      "National (excl. CA, MA, NY)" = "grey60",
+      "National" = "black"
     )) +
   scale_y_continuous(labels = scales::label_comma()) +
   labs(
@@ -134,7 +134,7 @@ avg_data |>
     x        = NULL,
     y        = "USD (Millions)",
     fill     = NULL,
-    caption  = "Source: Pitchbook Venture Capital Monitor Q3 2025. Percents above each bar refer to the percent of National Average. Midwest states include Minnesota, Iowa, Illinois, Indiana, and Michigan."
+    caption  = "Source: Pitchbook Venture Capital Monitor Q4 2025. Percents above each bar refer to the percent of National Average. Midwest states include Minnesota, Iowa, Illinois, Indiana, and Michigan."
   ) +
   theme_im() -> vc_dealsize
 
