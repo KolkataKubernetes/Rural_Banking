@@ -1,6 +1,6 @@
 #///////////////////////////////////////////////////////////////////////////////
 #----         Figure 8: Form D Capital Raised by Wisconsin County          ----
-# File name:  1_2_8_increment_sold_fig8.R
+# File name:  1_2_8b_increment_sold_percap_fig8b.R
 # Author:     Codex (based on Inder Majumdar's workflow)
 # Created:    2026-01-26
 # Purpose:    Map total incremental Form D capital by Wisconsin county.
@@ -48,7 +48,7 @@ county_population_sum <- readRDS(
 formd_props <- formd_props |>
   left_join(county_population_sum, by = "county_fips") |>
   mutate(
-    per_million = total_amount_raised / (sum_population / 1000000)
+    per_cap = total_amount_raised / sum_population
   )
 
 # -----------------------------
@@ -63,17 +63,17 @@ wi_map <- wi_counties |>
   left_join(formd_props, by = "county_fips")
 
 ggplot(wi_map) +
-  geom_sf(aes(fill = per_million), color = "white", linewidth = 0.2) +
+  geom_sf(aes(fill = per_cap), color = "white", linewidth = 0.2) +
   scale_fill_viridis_c(
     option = "magma",
     na.value = "grey90",
     labels = label_dollar(scale = 1, suffix = "", accuracy = 1),
     trans = "log10",
-    name = "Form D capital\nper 1M residents"
+    name = "Form D capital\nper resident"
   ) +
   labs(
     title    = "Form D Capital Raised in Wisconsin by County",
-    subtitle = "Since 2010; per million residents",
+    subtitle = "Since 2010; per resident",
     caption  = "Source: CORI Form D interactive map totals (since 2010). County population is estimated from county labor force and state participation rates."
   ) +
   coord_sf() +
@@ -88,6 +88,5 @@ ggplot(wi_map) +
 
 save_fig(
   p = increment_sold_cumulative,
-  filename = file.path(output_dir, "8_increment_sold_cumulative.jpeg")
+  filename = file.path(output_dir, "8b_increment_sold_cumulative.jpeg")
 )
-

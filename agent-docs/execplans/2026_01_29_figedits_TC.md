@@ -12,6 +12,7 @@ After this change, Figures 1–3, 8–9, 11–12, 15, and 18 will reflect the Ja
 
 - [x] (2026-01-29 18:32Z) Read `agent-docs/agent_context/2026_01_29_figfeedback.md` and inventory target figure scripts.
 - [x] (2026-01-29 18:32Z) Review current Figure 1–3, 8–9, 11–12, 15, and 18 scripts for labels, normalization, and output paths.
+- [ ] (2026-01-29 19:00Z) Pause this ExecPlan pending a county-level labor force data plan and implementation.
 - [ ] Decide how to implement “per million population” normalization (transform step vs visualization step), including how to handle county-level Figure 8 with state-level participation data.
 - [ ] Update output directory path in all affected figure scripts and update `agent-docs/agent_context/wi_figure_filepath_index.md` to the new output location.
 - [ ] Implement figure-specific edits and update captions/labels to reflect level values and per-million normalization.
@@ -23,6 +24,18 @@ After this change, Figures 1–3, 8–9, 11–12, 15, and 18 will reflect the Ja
   Evidence: File header and sample rows show `FIPS` values like `01`, `02`, `04` and `year` values like `1976` with no county identifiers.
 
 ## Decision Log
+
+- Decision: Pause this ExecPlan to replace state-level participation denominators with county-level labor force data from `0_inputs/CORI/labor_participation`.
+  Rationale: The requested normalization requires county-level population estimates; a new ExecPlan is needed to implement the county-level labor force ingestion and transformations before resuming figure edits.
+  Date/Author: 2026-01-29 (Codex)
+
+- Decision: When resuming, compute county population using county labor force multiplied by state-level participation rates from `0_inputs/CORI/fips_participation.csv` (`population = labor_force / (participation_rate / 100)`), and clearly disclose this approximation in figure captions.
+  Rationale: County LAUS files do not include participation rates; this provides a consistent, documented approximation needed for per‑million population normalization.
+  Date/Author: 2026-01-29 (Codex)
+
+- Decision: Use `0_inputs/CORI/fips_participation.csv` for population normalization in all figures except Figure 8; Figure 8 will use county labor force Excel files combined with state-level participation rates as a proxy for county population.
+  Rationale: Only Figure 8 requires county-level denominators, while other figures are state/region aggregates where state-level participation data are sufficient.
+  Date/Author: 2026-01-29 (Codex)
 
 - Decision: Pending — choose whether to implement “per million population” normalization in `1_code/1_1_transform/1_0_1_wi_descriptives.R` or solely in the visualization scripts.
   Rationale: Transform-level changes could affect multiple downstream outputs, while visualization-only changes keep the adjustment scoped to the requested figures.
@@ -152,3 +165,4 @@ These changes are safe to re-run because they only update scripts and output pat
 - Output directory to use for all updated figures: `/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/2026_01_29_v2`.
 
 Change log: 2026-01-29 — Initial ExecPlan created from `agent-docs/agent_context/2026_01_29_figfeedback.md` and existing figure scripts; pending decisions noted for per-million normalization strategy and Figure 8 denominator.
+Change log: 2026-01-29 — Paused this ExecPlan to address county-level labor force data ingestion in a new ExecPlan before resuming figure edits.

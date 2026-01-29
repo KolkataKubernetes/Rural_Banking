@@ -22,6 +22,7 @@ paths <- list(
   pitchbook_count = file.path("0_inputs", "Pitchbook", "Pitchbook_dealcount.xlsx"),
   pitchbook_vol   = file.path("0_inputs", "Pitchbook", "Pitchbook_dealvol.xlsx"),
   participation   = file.path("0_inputs", "CORI", "fips_participation.csv"),
+  labor_participation_dir = file.path("0_inputs", "CORI", "labor_participation"),
   bds_fa          = file.path("0_inputs", "bds2023_st_fa.csv"),
   rucc            = file.path("0_inputs", "Ruralurbancontinuumcodes2023.xlsx"),
   formd_dir       = file.path("2_processed_data", "formd_years")
@@ -36,6 +37,7 @@ stopifnot(
   file.exists(paths$pitchbook_count),
   file.exists(paths$pitchbook_vol),
   file.exists(paths$participation),
+  dir.exists(paths$labor_participation_dir),
   file.exists(paths$bds_fa),
   file.exists(paths$rucc),
   dir.exists(paths$formd_dir)
@@ -60,6 +62,15 @@ participationdir <- readr::read_csv(paths$participation, show_col_types = FALSE)
 bds_fa <- readr::read_csv(paths$bds_fa, show_col_types = FALSE)
 rucc <- readxl::read_excel(paths$rucc)
 
+labor_participation_files <- list.files(
+  paths$labor_participation_dir,
+  pattern = "^laucnty\\d{2}\\.xlsx$",
+  full.names = TRUE
+)
+if (length(labor_participation_files) == 0) {
+  stop("No county labor participation Excel files found in ", paths$labor_participation_dir)
+}
+
 formd_files <- list.files(paths$formd_dir, pattern = "\\.csv$", full.names = TRUE)
 if (length(formd_files) == 0) {
   stop("No Form D CSVs found in ", paths$formd_dir)
@@ -69,6 +80,105 @@ formd_data <- formd_files |>
   purrr::map_dfr(readr::read_csv, show_col_types = FALSE) |>
   select(-1) |>
   distinct()
+
+# -----------------------------
+# 1a) County labor force (LAUS) for Figure 8 normalization
+# -----------------------------
+
+read_laucnty <- function(path) {
+  raw <- readxl::read_excel(path, col_names = FALSE)
+  header_row <- which(
+    apply(raw, 1, function(row) any(as.character(row) == "LAUS Code"))
+  )
+  if (length(header_row) == 0) {
+    stop("Header row with 'LAUS Code' not found in ", path)
+  }
+  header_row <- header_row[1]
+
+  df <- readxl::read_excel(path, skip = header_row - 1, col_names = TRUE)
+  names(df) <- names(df) |>
+    tolower() |>
+    stringr::str_replace_all("[^a-z0-9]+", "_") |>
+    stringr::str_replace_all("_$", "")
+
+  df <- df |>
+    rename(
+      laus_code = any_of("laus_code"),
+      state_fips = any_of(c("state_fips_code", "state_fips")),
+      county_fips = any_of(c("county_fips_code", "county_fips")),
+      county_name = any_of(c(
+        "county_name",
+        "county_name_area_title",
+        "county_name_state_abbreviation"
+      )),
+      year = any_of("year"),
+      labor_force = any_of("labor_force"),
+      employed = any_of("employed"),
+      unemployed = any_of("unemployed"),
+      unemp_rate = any_of(c("unemployment_rate", "unemployment_rate_"))
+    )
+
+  required_cols <- c(
+    "state_fips", "county_fips", "county_name", "year",
+    "labor_force", "employed", "unemployed", "unemp_rate"
+  )
+  missing_cols <- setdiff(required_cols, names(df))
+  if (length(missing_cols) > 0) {
+    stop("Missing required columns in ", path, ": ", paste(missing_cols, collapse = ", "))
+  }
+
+  df <- df |>
+    mutate(
+      state_fips = stringr::str_pad(as.character(state_fips), width = 2, pad = "0"),
+      county_fips = stringr::str_pad(as.character(county_fips), width = 3, pad = "0"),
+      county_fips_full = paste0(state_fips, county_fips),
+      year = as.integer(year),
+      labor_force = readr::parse_number(as.character(labor_force)),
+      employed = readr::parse_number(as.character(employed)),
+      unemployed = readr::parse_number(as.character(unemployed)),
+      unemp_rate = readr::parse_number(as.character(unemp_rate))
+    ) |>
+    filter(!is.na(county_fips), county_fips != "000")
+
+  df
+}
+
+labor_force_county <- labor_participation_files |>
+  purrr::map_dfr(read_laucnty) |>
+  transmute(
+    year,
+    county_fips = county_fips_full,
+    state_fips,
+    county_name,
+    labor_force,
+    employed,
+    unemployed,
+    unemp_rate
+  )
+
+participation_state <- participationdir |>
+  mutate(
+    FIPS = stringr::str_pad(as.character(FIPS), width = 2, pad = "0"),
+    Participation = readr::parse_number(as.character(Participation))
+  ) |>
+  select(FIPS, year, Participation)
+
+labor_force_county <- labor_force_county |>
+  left_join(
+    participation_state,
+    by = c("state_fips" = "FIPS", "year" = "year")
+  ) |>
+  mutate(
+    population = labor_force / (Participation / 100)
+  ) |>
+  select(-Participation)
+
+county_population_sum <- labor_force_county |>
+  group_by(county_fips) |>
+  summarise(
+    sum_population = if (all(is.na(population))) NA_real_ else sum(population, na.rm = TRUE),
+    .groups = "drop"
+  )
 
 # -----------------------------
 # 2) Pitchbook: wide to long + derived series
@@ -356,6 +466,12 @@ formd_wi_county <- formd_data_US |>
     total_increment = sum(incremental_amount, na.rm = TRUE),
     n_filings       = n(),
     .groups         = "drop"
+  )
+
+formd_wi_county_norm <- formd_wi_county |>
+  left_join(county_population_sum, by = "county_fips") |>
+  mutate(
+    per_million = total_increment / (sum_population / 1000000)
   )
 
 formd_group_year <- formd_data_US |>
@@ -720,6 +836,9 @@ write_rds_df(grp_all, "grp_all")
 write_rds_df(grp_all_lf, "grp_all_lf")
 write_rds_df(formd_data_US, "formd_data_US")
 write_rds_df(formd_wi_county, "formd_wi_county")
+write_rds_df(labor_force_county, "labor_force_county")
+write_rds_df(county_population_sum, "county_population_sum")
+write_rds_df(formd_wi_county_norm, "formd_wi_county_norm")
 write_rds_df(formd_complete, "formd_complete")
 write_rds_df(vol_all, "vol_all")
 write_rds_df(adj_all, "adj_all")
