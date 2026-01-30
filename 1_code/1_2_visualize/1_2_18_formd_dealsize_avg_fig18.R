@@ -16,7 +16,7 @@ suppressPackageStartupMessages({
   library(scales)
 })
 
-output_dir <- "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/test_figures"
+output_dir <- "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/2026_01_29_v2"
 if (!dir.exists(output_dir)) {
   dir.create(output_dir, recursive = TRUE)
 }
@@ -122,18 +122,6 @@ formd_dealsize_avg <- ggplot(
   aes(x = avg_label, y = avg_value, fill = series)
 ) +
   geom_col(position = position_dodge(width = 0.75), width = 0.65) +
-  geom_text(
-    aes(
-      label = dplyr::case_when(
-        series == "National" ~ NA_character_,
-        TRUE                      ~ scales::percent(pct_of_nat, accuracy = 1.0)
-      )
-    ),
-    position = position_dodge(width = 0.75),
-    vjust = -0.6,
-    size = 3,
-    na.rm = TRUE
-  ) +
   scale_fill_manual(
     values = c(
       "National"                    = "black",

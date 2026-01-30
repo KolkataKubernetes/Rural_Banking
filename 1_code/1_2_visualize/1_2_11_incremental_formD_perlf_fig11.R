@@ -16,7 +16,7 @@ suppressPackageStartupMessages({
   library(scales)
 })
 
-output_dir <- "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/test_figures"
+output_dir <- "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/2026_01_29_v2"
 if (!dir.exists(output_dir)) {
   dir.create(output_dir, recursive = TRUE)
 }
@@ -60,7 +60,11 @@ participation <- readr::read_csv(
   file.path("0_inputs", "CORI", "fips_participation.csv"),
   show_col_types = FALSE
 ) |>
-  mutate(FIPS = stringr::str_pad(as.character(FIPS), width = 2, pad = "0"))
+  mutate(
+    FIPS = stringr::str_pad(as.character(FIPS), width = 2, pad = "0"),
+    Participation = readr::parse_number(as.character(Participation)),
+    Force = readr::parse_number(as.character(Force))
+  )
 
 midwest_excl_wi <- c("27", "19", "17", "26", "18")
 big3            <- c("06", "25", "36")
@@ -73,21 +77,22 @@ state_totals <- county_props |>
   summarise(total_incremental = sum(total_amount_raised, na.rm = TRUE), .groups = "drop") |>
   rename(FIPS = state_fips)
 
-state_force <- participation |>
-  filter(year >= 2010) |>
+state_population <- participation |>
+  filter(year >= 2010, year <= 2024) |>
+  mutate(population = Force / (Participation / 100)) |>
   group_by(FIPS) |>
-  summarise(total_force = sum(Force, na.rm = TRUE), .groups = "drop")
+  summarise(sum_population = sum(population, na.rm = TRUE), .groups = "drop")
 
 state_totals <- state_totals |>
-  left_join(state_force, by = "FIPS") |>
-  filter(!is.na(total_force), total_force > 0)
+  left_join(state_population, by = "FIPS") |>
+  filter(!is.na(sum_population), sum_population > 0)
 
 summarise_group <- function(df, states, label) {
   df |>
     filter(FIPS %in% states) |>
     summarise(
       total_incremental = sum(total_incremental, na.rm = TRUE),
-      total_force = sum(total_force, na.rm = TRUE),
+      sum_population = sum(sum_population, na.rm = TRUE),
       .groups = "drop"
     ) |>
     mutate(series = label)
@@ -102,7 +107,7 @@ adj_avg <- bind_rows(
   summarise_group(state_totals, wi_fips, "Wisconsin")
 ) |>
   mutate(
-    value_per_100k = total_incremental / (total_force / 100000),
+    value_per_million = total_incremental / (sum_population / 1000000),
     series = factor(
       series,
       levels = c(
@@ -116,11 +121,11 @@ adj_avg <- bind_rows(
 
 nat_avg <- adj_avg |>
   filter(series == "National") |>
-  summarise(nat_avg = first(value_per_100k)) |>
+  summarise(nat_avg = first(value_per_million)) |>
   pull(nat_avg)
 
 adj_avg <- adj_avg |>
-  mutate(pct_of_nat = value_per_100k / nat_avg)
+  mutate(pct_of_nat = value_per_million / nat_avg)
 
 # -----------------------------
 # 2) Plot
@@ -130,14 +135,14 @@ vc_formd_vol_adj <- ggplot(
   adj_avg,
   aes(
     x    = avg_label,
-    y    = value_per_100k,
+    y    = value_per_million,
     fill = series
   )
 ) +
   geom_col(position = position_dodge(width = 0.75), width = 0.65, color = "grey30") +
   geom_text(
     mapping = aes(
-      y     = value_per_100k,
+      y     = value_per_million,
       label = dplyr::case_when(
         series == "National" ~ NA_character_,
         TRUE                      ~ scales::percent(pct_of_nat, accuracy = 1)
@@ -160,11 +165,11 @@ vc_formd_vol_adj <- ggplot(
   ) +
   scale_y_continuous(labels = label_comma()) +
   labs(
-    title    = "Form D Capital Raised per 100,000 Workers",
-    subtitle = "Since 2010",
+    title    = "Form D Capital Raised per 1,000,000 Residents",
+    subtitle = "Since 2010 (year coverage may not include 2025)",
     x        = NULL,
-    y        = "Dollars per 100,000 workers",
-    caption  = "Source: CORI Form D interactive map (since 2010); labor force from CPS/LAUS. Values may not reflect 2025 updates."
+    y        = "Dollars per 1,000,000 residents",
+    caption  = "Source: CORI Form D interactive map (since 2010); population estimated from labor force participation (no 2025 annual data). BLS annual 2025 data were checked but not found."
   ) +
   theme_im() +
   theme(legend.position = "bottom")

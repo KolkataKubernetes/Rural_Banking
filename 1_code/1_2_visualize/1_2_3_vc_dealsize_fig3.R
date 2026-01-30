@@ -14,7 +14,7 @@ suppressPackageStartupMessages({
   library(tidyverse)
 })
 
-output_dir <- "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/test_figures"
+output_dir <- "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/2026_01_29_v2"
 if (!dir.exists(output_dir)) {
   dir.create(output_dir, recursive = TRUE)
 }
@@ -47,9 +47,9 @@ save_fig <- function(p, filename, w = 7, h = 4.2, dpi = 320) {
 count_ts_data <- readRDS(file.path("2_processed_data", "count_ts_data.rds"))
 vol_ts_data <- readRDS(file.path("2_processed_data", "vol_ts_data.rds"))
 
-avg_label <- "2015–2025 average"
+avg_label <- "2015–2024 total"
 count_totals <- count_ts_data |>
-  filter(year >= 2015, year <= 2025) |>
+  filter(year >= 2015, year <= 2024) |>
   summarise(
     dealcount_national = sum(dealcount_national, na.rm = TRUE),
     dealcount_national_nonoutlier = sum(dealcount_national_nonoutlier, na.rm = TRUE),
@@ -58,7 +58,7 @@ count_totals <- count_ts_data |>
   )
 
 vol_totals <- vol_ts_data |>
-  filter(year >= 2015, year <= 2025) |>
+  filter(year >= 2015, year <= 2024) |>
   summarise(
     dealvol_national = sum(dealvol_national, na.rm = TRUE),
     dealvol_national_nonoutlier = sum(dealvol_national_nonoutlier, na.rm = TRUE),
@@ -92,14 +92,6 @@ avg_data <- tibble(
     )
   )
 
-nat_avg <- avg_data |>
-  filter(series == "National") |>
-  summarise(nat_avg = first(dealsize)) |>
-  pull(nat_avg)
-
-avg_data <- avg_data |>
-  mutate(pct_of_nat = dealsize / nat_avg)
-
 # -----------------------------
 # 2) Plot
 # -----------------------------
@@ -108,17 +100,10 @@ avg_data |>
   ggplot(aes(x = avg_label, y = dealsize, fill = series)) +
   geom_col(position = position_dodge(width = 0.75), width = 0.65) +
   geom_text(
-    aes(
-      label = dplyr::case_when(
-        series == "Wisconsin" ~ scales::percent(pct_of_nat, accuracy = 1.0),
-        series == "Midwest (excl. WI)" ~ scales::percent(pct_of_nat, accuracy = 1.0),
-        series == "National (excl. CA, MA, NY)" ~ scales::percent(pct_of_nat, accuracy = 1.0),
-        TRUE ~ NA_character_
-      )),
+    aes(label = scales::label_comma()(dealsize)),
     position = position_dodge(width = 0.75),
-    vjust = -0.6,
-    size = 3,
-    na.rm = TRUE
+    vjust = -0.4,
+    size = 3
   ) +
   scale_fill_manual(
     values = c(
@@ -126,15 +111,22 @@ avg_data |>
       "Midwest (excl. WI)" = "blue",
       "National (excl. CA, MA, NY)" = "grey60",
       "National" = "black"
-    )) +
+    ),
+    breaks = c(
+      "National",
+      "National (excl. CA, MA, NY)",
+      "Midwest (excl. WI)",
+      "Wisconsin"
+    )
+  ) +
   scale_y_continuous(labels = scales::label_comma()) +
   labs(
     title    = "Venture Capital Deal Size: Wisconsin vs National Average",
-    subtitle = "2015–2025 total",
+    subtitle = "2015–2024 total",
     x        = NULL,
     y        = "USD (Millions)",
     fill     = NULL,
-    caption  = "Source: Pitchbook Venture Capital Monitor Q4 2025. Percents above each bar refer to the percent of National Average. Midwest states include Minnesota, Iowa, Illinois, Indiana, and Michigan."
+    caption  = "Source: Pitchbook Venture Capital Monitor Q4 2025. Midwest states include Minnesota, Iowa, Illinois, Indiana, and Michigan."
   ) +
   theme_im() -> vc_dealsize
 

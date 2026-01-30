@@ -15,7 +15,7 @@ suppressPackageStartupMessages({
   library(maps)
 })
 
-output_dir <- "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/test_figures"
+output_dir <- "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/2026_01_29_v2"
 if (!dir.exists(output_dir)) {
   dir.create(output_dir, recursive = TRUE)
 }

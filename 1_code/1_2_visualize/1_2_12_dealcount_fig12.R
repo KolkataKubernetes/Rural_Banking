@@ -16,7 +16,7 @@ suppressPackageStartupMessages({
   library(scales)
 })
 
-output_dir <- "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/test_figures"
+output_dir <- "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/2026_01_29_v2"
 if (!dir.exists(output_dir)) {
   dir.create(output_dir, recursive = TRUE)
 }
@@ -55,6 +55,16 @@ county_props <- as_tibble(formd_json$features$properties) |>
     state_abbr = stringr::str_extract(name_co, "[A-Z]{2}$")
   )
 
+participation <- readr::read_csv(
+  file.path("0_inputs", "CORI", "fips_participation.csv"),
+  show_col_types = FALSE
+) |>
+  mutate(
+    FIPS = stringr::str_pad(as.character(FIPS), width = 2, pad = "0"),
+    Participation = readr::parse_number(as.character(Participation)),
+    Force = readr::parse_number(as.character(Force))
+  )
+
 midwest_excl_wi <- c("MN", "IA", "IL", "MI", "IN")
 big3            <- c("CA", "MA", "NY")
 wi_abbr         <- "WI"
@@ -64,6 +74,20 @@ avg_label <- "Since 2010"
 state_totals <- county_props |>
   group_by(state_abbr) |>
   summarise(total_dealcount = sum(num_funded_entities, na.rm = TRUE), .groups = "drop")
+
+state_population <- participation |>
+  filter(year >= 2010, year <= 2024) |>
+  mutate(population = Force / (Participation / 100)) |>
+  group_by(FIPS) |>
+  summarise(sum_population = sum(population, na.rm = TRUE), .groups = "drop")
+
+state_fips_map <- county_props |>
+  mutate(state_fips = stringr::str_pad(as.character(geoid_co), 5, pad = "0") |>
+    substr(1, 2)) |>
+  distinct(state_fips, state_abbr)
+
+state_population <- state_population |>
+  left_join(state_fips_map, by = c("FIPS" = "state_fips"))
 
 summarise_group <- function(df, states, label) {
   df |>
@@ -93,13 +117,38 @@ cnt_avg <- bind_rows(
     )
   )
 
+population_groups <- bind_rows(
+  state_population |>
+    summarise(sum_population = sum(sum_population, na.rm = TRUE), .groups = "drop") |>
+    mutate(series = "National"),
+  state_population |>
+    filter(!state_abbr %in% big3) |>
+    summarise(sum_population = sum(sum_population, na.rm = TRUE), .groups = "drop") |>
+    mutate(series = "National (excl. CA, MA, NY)"),
+  state_population |>
+    filter(state_abbr %in% midwest_excl_wi) |>
+    summarise(sum_population = sum(sum_population, na.rm = TRUE), .groups = "drop") |>
+    mutate(series = "Midwest (excl. WI)"),
+  state_population |>
+    filter(state_abbr %in% wi_abbr) |>
+    summarise(sum_population = sum(sum_population, na.rm = TRUE), .groups = "drop") |>
+    mutate(series = "Wisconsin")
+) |>
+  select(series, sum_population)
+
+cnt_avg <- cnt_avg |>
+  left_join(population_groups, by = "series") |>
+  mutate(
+    per_million = avg_value / (sum_population / 1000000)
+  )
+
 nat_avg <- cnt_avg |>
   filter(series == "National") |>
-  summarise(nat_avg = first(avg_value)) |>
+  summarise(nat_avg = first(per_million)) |>
   pull(nat_avg)
 
 cnt_avg <- cnt_avg |>
-  mutate(pct_of_nat = avg_value / nat_avg)
+  mutate(pct_of_nat = per_million / nat_avg)
 
 # -----------------------------
 # 2) Plot
@@ -109,14 +158,14 @@ vc_formd_dealcount <- ggplot(
   cnt_avg,
   aes(
     x    = avg_label,
-    y    = avg_value,
+    y    = per_million,
     fill = series
   )
 ) +
   geom_col(position = position_dodge(width = 0.75), width = 0.65, color = "grey30") +
   geom_text(
     mapping = aes(
-      y     = avg_value,
+      y     = per_million,
       label = dplyr::case_when(
         series == "National" ~ NA_character_,
         TRUE                      ~ scales::percent(pct_of_nat, accuracy = 1)
@@ -140,10 +189,10 @@ vc_formd_dealcount <- ggplot(
   scale_y_continuous(labels = label_comma()) +
   labs(
     title    = "Form D Deal Count",
-    subtitle = "Since 2010",
+    subtitle = "Since 2010 (year coverage may not include 2025)",
     x        = NULL,
-    y        = "Form D filings",
-    caption  = "Source: CORI Form D interactive map (since 2010). Values may not reflect 2025 updates."
+    y        = "Form D filings per 1,000,000 residents",
+    caption  = "Source: CORI Form D interactive map (since 2010). Population estimated from labor force participation (no 2025 annual data). BLS annual 2025 data were checked but not found."
   ) +
   theme_im() +
   theme(legend.position = "bottom")

@@ -19,7 +19,7 @@ suppressPackageStartupMessages({
 
 options(tigris_use_cache = TRUE)
 
-output_dir <- "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/test_figures"
+output_dir <- "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/2026_01_29_v2"
 if (!dir.exists(output_dir)) {
   dir.create(output_dir, recursive = TRUE)
 }
@@ -85,8 +85,8 @@ ggplot(wi_map) +
   ) +
   labs(
     title    = "Form D Filing Count in Wisconsin by County",
-    subtitle = "CORI interactive map totals; grey counties have zero filings",
-    caption  = "Source: CORI Form D interactive map JSON"
+    subtitle = "Since 2010; year coverage may not include 2025 (grey counties have zero filings)",
+    caption  = "Source: CORI Form D interactive map totals"
   ) +
   coord_sf() +
   theme_minimal(base_size = 12) +

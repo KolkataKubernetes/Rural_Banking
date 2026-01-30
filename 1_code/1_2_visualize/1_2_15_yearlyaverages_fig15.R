@@ -15,7 +15,7 @@ suppressPackageStartupMessages({
   library(jsonlite)
 })
 
-output_dir <- "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/test_figures"
+output_dir <- "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/2026_01_29_v2"
 if (!dir.exists(output_dir)) {
   dir.create(output_dir, recursive = TRUE)
 }
@@ -53,8 +53,7 @@ county_props <- as_tibble(formd_json$features$properties) |>
   mutate(
     state_abbr = stringr::str_extract(name_co, "[A-Z]{2}$"),
     state_fips = stringr::str_pad(as.character(geoid_co), 5, pad = "0") |>
-      substr(1, 2),
-    rucc_type = if_else(rurality == "Metro", "metro", "rural")
+      substr(1, 2)
   )
 
 top3_states <- county_props |>
@@ -76,7 +75,7 @@ state_force <- readr::read_csv(
   summarise(total_force = sum(Force, na.rm = TRUE), .groups = "drop")
 
 formd_yearly_averages <- county_props |>
-  group_by(state_abbr, state_fips, rucc_type) |>
+  group_by(state_abbr, state_fips) |>
   summarise(total_amount = sum(total_amount_raised, na.rm = TRUE), .groups = "drop") |>
   left_join(state_force, by = c("state_fips" = "FIPS")) |>
   mutate(
@@ -89,7 +88,7 @@ formd_yearly_averages <- county_props |>
       TRUE ~ "All other states"
     )
   ) |>
-  group_by(grp, rucc_type) |>
+  group_by(grp) |>
   summarise(mean_amount = sum(per_100k, na.rm = TRUE), .groups = "drop")
 
 # -----------------------------
@@ -97,25 +96,31 @@ formd_yearly_averages <- county_props |>
 # -----------------------------
 
 formd_yearly_averages |>
-  ggplot(aes(x = mean_amount, y = grp, fill = rucc_type)) +
-  geom_col(position = position_dodge(width = 0.8)) +
-  scale_x_continuous(labels = scales::label_comma()) +
+  ggplot(aes(x = "", y = mean_amount, fill = grp)) +
+  geom_col(width = 1, color = "white") +
+  coord_polar(theta = "y") +
   scale_fill_manual(
     values = c(
-      "metro" = "blue",
-      "rural" = "purple"
+      top3_label = "grey60",
+      "WI" = "#c5050c",
+      "All other states" = "blue"
     ),
-    name = "RUCC type"
+    name = NULL
   ) +
   labs(
     title    = "Form D filing amounts",
     subtitle = "Since 2010; per 100,000 workers (CORI interactive map)",
-    x        = "Amount Raised per 100,000 workers",
-    y        = "",
+    x        = NULL,
+    y        = NULL,
     caption  = "Source: CORI Form D interactive map (since 2010). Values may not reflect 2025 updates."
   ) +
   theme_im() +
-  theme(legend.position = "bottom") -> x
+  theme(
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    legend.position = "bottom"
+  ) -> x
 
 save_fig(
   p        = x,

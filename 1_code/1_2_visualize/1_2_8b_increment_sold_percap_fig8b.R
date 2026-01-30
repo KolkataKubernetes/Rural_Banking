@@ -19,7 +19,7 @@ suppressPackageStartupMessages({
 
 options(tigris_use_cache = TRUE)
 
-output_dir <- "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/test_figures"
+output_dir <- "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/2026_01_29_v2"
 if (!dir.exists(output_dir)) {
   dir.create(output_dir, recursive = TRUE)
 }
@@ -73,7 +73,7 @@ ggplot(wi_map) +
   ) +
   labs(
     title    = "Form D Capital Raised in Wisconsin by County",
-    subtitle = "Since 2010; per resident",
+    subtitle = "Since 2010; per resident (year coverage may not include 2025)",
     caption  = "Source: CORI Form D interactive map totals (since 2010). County population is estimated from county labor force and state participation rates."
   ) +
   coord_sf() +
