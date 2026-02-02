@@ -4,6 +4,8 @@
 # Author:     Inder Majumdar
 # Created:    2026-02-02
 # Purpose:    Ingest US Census County Business Pattern Data
+
+# Update: 02/02/2026: Tessa said to use Business Formation Statistics.
 #///////////////////////////////////////////////////////////////////////////////
 
 # -----------------------------
@@ -17,6 +19,7 @@ library(jsonlite)
 library(dplyr)
 library(purrr)
 library(readr)
+library(readxl)
 
 # ---- Core fetch function ----
 cbp_get <- function(year,
@@ -86,17 +89,94 @@ cbp_list_vars <- function(year) {
     arrange(name)
 }
 
-vars_2011 <- cbp_list_vars(2011)
-vars_2010 |> filter(grepl("EMP|ESTAB|PAY", name))
+vars_2023 <- cbp_list_vars(2023)
+vars_2023 |> filter(grepl("EMP|ESTAB|PAY", name))
 
-# ---- Example: all WI counties, all NAICS (may be large) ----
-wi_all <- cbp_get(
-  year  = 2015,
-  vars  = c("ESTAB", "EMP", "PAYANN"),
+# ---- Example: all WI counties, NAICS = 00, 2023 ----
+wi_2023 <- cbp_get(
+  year  = 2023,
+  vars  = c("NAME","ESTAB", "EMP", "PAYANN"),
   state = "55",
   county = "*",
   naics = "00"
 )
 
-# --- Collect all Wisconsin Data from 2010 to present
+wi_2023$year <- 2023
+# --- Collect all Wisconsin Data from 2010 to present, call the dataframe WI All
+
+## Get State FIPS code filepath:
+state_fips <- read_csv(file.path("0_inputs","state_fips.csv"))
+
+years <- 2010:2023
+states <- c(state_fips$FIPS_CODE)
+vars_common <- c("ESTAB", "EMP", "PAYANN")
+naics_filter <- "00"
+
+out <- map_dfr(states, function(s) {
+  map_dfr(years, function(y) {
+    message("Pulling CBP data for year", y,",","state ",s)
+    vars_y <- cbp_list_vars(y)$name
+    use_naics <- if ("NAICS2017" %in% vars_y) naics_filter else NULL
+    cbp_get(
+      year  = y,
+      vars  = vars_common,
+      state = s,
+      county = "*",
+      naics = use_naics
+    ) |>
+      mutate(year = y)
+  })
+})
+
+
+wi_all <- map_dfr(years, function(y) {
+  message("Pulling CBP data for ", y)
+  vars_y <- cbp_list_vars(y)$name
+  use_naics <- if ("NAICS2017" %in% vars_y) naics_filter else NULL
+  cbp_get(
+    year  = y,
+    vars  = vars_common,
+    state = "55",
+    county = "*",
+    naics = use_naics
+  ) |>
+    mutate(year = y)
+})
+
+# ---- Join RUCC to classify metro vs rural (RUCC 1-3 = metro, else rural) ----
+rucc <- readxl::read_excel(file.path("0_inputs", "Ruralurbancontinuumcodes2023.xlsx"))
+
+out <- out |>
+  mutate(
+    county_fips = paste0(
+      sprintf("%02d", as.integer(state)),
+      sprintf("%03d", as.integer(county))
+    )
+  ) |>
+  left_join(
+    rucc |> mutate(RUCC_2023 = as.integer(RUCC_2023)) |> select(FIPS, RUCC_2023),
+    by = c("county_fips" = "FIPS")
+  ) |>
+  mutate(
+    rurality = if_else(RUCC_2023 %in% c(1, 2, 3), "metro", "rural")
+  )
+
+
+# --- Save RDS 
+
+saveRDS(out,file.path("2_processed_data","CBP_all.rds"))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
