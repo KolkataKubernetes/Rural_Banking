@@ -15,9 +15,9 @@ After this change, Figures 1–3, 8–9, 11–12, 15, and 18 will reflect the Ja
 - [x] (2026-01-29 19:00Z) Pause this ExecPlan pending a county-level labor force data plan and implementation.
 - [x] (2026-01-29 20:05Z) Complete county-level labor force plan (`agent-docs/execplans/2026_01_29_laborforce_county.md`) and adopt its outputs for Figure 8 denominators.
 - [x] (2026-01-29 20:05Z) Decide to keep state-level participation denominators for all figures except Figure 8; Figure 8 uses county population sums from the county LAUS pipeline.
-- [ ] Update output directory path in all affected figure scripts and update `agent-docs/agent_context/wi_figure_filepath_index.md` to the new output location.
-- [ ] Implement figure-specific edits and update captions/labels to reflect level values and per-million normalization.
-- [ ] Document outcomes, acceptance checks, and any discrepancies or caveats discovered during updates.
+- [x] (2026-01-29 20:50Z) Update output directory path in all figure scripts and update `agent-docs/agent_context/wi_figure_filepath_index.md` to the new output location.
+- [x] (2026-01-29 21:05Z) Implement figure-specific edits and update captions/labels to reflect level values and per-million normalization.
+- [x] (2026-01-29 21:10Z) Document outcomes, acceptance checks, and any discrepancies or caveats discovered during updates.
 
 ## Surprises & Discoveries
 
@@ -44,7 +44,7 @@ Decision: For Figure 8, use CORI JSON totals as the numerator and `2_processed_d
 
 ## Outcomes & Retrospective
 
-County-level denominator work for Figure 8 has been completed in `agent-docs/execplans/2026_01_29_laborforce_county.md`. This plan now proceeds with figure edits using those outputs plus state-level participation data for other figures.
+County-level denominator work for Figure 8 has been completed in `agent-docs/execplans/2026_01_29_laborforce_county.md`. Figure scripts were updated to write to `/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/2026_01_29_v2`. Figures 1–3 and 18 now show level values without percent-of-national labels; Figures 1–2 are per‑million population using 2015–2024 denominators. Figure 8 uses CORI JSON totals with county population sums for per‑million normalization and includes year coverage language; Figure 8b remains as a per‑resident variant. Figure 9 includes explicit year coverage language. Figures 11–12 now normalize per‑million population while keeping percent-of-national labels and noting the 2025 participation data gap. Figure 15 removes RUCC splits and is rendered as a pie chart by group.
 
 ## Context and Orientation
 
@@ -72,13 +72,13 @@ Figure 2 (VC capital committed): Remove percent-of-national labels and display l
 
 Figure 3 (VC deal size): Remove percent-of-national labels and display level values only; keep deal size as a level value (no per-million normalization requested here).
 
-Figure 8 (Form D capital by Wisconsin county): Normalize to “per million population” using `county_population_sum.rds` (sum of annual county populations, 2010–2024) as the denominator; clarify in labels/caption that county population is estimated from county labor force and state participation rates.
+Figure 8 (Form D capital by Wisconsin county): Normalize to “per million population” using `county_population_sum.rds` (sum of annual county populations, 2010–2024) as the denominator; add year coverage language (“since 2010; year coverage may not include 2025”) and clarify in labels/caption that county population is estimated from county labor force and state participation rates.
 
 Figure 9 (Form D filings by Wisconsin county): Add explicit year coverage language in subtitle or caption; use the same “since 2010” verbiage used in other Form D JSON figures, while noting that 2025 coverage is unknown.
 
-Figure 11 (Form D capital per labor force participants): Normalize to “per million population” using the participation-based population estimate; remove percent-of-national labels; update axis label, subtitle, and caption to reflect per-million normalization and to note that BLS 2025 data were checked and not found.
+Figure 11 (Form D capital per labor force participants): Normalize to “per million population” using the participation-based population estimate; keep percent-of-national labels; update axis label, subtitle, and caption to reflect per-million normalization and to note that BLS 2025 data were checked and not found.
 
-Figure 12 (Form D deal count): Normalize to “per million population” using the participation-based population estimate; remove percent-of-national labels; update axis label, subtitle, and caption accordingly.
+Figure 12 (Form D deal count): Normalize to “per million population” using the participation-based population estimate; keep percent-of-national labels; update axis label, subtitle, and caption accordingly.
 
 Figure 15 (Form D filing amounts): Remove RUCC (metro/rural) splits and replot as a pie chart showing shares across groups (Top 3 states, WI, All other states). Keep normalization consistent with the updated per-million approach if applicable, and update labels/caption to match the new chart type.
 
@@ -94,10 +94,10 @@ Third, implement figure-specific label and normalization changes:
 
 - Figures 1–2: remove `pct_of_nat` calculations and `geom_text` annotations; ensure captions no longer mention percent-of-national. Apply per-million normalization with the new denominator and update titles/subtitles to the correct year range (likely 2015–2024 if 2025 is dropped). Update the y-axis label to indicate “per million population.”
 - Figure 3: remove `pct_of_nat` calculations and `geom_text` annotations; keep y-axis as a level value; update caption to remove percent-of-national wording.
-- Figure 8: compute a per-million value for `total_amount_raised` (from the CORI JSON) using `county_population_sum.rds` as the denominator and use that for `fill`. Update the legend title and caption to specify the county population proxy denominator.
+- Figure 8: compute a per-million value for `total_amount_raised` (from the CORI JSON) using `county_population_sum.rds` as the denominator and use that for `fill`. Update subtitle/caption to include year coverage (“since 2010; year coverage may not include 2025”) and specify the county population proxy denominator.
 - Figure 9: update the subtitle or caption to “Since 2010 (CORI Form D interactive map totals; year coverage may not include 2025)” or matching the established verbiage in Figures 11–12/18; do not invent a specific end year.
-- Figure 11: replace `value_per_100k` with `value_per_million` using population estimates; remove percent-of-national `geom_text`; update y-axis label, subtitle, and caption to reflect per-million normalization and the missing 2025 participation data (including that BLS was checked for 2025 and none found).
-- Figure 12: remove percent-of-national `geom_text`; compute per-million normalization similarly to Figure 11; update labels and caption.
+- Figure 11: replace `value_per_100k` with `value_per_million` using population estimates; keep percent-of-national `geom_text`; update y-axis label, subtitle, and caption to reflect per-million normalization and the missing 2025 participation data (including that BLS was checked for 2025 and none found).
+- Figure 12: keep percent-of-national `geom_text`; compute per-million normalization similarly to Figure 11; update labels and caption.
 - Figure 15: drop RUCC type from grouping; aggregate to `grp` only, compute the desired normalized measure, and render as a pie chart (e.g., `coord_polar(theta = "y")`), with a legend showing group names and slice values/percentages as needed. Update subtitle and caption to explain the grouping and normalization.
 - Figure 18: remove percent-of-national `geom_text`; update caption to remove percent-of-national wording.
 
@@ -163,3 +163,6 @@ These changes are safe to re-run because they only update scripts and output pat
 
 Change log: 2026-01-29 — Initial ExecPlan created from `agent-docs/agent_context/2026_01_29_figfeedback.md` and existing figure scripts; pending decisions noted for per-million normalization strategy and Figure 8 denominator.
 Change log: 2026-01-29 — Paused this ExecPlan to address county-level labor force data ingestion in a new ExecPlan before resuming figure edits.
+Change log: 2026-01-29 — Executed figure script updates (output paths, per‑million normalization, label changes, Figure 15 pie chart, year coverage notes) and aligned plan decisions with completed county labor force work.
+
+Note: Updated this ExecPlan to reflect completed implementation steps and the finalized Figure 8 denominator so the plan remains self‑contained and accurate.
