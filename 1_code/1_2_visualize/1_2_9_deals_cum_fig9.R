@@ -97,10 +97,13 @@ ggplot(wi_map) +
     axis.title = element_blank(),
     axis.text = element_blank(),
     axis.ticks = element_blank(),
-    panel.grid = element_blank()
+    panel.grid = element_blank(),
+    plot.margin = margin(10, 10, 18, 10)
   ) -> total_deals_cumulative
 
 save_fig(
   p = total_deals_cumulative,
-  filename = file.path(output_dir, "9_total_deals_cumulative.jpeg")
+  filename = file.path(output_dir, "9_total_deals_cumulative.jpeg"),
+  w = 16.5,
+  h = 6.2
 )

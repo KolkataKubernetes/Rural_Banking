@@ -79,7 +79,7 @@ formd_yearly_averages <- county_props |>
   summarise(total_amount = sum(total_amount_raised, na.rm = TRUE), .groups = "drop") |>
   left_join(state_force, by = c("state_fips" = "FIPS")) |>
   mutate(
-    per_100k = total_amount / (total_force / 100000)
+    per_million = total_amount / (total_force / 1000000)
   ) |>
   mutate(
     grp = case_when(
@@ -89,7 +89,7 @@ formd_yearly_averages <- county_props |>
     )
   ) |>
   group_by(grp) |>
-  summarise(mean_amount = sum(per_100k, na.rm = TRUE), .groups = "drop")
+  summarise(mean_amount = sum(per_million, na.rm = TRUE), .groups = "drop")
 
 # -----------------------------
 # 2) Plot
@@ -109,10 +109,10 @@ formd_yearly_averages |>
   ) +
   labs(
     title    = "Form D filing amounts",
-    subtitle = "Since 2010; per 100,000 workers (CORI interactive map)",
+    subtitle = "Since 2010; per 1,000,000 workers (CORI interactive map)",
     x        = NULL,
     y        = NULL,
-    caption  = "Source: CORI Form D interactive map (since 2010). Values may not reflect 2025 updates."
+    caption  = "Source: CORI Form D interactive map (since 2010). Values are per 1,000,000 workers; 2025 updates may not be reflected."
   ) +
   theme_im() +
   theme(

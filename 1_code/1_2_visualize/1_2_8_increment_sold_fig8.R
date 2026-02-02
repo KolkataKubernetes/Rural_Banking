@@ -82,11 +82,14 @@ ggplot(wi_map) +
     axis.title = element_blank(),
     axis.text = element_blank(),
     axis.ticks = element_blank(),
-    panel.grid = element_blank()
+    panel.grid = element_blank(),
+    plot.margin = margin(10, 10, 18, 10)
   ) -> increment_sold_cumulative
 
 
 save_fig(
   p = increment_sold_cumulative,
-  filename = file.path(output_dir, "8_increment_sold_cumulative.jpeg")
+  filename = file.path(output_dir, "8_increment_sold_cumulative.jpeg"),
+  w = 16.5,
+  h = 6.2
 )

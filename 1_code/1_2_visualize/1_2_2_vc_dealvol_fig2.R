@@ -166,7 +166,7 @@ avg_data |>
     title    = "Venture Capital Capital Committed: Wisconsin vs National Average",
     subtitle = "2015–2024 total",
     x        = NULL,
-    y        = "USD (Millions) per 1M residents",
+    y        = "USD (Millions) per 1M residents (BLS - noninstitutionalized)",
     fill     = NULL,
     caption  = "Source: Pitchbook Venture Capital Monitor Q4 2025. Population estimated from labor force participation (no 2025 annual data). Midwest states include Minnesota, Iowa, Illinois, Indiana, and Michigan."
   ) +
