@@ -58,6 +58,13 @@ This document constrains implementation and workflow; it does not authorize inte
 
 ./agent-docs/execplans/. - Use this subfolder to store plans we have finalized as a .md file. During the planning phase, I'll iterate on these files with you, which will then be used to execute workplans.
 
+## README Governance and Automation Rules
+
+Codex is authorized to update the README **only** within the boundaries defined below.  
+Codex is not authorized to reinterpret project goals, redefine scope, or infer intent beyond explicit instructions.
+Codex should only update the README when asked. When the README is to be updated, please follow the instruction set provided in /agent-docs/README_update_instructset.md.
+
+
 ## Reasoning & Scope Control
 - Optimize for correctness and reproducibility over elegance.
 - Do not introduce new estimators, identification strategies, variable constructions, or sample definitions unless explicitly requested.
