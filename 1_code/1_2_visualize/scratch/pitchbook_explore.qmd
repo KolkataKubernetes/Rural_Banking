@@ -1,0 +1,1402 @@
+---
+title: "Pitchbook Data Exploration"
+author: "Inder Majumdar"
+format:
+  html:
+    embed-resources: true
+date: 2026-02-03
+---
+
+The Pitchbook data provides useful aggregte statistics at the state level. Data include number of VC deals and number of dollars invested (What I call "capital committed") per year. 
+
+We're trying to explain an odd discrepency - when we look at capital committed or dealcount, Wisconsin lags other states and categories. However, when we look at "per 1 million population" figures, the pattern flips. The goal is to better understand what years might be driving this, and come up with a normalization that "makes sense."
+
+We'll redact most of the wording below when communicating to a general audience. However, the purpose of this document is to make clear how each figure has been made thus far and suggest some alternatives that might make more sense.
+
+```{r config, echo=FALSE, warning=FALSE,message=FALSE}
+library(tidyverse)
+library(readxl)
+library(plotly)
+
+# --- Minimal, clean theme
+theme_im <- function(base_size = 12) {
+  theme_minimal(base_size = base_size) +
+    theme(
+      plot.title.position = "plot",
+      plot.caption.position = "plot",
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_line(linewidth = 0.3),
+      panel.grid.major.y = element_line(linewidth = 0.3),
+      legend.position = "top",
+      legend.title = element_text(face = "bold"),
+      plot.title = element_text(face = "bold"),
+      axis.title = element_text(face = "bold")
+    )
+}
+
+vol_ts_data <- readRDS(file.path("..","..","..","2_processed_data", "vol_ts_data.rds"))
+count_ts_data <- readRDS(file.path("..","..","..","2_processed_data", "count_ts_data.rds"))
+
+participation <- readr::read_csv(
+  file.path("..","..","..","0_inputs", "CORI", "fips_participation.csv"),
+  show_col_types = FALSE
+) |>
+  mutate(
+    FIPS = stringr::str_pad(as.character(FIPS), width = 2, pad = "0"),
+    Participation = readr::parse_number(as.character(Participation)),
+    Force = readr::parse_number(as.character(Force))
+  )
+
+bfs <- readRDS(file.path("..","..","..","2_processed_data", "BFS_county.rds")) |>
+  mutate(
+    state_fips = stringr::str_pad(as.character(state_fips), width = 2, pad = "0")
+  )
+
+state_fips <- readr::read_csv(
+  file.path("..","..","..","0_inputs", "state_fips.csv"),
+  show_col_types = FALSE
+)
+
+dealcount_raw <- readxl::read_xlsx(
+  file.path("..","..","..","0_inputs", "Pitchbook", "Pitchbook_dealcount.xlsx")
+)
+
+dealvol_raw <- readxl::read_xlsx(
+  file.path("..","..","..","0_inputs", "Pitchbook", "Pitchbook_dealvol.xlsx")
+)
+
+avg_label <- "2015–2024 total"
+year_min <- 2015
+year_max <- 2024
+
+midwest_excl_wi <- c("27", "19", "17", "26", "18")
+big3            <- c("06", "25", "36")
+wi_fips         <- "55"
+
+series_levels <- c(
+  "National",
+  "National (excl. CA, MA, NY)",
+  "Midwest (excl. WI)",
+  "Wisconsin"
+)
+
+series_colors <- c(
+  "Wisconsin" = "#c5050c",
+  "Midwest (excl. WI)" = "blue",
+  "National (excl. CA, MA, NY)" = "grey60",
+  "National" = "black"
+)
+
+summarise_groups <- function(df, states, label, value_col, out_col) {
+  df |>
+    filter(FIPS %in% states) |>
+    summarise({{ out_col }} := sum({{ value_col }}, na.rm = TRUE), .groups = "drop") |>
+    mutate(series = label)
+}
+
+build_avg_data <- function(ts_data, value_cols, name_map, value_name) {
+  ts_data |>
+    filter(year >= year_min, year <= year_max) |>
+    summarise(across(all_of(value_cols), ~ sum(.x, na.rm = TRUE))) |>
+    pivot_longer(cols = all_of(value_cols), names_to = "series", values_to = value_name) |>
+    mutate(
+      series = recode(series, !!!name_map),
+      series = factor(series, levels = series_levels)
+    )
+}
+
+population_by_state <- participation |>
+  filter(year >= year_min, year <= year_max) |>
+  mutate(population = Force / (Participation / 100)) |>
+  group_by(FIPS) |>
+  summarise(sum_population = sum(population, na.rm = TRUE), .groups = "drop")
+
+all_states <- sort(unique(population_by_state$FIPS))
+
+population_groups <- bind_rows(
+  summarise_groups(population_by_state, all_states, "National", sum_population, sum_population),
+  summarise_groups(population_by_state, setdiff(all_states, big3), "National (excl. CA, MA, NY)", sum_population, sum_population),
+  summarise_groups(population_by_state, midwest_excl_wi, "Midwest (excl. WI)", sum_population, sum_population),
+  summarise_groups(population_by_state, wi_fips, "Wisconsin", sum_population, sum_population)
+)
+
+population_by_state_year <- participation |>
+  filter(year >= year_min, year <= year_max) |>
+  mutate(population = Force / (Participation / 100)) |>
+  group_by(year, FIPS) |>
+  summarise(sum_population = sum(population, na.rm = TRUE), .groups = "drop")
+
+summarise_groups_year <- function(df, states, label, value_col, out_col) {
+  df |>
+    filter(FIPS %in% states) |>
+    group_by(year) |>
+    summarise({{ out_col }} := sum({{ value_col }}, na.rm = TRUE), .groups = "drop") |>
+    mutate(series = label)
+}
+
+population_groups_year <- bind_rows(
+  summarise_groups_year(population_by_state_year, all_states, "National", sum_population, sum_population),
+  summarise_groups_year(population_by_state_year, setdiff(all_states, big3), "National (excl. CA, MA, NY)", sum_population, sum_population),
+  summarise_groups_year(population_by_state_year, midwest_excl_wi, "Midwest (excl. WI)", sum_population, sum_population),
+  summarise_groups_year(population_by_state_year, wi_fips, "Wisconsin", sum_population, sum_population)
+)
+
+bfs_by_state <- bfs |>
+  filter(year >= year_min, year <= year_max) |>
+  group_by(state_fips) |>
+  summarise(sum_apps = sum(business_app, na.rm = TRUE), .groups = "drop") |>
+  rename(FIPS = state_fips)
+
+bfs_groups <- bind_rows(
+  summarise_groups(bfs_by_state, all_states, "National", sum_apps, sum_apps),
+  summarise_groups(bfs_by_state, setdiff(all_states, big3), "National (excl. CA, MA, NY)", sum_apps, sum_apps),
+  summarise_groups(bfs_by_state, midwest_excl_wi, "Midwest (excl. WI)", sum_apps, sum_apps),
+  summarise_groups(bfs_by_state, wi_fips, "Wisconsin", sum_apps, sum_apps)
+)
+
+count_map <- c(
+  dealcount_national = "National",
+  dealcount_national_nonoutlier = "National (excl. CA, MA, NY)",
+  dealcount_midwest = "Midwest (excl. WI)",
+  dealcount_wi = "Wisconsin"
+)
+
+vol_map <- c(
+  dealvol_national = "National",
+  dealvol_national_nonoutlier = "National (excl. CA, MA, NY)",
+  dealvol_midwest = "Midwest (excl. WI)",
+  dealvol_wi = "Wisconsin"
+)
+
+avg_count <- build_avg_data(
+  count_ts_data,
+  c("dealcount_national", "dealcount_national_nonoutlier", "dealcount_midwest", "dealcount_wi"),
+  count_map,
+  "dealcount"
+)
+
+avg_vol <- build_avg_data(
+  vol_ts_data,
+  c("dealvol_national", "dealvol_national_nonoutlier", "dealvol_midwest", "dealvol_wi"),
+  vol_map,
+  "dealvol"
+)
+
+build_ts_long <- function(ts_data, value_cols, name_map, value_name) {
+  ts_data |>
+    filter(year >= year_min, year <= year_max) |>
+    select(year, all_of(value_cols)) |>
+    pivot_longer(cols = all_of(value_cols), names_to = "series", values_to = value_name) |>
+    mutate(
+      series = recode(series, !!!name_map),
+      series = factor(series, levels = series_levels)
+    )
+}
+
+count_long <- build_ts_long(
+  count_ts_data,
+  c("dealcount_national", "dealcount_national_nonoutlier", "dealcount_midwest", "dealcount_wi"),
+  count_map,
+  "dealcount"
+)
+
+vol_long <- build_ts_long(
+  vol_ts_data,
+  c("dealvol_national", "dealvol_national_nonoutlier", "dealvol_midwest", "dealvol_wi"),
+  vol_map,
+  "dealvol"
+)
+
+build_state_per_million <- function(raw_df, value_name, participation_df, state_lookup) {
+  raw_years <- names(raw_df)[-1] |> as.integer()
+  pop_years <- participation_df$year |> as.integer()
+
+  year_use <- intersect(raw_years, pop_years) |>
+    max(na.rm = TRUE)
+
+  if (!is.finite(year_use)) {
+    stop("No common year found between Pitchbook and participation data.")
+  }
+
+  state_lookup <- state_lookup |>
+    filter(FIPS_CODE != "11") |>
+    transmute(
+      state_fips = stringr::str_pad(as.character(FIPS_CODE), width = 2, pad = "0"),
+      state_name = stringr::str_to_title(tolower(STATE_NAME)),
+      state_name_key = tolower(STATE_NAME)
+    )
+
+  values_state <- raw_df |>
+    pivot_longer(-State, names_to = "year", values_to = value_name) |>
+    mutate(
+      year = as.integer(year),
+      state_name_key = tolower(State)
+    ) |>
+    filter(year == year_use)
+
+  population_state <- participation_df |>
+    mutate(
+      FIPS = stringr::str_pad(as.character(FIPS), width = 2, pad = "0"),
+      Participation = readr::parse_number(as.character(Participation)),
+      Force = readr::parse_number(as.character(Force)),
+      year = as.integer(year)
+    ) |>
+    filter(year == year_use) |>
+    transmute(
+      state_fips = FIPS,
+      population = Force / (Participation / 100)
+    )
+
+  state_data <- values_state |>
+    left_join(state_lookup, by = "state_name_key") |>
+    left_join(population_state, by = "state_fips") |>
+    filter(!is.na(state_fips)) |>
+    mutate(
+      per_million = .data[[value_name]] / (population / 1000000)
+    ) |>
+    arrange(desc(per_million))
+
+  list(data = state_data, year_use = year_use)
+}
+
+build_state_per_million_by_year <- function(raw_df, value_name, participation_df, state_lookup) {
+  raw_years <- names(raw_df)[-1] |> as.integer()
+  pop_years <- participation_df$year |> as.integer()
+
+  years_use <- intersect(raw_years, pop_years)
+  if (length(years_use) == 0) {
+    stop("No common years found between Pitchbook and participation data.")
+  }
+
+  state_lookup <- state_lookup |>
+    filter(FIPS_CODE != "11") |>
+    transmute(
+      state_fips = stringr::str_pad(as.character(FIPS_CODE), width = 2, pad = "0"),
+      state_name = stringr::str_to_title(tolower(STATE_NAME)),
+      state_name_key = tolower(STATE_NAME)
+    )
+
+  values_state <- raw_df |>
+    pivot_longer(-State, names_to = "year", values_to = value_name) |>
+    mutate(
+      year = as.integer(year),
+      state_name_key = tolower(State)
+    ) |>
+    filter(year %in% years_use)
+
+  population_state <- participation_df |>
+    mutate(
+      FIPS = stringr::str_pad(as.character(FIPS), width = 2, pad = "0"),
+      Participation = readr::parse_number(as.character(Participation)),
+      Force = readr::parse_number(as.character(Force)),
+      year = as.integer(year)
+    ) |>
+    filter(year %in% years_use) |>
+    transmute(
+      year,
+      state_fips = FIPS,
+      population = Force / (Participation / 100)
+    )
+
+  values_state |>
+    left_join(state_lookup, by = "state_name_key") |>
+    left_join(population_state, by = c("state_fips", "year")) |>
+    filter(!is.na(state_fips)) |>
+    mutate(
+      per_million = .data[[value_name]] / (population / 1000000)
+    )
+}
+
+```
+
+## Raw Numbers: How does Wisconsin Fare w.r.t. Capital Committed, VC Dealcount? How we got here
+
+These were among the original figures we put together. To save time, I'll show you the "aggregated" figures we landed on before trying to normalize.
+
+```{r fig1_dealcount, echo=FALSE, warning=FALSE,message=FALSE}
+
+# The original count graph: Just aggregate dealcount over the period and break out by category.
+
+# -----------------------------
+# 2) Plot
+# -----------------------------
+
+avg_count |>
+  ggplot(aes(x = avg_label, y = dealcount, fill = series)) +
+  geom_col(position = position_dodge(width = 0.75), width = 0.65) +
+  geom_text(
+    aes(label = scales::label_comma()(dealcount)),
+    position = position_dodge(width = 0.75),
+    vjust = -0.4,
+    size = 3
+  ) +
+  scale_fill_manual(
+    values = series_colors,
+    breaks = series_levels
+  ) +
+  scale_y_continuous(labels = scales::label_comma()) +
+  labs(
+    title    = "Venture Capital Deal Count: Wisconsin vs National Average",
+    subtitle = "2015–2024 total",
+    x        = NULL,
+    y        = "Deals",
+    fill     = NULL,
+    caption  = "Source: Pitchbook Venture Capital Monitor Q4 2025. Midwest states include Minnesota, Iowa, Illinois, Indiana, and Michigan."
+  ) +
+  theme_im()
+
+```
+
+
+```{r fig2_dealvol, echo=FALSE, warning=FALSE,message=FALSE}
+
+# This was the original graph we had put together - I just want total capital committed, aggregated over the period. 
+
+# -----------------------------
+# 2) Plot
+# -----------------------------
+
+avg_vol |>
+  ggplot(aes(x = avg_label, y = dealvol, fill = series)) +
+  geom_col(position = position_dodge(width = 0.75), width = 0.65) +
+  geom_text(
+    aes(label = scales::label_comma()(dealvol)),
+    position = position_dodge(width = 0.75),
+    vjust = -0.4,
+    size = 3
+  ) +
+  scale_fill_manual(
+    values = series_colors,
+    breaks = series_levels
+  ) +
+  scale_y_continuous(labels = scales::label_comma()) +
+  labs(
+    title    = "Venture Capital Capital Committed: Wisconsin vs National Average",
+    subtitle = "2015–2024 total",
+    x        = NULL,
+    y        = "USD (Millions)",
+    fill     = NULL,
+    caption  = "Source: Pitchbook Venture Capital Monitor Q4 2025. Midwest states include Minnesota, Iowa, Illinois, Indiana, and Michigan."
+  ) +
+  theme_im()
+
+
+
+
+```
+
+
+My understanding of our initial reactions are as follows:
+1) Given the economic composition of WI, the above figures make sense. Tech and other VC-heavy sectors don't comprise as large a portion of the state economy as in other states.
+2) Wisconsin has a higher percentage of its population living in rural areas than the average state - not accounting for this might unfairly skew the measure (a flavor of omitted variable bias).
+
+We next decided to look at normalizing by a measure of population (see next section).
+
+## Normalization #1: Per 1 M Population
+
+Normalizations are calculated in the aggregate as follows: 
+
+$$
+Y_{agg,i} = \frac{\sum_{t}{\sum_{s \in i}{y_{s,t}}}}{\sum_t{\sum_{s \in i}{pop_{s,t}}}}
+$$
+
+
+In words, I separately sum the numerator and denominator, then take a ratio. In the numerator, I first sum the numerator across states to create groups (e.g. National, Big 3) and then sum across years to get the aggregate. I follow the same procedure for the denominator before dividing. $pop$ is defined by taking the BLS/LAUS county-level employment statistics and dividing by the participation rate to recover an estimate of the "work-eligible" population.
+
+```{r fig1_dealcount_IM_perpop, echo=FALSE, warning=FALSE,message=FALSE}
+
+# This is the same as fig1_dealcount_IM, but per million population as we have done before.
+
+avg_count |>
+  left_join(population_groups, by = "series") |>
+  mutate(
+    per_million = dealcount / (sum_population / 1000000)
+  ) |>
+  ggplot(aes(x = avg_label, y = per_million, fill = series)) +
+  geom_col(position = position_dodge(width = 0.75), width = 0.65) +
+  geom_text(
+    aes(label = scales::label_comma()(per_million)),
+    position = position_dodge(width = 0.75),
+    vjust = -0.4,
+    size = 3
+  ) +
+  scale_fill_manual(
+    values = series_colors,
+    breaks = series_levels
+  ) +
+  scale_y_continuous(labels = scales::label_comma()) +
+  labs(
+    title    = "Venture Capital Deal Count: Wisconsin vs National Average",
+    subtitle = "2015–2024 total",
+    x        = NULL,
+    y        = "Deals per 1M residents (BLS - noninstitutionalized)",
+    fill     = NULL,
+    caption  = "Source: Pitchbook Venture Capital Monitor Q4 2025. Population estimated from labor force participation (no 2025 annual data). Midwest states include Minnesota, Iowa, Illinois, Indiana, and Michigan."
+  ) +
+  theme_im()
+
+```
+
+
+```{r fig2_dealvol_IM_perpop, echo=FALSE, warning=FALSE,message=FALSE}
+
+# This is the same as fig1_dealvol_IM, but per million population as we have done before.
+
+avg_vol |>
+  left_join(population_groups, by = "series") |>
+  mutate(
+    per_million = dealvol / (sum_population / 1000000)
+  ) |>
+  ggplot(aes(x = avg_label, y = per_million, fill = series)) +
+  geom_col(position = position_dodge(width = 0.75), width = 0.65) +
+  geom_text(
+    aes(label = scales::label_comma()(per_million)),
+    position = position_dodge(width = 0.75),
+    vjust = -0.4,
+    size = 3
+  ) +
+  scale_fill_manual(
+    values = series_colors,
+    breaks = series_levels
+  ) +
+  scale_y_continuous(labels = scales::label_comma()) +
+  labs(
+    title    = "Venture Capital Capital Committed: Wisconsin vs National Average",
+    subtitle = "2015–2024 total",
+    x        = NULL,
+    y        = "USD (Millions) per 1M residents (BLS - noninstitutionalized)",
+    fill     = NULL,
+    caption  = "Source: Pitchbook Venture Capital Monitor Q4 2025. Population estimated from labor force participation (no 2025 annual data). Midwest states include Minnesota, Iowa, Illinois, Indiana, and Michigan."
+  ) +
+  theme_im()
+
+```
+
+What concerned us here was the dramatic swing in pattern - now Wisconsin dwarfs the comparison groups.
+
+
+## Most recent year, normalization 1:
+
+Next I'll break down VC deal count and capital committed by state.
+
+```{r fig1_dealcount_bystateslider, echo=FALSE, warning=FALSE,message=FALSE}
+
+count_state <- build_state_per_million(
+  raw_df = dealcount_raw,
+  value_name = "dealcount",
+  participation_df = participation,
+  state_lookup = state_fips
+)
+
+subtitle_text <- paste0("Year used: ", count_state$year_use)
+
+count_state$data |>
+  mutate(is_wi = state_name == "Wisconsin") |>
+  slice_max(order_by = per_million, n = 10, with_ties = FALSE) |>
+  bind_rows(count_state$data |> filter(state_name == "Wisconsin") |> mutate(is_wi = TRUE)) |>
+  distinct(state_name, .keep_all = TRUE) |>
+  arrange(desc(per_million)) |>
+  ggplot(aes(x = reorder(state_name, per_million), y = per_million)) +
+  geom_col(aes(fill = is_wi), show.legend = FALSE) +
+  geom_text(
+    aes(label = scales::label_comma()(per_million)),
+    hjust = -0.05,
+    size = 2.6
+  ) +
+  coord_flip() +
+  scale_y_continuous(labels = scales::label_comma()) +
+  scale_fill_manual(values = c(`TRUE` = "#c5050c", `FALSE` = "#1f4e79")) +
+  labs(
+    title = "Venture Capital Deal Count per 1M Residents",
+    subtitle = subtitle_text,
+    x = NULL,
+    y = "Deals per 1M residents (BLS - noninstitutionalized)",
+    caption = "Source: Pitchbook Venture Capital Monitor Q4 2025. Population estimated from labor force participation."
+  ) +
+  theme_im() +
+  theme(legend.position = "none")
+
+```
+
+```{r fig2_dealvol_bystateslider, echo=FALSE, warning=FALSE,message=FALSE}
+
+vol_state <- build_state_per_million(
+  raw_df = dealvol_raw,
+  value_name = "dealvol",
+  participation_df = participation,
+  state_lookup = state_fips
+)
+
+subtitle_text <- paste0("Year used: ", vol_state$year_use)
+
+vol_state$data |>
+  mutate(is_wi = state_name == "Wisconsin") |>
+  slice_max(order_by = per_million, n = 10, with_ties = FALSE) |>
+  bind_rows(vol_state$data |> filter(state_name == "Wisconsin") |> mutate(is_wi = TRUE)) |>
+  distinct(state_name, .keep_all = TRUE) |>
+  arrange(desc(per_million)) |>
+  ggplot(aes(x = reorder(state_name, per_million), y = per_million)) +
+  geom_col(aes(fill = is_wi), show.legend = FALSE) +
+  geom_text(
+    aes(label = scales::label_comma()(per_million)),
+    hjust = -0.05,
+    size = 2.6
+  ) +
+  coord_flip() +
+  scale_y_continuous(labels = scales::label_comma()) +
+  scale_fill_manual(values = c(`TRUE` = "#c5050c", `FALSE` = "#1f4e79")) +
+  labs(
+    title = "Venture Capital Capital Committed per 1M Residents",
+    subtitle = subtitle_text,
+    x = NULL,
+    y = "USD (Millions) per 1M residents (BLS - noninstitutionalized)",
+    caption = "Source: Pitchbook Venture Capital Monitor Q4 2025. Population estimated from labor force participation."
+  ) +
+  theme_im() +
+  theme(legend.position = "none")
+
+```
+
+## Interactive: Deal Count
+
+```{r fig1_dealcount_bystateslider_interact, echo=FALSE, warning=FALSE,message=FALSE}
+
+count_state_all <- build_state_per_million_by_year(
+  raw_df = dealcount_raw,
+  value_name = "dealcount",
+  participation_df = participation,
+  state_lookup = state_fips
+)
+
+latest_year <- max(count_state_all$year, na.rm = TRUE)
+
+top10_by_year <- count_state_all |>
+  group_by(year) |>
+  mutate(is_wi = state_name == "Wisconsin") |>
+  slice_max(order_by = per_million, n = 10, with_ties = FALSE) |>
+  ungroup()
+
+wi_by_year <- count_state_all |>
+  filter(state_name == "Wisconsin") |>
+  mutate(is_wi = TRUE)
+
+plot_data <- bind_rows(top10_by_year, wi_by_year) |>
+  distinct(year, state_name, .keep_all = TRUE)
+
+years <- sort(unique(plot_data$year))
+
+frame_list <- purrr::map(years, function(y) {
+  df <- plot_data |>
+    filter(year == y) |>
+    arrange(per_million) |>
+    mutate(state_name = factor(state_name, levels = state_name))
+
+  list(
+    name = as.character(y),
+    data = list(
+      list(
+        x = df$per_million,
+        y = df$state_name,
+        text = scales::label_comma()(df$per_million),
+        textposition = "outside",
+        marker = list(color = ifelse(df$is_wi, "#c5050c", "#1f4e79"))
+      )
+    ),
+    layout = list(
+      yaxis = list(categoryorder = "array", categoryarray = levels(df$state_name))
+    )
+  )
+})
+
+init_df <- plot_data |>
+  filter(year == latest_year) |>
+  arrange(per_million) |>
+  mutate(state_name = factor(state_name, levels = state_name))
+
+init_levels <- levels(init_df$state_name)
+
+p <- plot_ly(
+  init_df,
+  x = ~per_million,
+  y = ~state_name,
+  text = ~scales::label_comma()(per_million),
+  textposition = "outside",
+  type = "bar",
+  orientation = "h",
+  marker = list(color = ~if_else(is_wi, "#c5050c", "#1f4e79"))
+) |>
+  layout(
+    title = list(text = "Venture Capital Deal Count per 1M Residents"),
+    xaxis = list(title = "Deals per 1M residents (BLS - noninstitutionalized)", tickformat = ","),
+    yaxis = list(title = "", categoryorder = "array", categoryarray = init_levels),
+    margin = list(l = 120, r = 20, t = 60, b = 40),
+    showlegend = FALSE
+  )
+
+pb <- plotly_build(p)
+pb$x$frames <- frame_list
+pb$x$layout$sliders <- list(
+  list(
+    active = max(which(years == latest_year)) - 1,
+    steps = purrr::map(years, function(y) {
+      list(
+        method = "animate",
+        args = list(
+          list(as.character(y)),
+          list(mode = "immediate", frame = list(duration = 0, redraw = TRUE), transition = list(duration = 0))
+        ),
+        label = as.character(y)
+      )
+    })
+  )
+)
+
+pb
+
+```
+
+
+```{r fig2_dealvol_bystateslider_interact, echo=FALSE, warning=FALSE,message=FALSE}
+
+vol_state_all <- build_state_per_million_by_year(
+  raw_df = dealvol_raw,
+  value_name = "dealvol",
+  participation_df = participation,
+  state_lookup = state_fips
+)
+
+latest_year <- max(vol_state_all$year, na.rm = TRUE)
+
+top10_by_year <- vol_state_all |>
+  group_by(year) |>
+  mutate(is_wi = state_name == "Wisconsin") |>
+  slice_max(order_by = per_million, n = 10, with_ties = FALSE) |>
+  ungroup()
+
+wi_by_year <- vol_state_all |>
+  filter(state_name == "Wisconsin") |>
+  mutate(is_wi = TRUE)
+
+plot_data <- bind_rows(top10_by_year, wi_by_year) |>
+  distinct(year, state_name, .keep_all = TRUE)
+
+years <- sort(unique(plot_data$year))
+
+frame_list <- purrr::map(years, function(y) {
+  df <- plot_data |>
+    filter(year == y) |>
+    arrange(per_million) |>
+    mutate(state_name = factor(state_name, levels = state_name))
+
+  list(
+    name = as.character(y),
+    data = list(
+      list(
+        x = df$per_million,
+        y = df$state_name,
+        text = scales::label_comma()(df$per_million),
+        textposition = "outside",
+        marker = list(color = ifelse(df$is_wi, "#c5050c", "#1f4e79"))
+      )
+    ),
+    layout = list(
+      yaxis = list(categoryorder = "array", categoryarray = levels(df$state_name))
+    )
+  )
+})
+
+init_df <- plot_data |>
+  filter(year == latest_year) |>
+  arrange(per_million) |>
+  mutate(state_name = factor(state_name, levels = state_name))
+
+init_levels <- levels(init_df$state_name)
+
+p <- plot_ly(
+  init_df,
+  x = ~per_million,
+  y = ~state_name,
+  text = ~scales::label_comma()(per_million),
+  textposition = "outside",
+  type = "bar",
+  orientation = "h",
+  marker = list(color = ~if_else(is_wi, "#c5050c", "#1f4e79"))
+) |>
+  layout(
+    title = list(text = "Venture Capital Capital Committed per 1M Residents"),
+    xaxis = list(title = "USD (Millions) per 1M residents (BLS - noninstitutionalized)", tickformat = ","),
+    yaxis = list(title = "", categoryorder = "array", categoryarray = init_levels),
+    margin = list(l = 120, r = 20, t = 60, b = 40),
+    showlegend = FALSE
+  )
+
+pb <- plotly_build(p)
+pb$x$frames <- frame_list
+pb$x$layout$sliders <- list(
+  list(
+    active = max(which(years == latest_year)) - 1,
+    steps = purrr::map(years, function(y) {
+      list(
+        method = "animate",
+        args = list(
+          list(as.character(y)),
+          list(mode = "immediate", frame = list(duration = 0, redraw = TRUE), transition = list(duration = 0))
+        ),
+        label = as.character(y)
+      )
+    })
+  )
+)
+
+pb
+
+```
+
+## Interactive Comparison to bottom 10
+
+I think I figured out our problem. Consider the lowest five states by deal count by year:
+
+```{r fig1_dealcount_bystateslider_interact_lowest5, echo=FALSE, warning=FALSE,message=FALSE}
+
+count_state_all <- build_state_per_million_by_year(
+  raw_df = dealcount_raw,
+  value_name = "dealcount",
+  participation_df = participation,
+  state_lookup = state_fips
+)
+
+latest_year <- max(count_state_all$year, na.rm = TRUE)
+
+bot10_by_year <- count_state_all |>
+  group_by(year) |>
+  mutate(is_wi = state_name == "Wisconsin") |>
+  slice_min(order_by = per_million, n = 10, with_ties = FALSE) |>
+  ungroup()
+
+wi_by_year <- count_state_all |>
+  filter(state_name == "Wisconsin") |>
+  mutate(is_wi = TRUE)
+
+plot_data <- bind_rows(bot10_by_year, wi_by_year) |>
+  distinct(year, state_name, .keep_all = TRUE)
+
+years <- sort(unique(plot_data$year))
+
+frame_list <- purrr::map(years, function(y) {
+  df <- plot_data |>
+    filter(year == y) |>
+    arrange(per_million) |>
+    mutate(state_name = factor(state_name, levels = state_name))
+
+  list(
+    name = as.character(y),
+    data = list(
+      list(
+        x = df$per_million,
+        y = df$state_name,
+        text = scales::label_comma()(df$per_million),
+        textposition = "outside",
+        marker = list(color = ifelse(df$is_wi, "#c5050c", "#1f4e79"))
+      )
+    ),
+    layout = list(
+      yaxis = list(categoryorder = "array", categoryarray = levels(df$state_name))
+    )
+  )
+})
+
+init_df <- plot_data |>
+  filter(year == latest_year) |>
+  arrange(per_million) |>
+  mutate(state_name = factor(state_name, levels = state_name))
+
+init_levels <- levels(init_df$state_name)
+
+p <- plot_ly(
+  init_df,
+  x = ~per_million,
+  y = ~state_name,
+  text = ~scales::label_comma()(per_million),
+  textposition = "outside",
+  type = "bar",
+  orientation = "h",
+  marker = list(color = ~if_else(is_wi, "#c5050c", "#1f4e79"))
+) |>
+  layout(
+    title = list(text = "Venture Capital Deal Count per 1M Residents"),
+    xaxis = list(title = "Deals per 1M residents (BLS - noninstitutionalized)", tickformat = ","),
+    yaxis = list(title = "", categoryorder = "array", categoryarray = init_levels),
+    margin = list(l = 120, r = 20, t = 60, b = 40),
+    showlegend = FALSE
+  )
+
+pb <- plotly_build(p)
+pb$x$frames <- frame_list
+pb$x$layout$sliders <- list(
+  list(
+    active = max(which(years == latest_year)) - 1,
+    steps = purrr::map(years, function(y) {
+      list(
+        method = "animate",
+        args = list(
+          list(as.character(y)),
+          list(mode = "immediate", frame = list(duration = 0, redraw = TRUE), transition = list(duration = 0))
+        ),
+        label = as.character(y)
+      )
+    })
+  )
+)
+
+pb
+
+```
+
+
+
+```{r fig2_dealvol_bystateslider_interact_lowest5, echo=FALSE, warning=FALSE,message=FALSE}
+
+vol_state_all <- build_state_per_million_by_year(
+  raw_df = dealvol_raw,
+  value_name = "dealvol",
+  participation_df = participation,
+  state_lookup = state_fips
+)
+
+latest_year <- max(vol_state_all$year, na.rm = TRUE)
+
+bot10_by_year <- vol_state_all |>
+  group_by(year) |>
+  mutate(is_wi = state_name == "Wisconsin") |>
+  slice_min(order_by = per_million, n = 10, with_ties = FALSE) |>
+  ungroup()
+
+wi_by_year <- vol_state_all |>
+  filter(state_name == "Wisconsin") |>
+  mutate(is_wi = TRUE)
+
+plot_data <- bind_rows(bot10_by_year, wi_by_year) |>
+  distinct(year, state_name, .keep_all = TRUE)
+
+years <- sort(unique(plot_data$year))
+
+frame_list <- purrr::map(years, function(y) {
+  df <- plot_data |>
+    filter(year == y) |>
+    arrange(per_million) |>
+    mutate(state_name = factor(state_name, levels = state_name))
+
+  list(
+    name = as.character(y),
+    data = list(
+      list(
+        x = df$per_million,
+        y = df$state_name,
+        text = scales::label_comma()(df$per_million),
+        textposition = "outside",
+        marker = list(color = ifelse(df$is_wi, "#c5050c", "#1f4e79"))
+      )
+    ),
+    layout = list(
+      yaxis = list(categoryorder = "array", categoryarray = levels(df$state_name))
+    )
+  )
+})
+
+init_df <- plot_data |>
+  filter(year == latest_year) |>
+  arrange(per_million) |>
+  mutate(state_name = factor(state_name, levels = state_name))
+
+init_levels <- levels(init_df$state_name)
+
+p <- plot_ly(
+  init_df,
+  x = ~per_million,
+  y = ~state_name,
+  text = ~scales::label_comma()(per_million),
+  textposition = "outside",
+  type = "bar",
+  orientation = "h",
+  marker = list(color = ~if_else(is_wi, "#c5050c", "#1f4e79"))
+) |>
+  layout(
+    title = list(text = "Venture Capital Capital Committed per 1M Residents"),
+    xaxis = list(title = "USD (Millions) per 1M residents (BLS - noninstitutionalized)", tickformat = ","),
+    yaxis = list(title = "", categoryorder = "array", categoryarray = init_levels),
+    margin = list(l = 120, r = 20, t = 60, b = 40),
+    showlegend = FALSE
+  )
+
+pb <- plotly_build(p)
+pb$x$frames <- frame_list
+pb$x$layout$sliders <- list(
+  list(
+    active = max(which(years == latest_year)) - 1,
+    steps = purrr::map(years, function(y) {
+      list(
+        method = "animate",
+        args = list(
+          list(as.character(y)),
+          list(mode = "immediate", frame = list(duration = 0, redraw = TRUE), transition = list(duration = 0))
+        ),
+        label = as.character(y)
+      )
+    })
+  )
+)
+
+pb
+
+```
+
+## How do my original comparison groups look over time (interactive)?
+
+```{r dealcountcat_interact, echo=FALSE, warning=FALSE, message= FALSE}
+
+count_year <- count_long |>
+  left_join(population_groups_year, by = c("year", "series")) |>
+  mutate(per_million = dealcount / (sum_population / 1000000))
+
+years <- sort(unique(count_year$year))
+latest_year <- max(years, na.rm = TRUE)
+
+frame_list <- purrr::map(years, function(y) {
+  df <- count_year |>
+    filter(year == y) |>
+    mutate(series = factor(series, levels = series_levels))
+
+  list(
+    name = as.character(y),
+    data = list(
+      list(
+        x = df$series,
+        y = df$per_million,
+        text = scales::label_comma()(df$per_million),
+        textposition = "outside",
+        marker = list(color = unname(series_colors[as.character(df$series)]))
+      )
+    ),
+    layout = list(
+      title = list(
+        text = paste0(
+          "Venture Capital Deal Count: Wisconsin vs National Average",
+          "<br><span style='font-size:12px'>Year: ", y, "</span>"
+        )
+      )
+    )
+  )
+})
+
+init_df <- count_year |>
+  filter(year == latest_year) |>
+  mutate(series = factor(series, levels = series_levels))
+
+p <- plot_ly(
+  init_df,
+  x = ~series,
+  y = ~per_million,
+  text = ~scales::label_comma()(per_million),
+  textposition = "outside",
+  type = "bar",
+  marker = list(color = ~unname(series_colors[as.character(series)]))
+) |>
+  layout(
+    title = list(
+      text = paste0(
+        "Venture Capital Deal Count: Wisconsin vs National Average",
+        "<br><span style='font-size:12px'>Year: ", latest_year, "</span>"
+      )
+    ),
+    xaxis = list(title = ""),
+    yaxis = list(title = "Deals per 1M residents (BLS - noninstitutionalized)", tickformat = ","),
+    margin = list(l = 70, r = 20, t = 70, b = 50),
+    showlegend = FALSE
+  )
+
+pb <- plotly_build(p)
+pb$x$frames <- frame_list
+pb$x$layout$sliders <- list(
+  list(
+    active = max(which(years == latest_year)) - 1,
+    steps = purrr::map(years, function(y) {
+      list(
+        method = "animate",
+        args = list(
+          list(as.character(y)),
+          list(mode = "immediate", frame = list(duration = 0, redraw = TRUE), transition = list(duration = 0))
+        ),
+        label = as.character(y)
+      )
+    })
+  )
+)
+
+pb
+
+```
+
+
+```{r dealvolcat_interact, echo=FALSE, warning=FALSE, message= FALSE}
+
+vol_year <- vol_long |>
+  left_join(population_groups_year, by = c("year", "series")) |>
+  mutate(per_million = dealvol / (sum_population / 1000000))
+
+years <- sort(unique(vol_year$year))
+latest_year <- max(years, na.rm = TRUE)
+
+frame_list <- purrr::map(years, function(y) {
+  df <- vol_year |>
+    filter(year == y) |>
+    mutate(series = factor(series, levels = series_levels))
+
+  list(
+    name = as.character(y),
+    data = list(
+      list(
+        x = df$series,
+        y = df$per_million,
+        text = scales::label_comma()(df$per_million),
+        textposition = "outside",
+        marker = list(color = unname(series_colors[as.character(df$series)]))
+      )
+    ),
+    layout = list(
+      title = list(
+        text = paste0(
+          "Venture Capital Capital Committed: Wisconsin vs National Average",
+          "<br><span style='font-size:12px'>Year: ", y, "</span>"
+        )
+      )
+    )
+  )
+})
+
+init_df <- vol_year |>
+  filter(year == latest_year) |>
+  mutate(series = factor(series, levels = series_levels))
+
+p <- plot_ly(
+  init_df,
+  x = ~series,
+  y = ~per_million,
+  text = ~scales::label_comma()(per_million),
+  textposition = "outside",
+  type = "bar",
+  marker = list(color = ~unname(series_colors[as.character(series)]))
+) |>
+  layout(
+    title = list(
+      text = paste0(
+        "Venture Capital Capital Committed: Wisconsin vs National Average",
+        "<br><span style='font-size:12px'>Year: ", latest_year, "</span>"
+      )
+    ),
+    xaxis = list(title = ""),
+    yaxis = list(title = "USD (Millions) per 1M residents (BLS - noninstitutionalized)", tickformat = ","),
+    margin = list(l = 70, r = 20, t = 70, b = 50),
+    showlegend = FALSE
+  )
+
+pb <- plotly_build(p)
+pb$x$frames <- frame_list
+pb$x$layout$sliders <- list(
+  list(
+    active = max(which(years == latest_year)) - 1,
+    steps = purrr::map(years, function(y) {
+      list(
+        method = "animate",
+        args = list(
+          list(as.character(y)),
+          list(mode = "immediate", frame = list(duration = 0, redraw = TRUE), transition = list(duration = 0))
+        ),
+        label = as.character(y)
+      )
+    })
+  )
+)
+
+pb
+
+```
+
+## Fix to Normalization 1
+
+I think what's happening is a weird version of Jensen's inequality. States with high populations relative to VC activity weigh down the metric. To Tessa's point, my equation above doesn't really give us a typical apples-to-apples comparison. So instead, let's change the metric to:
+
+$$
+Y_{agg,i} = \sum_{t} \sum_{s \in i} \frac{y_{s,t}}{pop_{s,t}}
+$$
+
+So then each comparison group is constructed as an "average state."
+
+```{r fig1_dealcount_stateavg, echo=FALSE, warning=FALSE, message=FALSE}
+
+count_state_year <- build_state_per_million_by_year(
+  raw_df = dealcount_raw,
+  value_name = "dealcount",
+  participation_df = participation,
+  state_lookup = state_fips
+) |>
+  filter(year >= year_min, year <= year_max)
+
+group_map <- list(
+  "National" = all_states,
+  "National (excl. CA, MA, NY)" = setdiff(all_states, big3),
+  "Midwest (excl. WI)" = midwest_excl_wi,
+  "Wisconsin" = wi_fips
+)
+
+avg_count_stateavg <- purrr::imap_dfr(group_map, function(states, label) {
+  count_state_year |>
+    filter(state_fips %in% states) |>
+    summarise(per_million = mean(per_million, na.rm = TRUE), .groups = "drop") |>
+    mutate(series = label)
+}) |>
+  mutate(series = factor(series, levels = series_levels))
+
+avg_count_stateavg |>
+  ggplot(aes(x = avg_label, y = per_million, fill = series)) +
+  geom_col(position = position_dodge(width = 0.75), width = 0.65) +
+  geom_text(
+    aes(label = scales::label_comma()(per_million)),
+    position = position_dodge(width = 0.75),
+    vjust = -0.4,
+    size = 3
+  ) +
+  scale_fill_manual(
+    values = series_colors,
+    breaks = series_levels
+  ) +
+  scale_y_continuous(labels = scales::label_comma()) +
+  labs(
+    title    = "Venture Capital Deal Count: Wisconsin vs National Average",
+    subtitle = "2015–2024 total",
+    x        = NULL,
+    y        = "Deals per 1M residents (avg of state ratios)",
+    fill     = NULL,
+    caption  = "Source: Pitchbook Venture Capital Monitor Q4 2025. Population estimated from labor force participation (no 2025 annual data). Midwest states include Minnesota, Iowa, Illinois, Indiana, and Michigan."
+  ) +
+  theme_im()
+
+```
+
+
+```{r fig2_dealvol_stateavg, echo=FALSE, warning=FALSE, message=FALSE}
+
+vol_state_year <- build_state_per_million_by_year(
+  raw_df = dealvol_raw,
+  value_name = "dealvol",
+  participation_df = participation,
+  state_lookup = state_fips
+) |>
+  filter(year >= year_min, year <= year_max)
+
+avg_vol_stateavg <- purrr::imap_dfr(group_map, function(states, label) {
+  vol_state_year |>
+    filter(state_fips %in% states) |>
+    summarise(per_million = mean(per_million, na.rm = TRUE), .groups = "drop") |>
+    mutate(series = label)
+}) |>
+  mutate(series = factor(series, levels = series_levels))
+
+avg_vol_stateavg |>
+  ggplot(aes(x = avg_label, y = per_million, fill = series)) +
+  geom_col(position = position_dodge(width = 0.75), width = 0.65) +
+  geom_text(
+    aes(label = scales::label_comma()(per_million)),
+    position = position_dodge(width = 0.75),
+    vjust = -0.4,
+    size = 3
+  ) +
+  scale_fill_manual(
+    values = series_colors,
+    breaks = series_levels
+  ) +
+  scale_y_continuous(labels = scales::label_comma()) +
+  labs(
+    title    = "Venture Capital Capital Committed: Wisconsin vs National Average",
+    subtitle = "2015–2024 total",
+    x        = NULL,
+    y        = "USD (Millions) per 1M residents (avg of state ratios)",
+    fill     = NULL,
+    caption  = "Source: Pitchbook Venture Capital Monitor Q4 2025. Population estimated from labor force participation (no 2025 annual data). Midwest states include Minnesota, Iowa, Illinois, Indiana, and Michigan."
+  ) +
+  theme_im()
+
+```
+
+
+And look what happens when I instead do the median:
+
+```{r fig1_dealcount_statemedian, echo=FALSE, warning=FALSE, message=FALSE}
+
+count_state_year <- build_state_per_million_by_year(
+  raw_df = dealcount_raw,
+  value_name = "dealcount",
+  participation_df = participation,
+  state_lookup = state_fips
+) |>
+  filter(year >= year_min, year <= year_max)
+
+group_map <- list(
+  "National" = all_states,
+  "National (excl. CA, MA, NY)" = setdiff(all_states, big3),
+  "Midwest (excl. WI)" = midwest_excl_wi,
+  "Wisconsin" = wi_fips
+)
+
+avg_count_statemedian <- purrr::imap_dfr(group_map, function(states, label) {
+  count_state_year |>
+    filter(state_fips %in% states) |>
+    summarise(per_million = median(per_million, na.rm = TRUE), .groups = "drop") |>
+    mutate(series = label)
+}) |>
+  mutate(series = factor(series, levels = series_levels))
+
+avg_count_statemedian |>
+  ggplot(aes(x = avg_label, y = per_million, fill = series)) +
+  geom_col(position = position_dodge(width = 0.75), width = 0.65) +
+  geom_text(
+    aes(label = scales::label_comma()(per_million)),
+    position = position_dodge(width = 0.75),
+    vjust = -0.4,
+    size = 3
+  ) +
+  scale_fill_manual(
+    values = series_colors,
+    breaks = series_levels
+  ) +
+  scale_y_continuous(labels = scales::label_comma()) +
+  labs(
+    title    = "Venture Capital Deal Count: Wisconsin vs National Average",
+    subtitle = "2015–2024 total",
+    x        = NULL,
+    y        = "Deals per 1M residents (med of state ratios)",
+    fill     = NULL,
+    caption  = "Source: Pitchbook Venture Capital Monitor Q4 2025. Population estimated from labor force participation (no 2025 annual data). Midwest states include Minnesota, Iowa, Illinois, Indiana, and Michigan."
+  ) +
+  theme_im()
+
+```
+
+
+```{r fig2_dealvol_statemedian, echo=FALSE, warning=FALSE, message=FALSE}
+
+vol_state_year <- build_state_per_million_by_year(
+  raw_df = dealvol_raw,
+  value_name = "dealvol",
+  participation_df = participation,
+  state_lookup = state_fips
+) |>
+  filter(year >= year_min, year <= year_max)
+
+avg_vol_statemed <- purrr::imap_dfr(group_map, function(states, label) {
+  vol_state_year |>
+    filter(state_fips %in% states) |>
+    summarise(per_million = median(per_million, na.rm = TRUE), .groups = "drop") |>
+    mutate(series = label)
+}) |>
+  mutate(series = factor(series, levels = series_levels))
+
+avg_vol_statemed |>
+  ggplot(aes(x = avg_label, y = per_million, fill = series)) +
+  geom_col(position = position_dodge(width = 0.75), width = 0.65) +
+  geom_text(
+    aes(label = scales::label_comma()(per_million)),
+    position = position_dodge(width = 0.75),
+    vjust = -0.4,
+    size = 3
+  ) +
+  scale_fill_manual(
+    values = series_colors,
+    breaks = series_levels
+  ) +
+  scale_y_continuous(labels = scales::label_comma()) +
+  labs(
+    title    = "Venture Capital Capital Committed: Wisconsin vs National Average",
+    subtitle = "2015–2024 total",
+    x        = NULL,
+    y        = "USD (Millions) per 1M residents (med of state ratios)",
+    fill     = NULL,
+    caption  = "Source: Pitchbook Venture Capital Monitor Q4 2025. Population estimated from labor force participation (no 2025 annual data). Midwest states include Minnesota, Iowa, Illinois, Indiana, and Michigan."
+  ) +
+  theme_im()
+
+```
+
+
+
+## APPENDIX Normalization 2: Per 1,000 Businesses
+
+Following the formula above, we then tried a different normalization: We normalized each statistic to be "per 1,000 businesses using county-level BFS (Business Formation Statistics) from the Census.
+
+```{r fig1_dealcount_IM_perbiz, echo=FALSE, warning=FALSE,message=FALSE}
+
+# This is the same as fig1_dealcount_IM, but per 1,000 businesses as we have done before.
+
+avg_count |>
+  left_join(bfs_groups, by = "series") |>
+  mutate(
+    per_thousand_apps = dealcount / (sum_apps / 1000)
+  ) |>
+  ggplot(aes(x = avg_label, y = per_thousand_apps, fill = series)) +
+  geom_col(position = position_dodge(width = 0.75), width = 0.65) +
+  geom_text(
+    aes(label = scales::label_comma()(per_thousand_apps)),
+    position = position_dodge(width = 0.75),
+    vjust = -0.4,
+    size = 3
+  ) +
+  scale_fill_manual(
+    values = series_colors,
+    breaks = series_levels
+  ) +
+  scale_y_continuous(labels = scales::label_comma()) +
+  labs(
+    title    = "Venture Capital Deal Count: Wisconsin vs National Average",
+    subtitle = "2015–2024 total",
+    x        = NULL,
+    y        = "Deals per 1,000 business applications",
+    fill     = NULL,
+    caption  = "Source: Pitchbook Venture Capital Monitor Q4 2025. Denominator: BFS business applications summed 2015–2024. Midwest states include Minnesota, Iowa, Illinois, Indiana, and Michigan."
+  ) +
+  theme_im()
+
+```
+
+
+```{r fig2_dealvol_IM_perbiz, echo=FALSE, warning=FALSE,message=FALSE}
+
+# This is the same as fig1_dealvol_IM, but per 1,000 businesses as we have done before.
+
+avg_vol |>
+  left_join(bfs_groups, by = "series") |>
+  mutate(
+    per_thousand_apps = dealvol / (sum_apps / 1000)
+  ) |>
+  ggplot(aes(x = avg_label, y = per_thousand_apps, fill = series)) +
+  geom_col(position = position_dodge(width = 0.75), width = 0.65) +
+  geom_text(
+    aes(label = scales::label_comma()(per_thousand_apps)),
+    position = position_dodge(width = 0.75),
+    vjust = -0.4,
+    size = 3
+  ) +
+  scale_fill_manual(
+    values = series_colors,
+    breaks = series_levels
+  ) +
+  scale_y_continuous(labels = scales::label_comma()) +
+  labs(
+    title    = "Venture Capital Capital Committed: Wisconsin vs National Average",
+    subtitle = "2015–2024 total",
+    x        = NULL,
+    y        = "USD (Millions) per 1,000 business applications",
+    fill     = NULL,
+    caption  = "Source: Pitchbook Venture Capital Monitor Q4 2025. Denominator: BFS business applications summed 2015–2024. Midwest states include Minnesota, Iowa, Illinois, Indiana, and Michigan."
+  ) +
+  theme_im()
+
+```

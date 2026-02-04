@@ -1,0 +1,328 @@
+---
+title: "Business Formation Statistics Descriptives"
+author: "Inder Majumdar"
+format:
+  html:
+    embed-resources: true
+date: 2026-02-02
+---
+
+# Exploring the Business Formation Statistics Data
+
+US Census Business Formation Statistics are found here: https://www.census.gov/econ/bfs/data.html
+
+I'd like to get a sense of how Business Formation has changed in Wisconsin compared to other states (and inform intuition on how this will impact our Pitchbook/CORI outcomes of interest).
+
+```{r ingest_config, echo = FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+
+bfs <- read_rds(file.path("..","..","..","2_processed_data","BFS_county.rds")) |>
+    mutate(across(everything(), ~ replace_na(.x, 0)))
+
+midwest_excl_wi <- c("19", "17", "18", "26", "27")  # IA, IL, IN, MI, MN
+big3            <- c("06", "25", "36")              # CA, MA, NY
+wi_fips         <- "55"
+
+# Labels
+label_nat       <- "National"
+label_nat_excl  <- "National (excl. CA, MA, NY)"
+label_midwest   <- "Midwest (excl. WI)"
+label_wi        <- "Wisconsin"
+label_big3      <- "Big 3 (CA, MA, NY)"
+
+# Create categories
+
+bfs <- bfs |>
+  mutate(
+    state_fips = stringr::str_pad(as.character(state_fips), width = 2, pad = "0"),
+    category = case_when(
+      state_fips == wi_fips ~ label_wi,
+      state_fips %in% midwest_excl_wi ~ label_midwest,
+      state_fips %in% big3 ~ label_big3,
+      TRUE ~ label_nat_excl
+    )
+  )
+
+category_colors <- c(
+  "Wisconsin" = "#c5050c",
+  "Midwest (excl. WI)" = "grey60",
+  "National (excl. CA, MA, NY)" = "#6baed6",
+  "National" = "#08519c",
+  "Big 3 (CA, MA, NY)" = "#9e9ac8"
+)
+
+  #summarise_group(state_totals, all_states, "National"),
+  #summarise_group(state_totals, setdiff(all_states, big3), "National (excl. CA, MA, NY)"),
+  #summarise_group(state_totals, midwest_excl_wi, "Midwest (excl. WI)"),
+  #summarise_group(state_totals, wi_abbr, "Wisconsin")
+
+```
+
+## How does Wisconsin Compare to other states w.r.t Business Applications (2005 to present)?
+
+
+Below is an illustration of the average state in each category for business applications.
+
+
+```{r piechart_bizapp, echo=FALSE, warning= FALSE, message= FALSE}
+
+bfs |>
+  ungroup() |>
+  group_by(state_fips, category) |>
+  summarise(state_total = sum(business_app, na.rm = TRUE), .groups = "drop") |>
+  group_by(category) |>
+  summarise(avg_state_app = mean(state_total, na.rm = TRUE), .groups = "drop") |>
+  mutate(category = forcats::fct_reorder(category, avg_state_app)) |>
+  ggplot(aes(x = category, y = avg_state_app, color = category)) +
+  geom_segment(aes(xend = category, y = 0, yend = avg_state_app), linewidth = 1) +
+  geom_point(size = 3) +
+  scale_color_manual(values = category_colors) +
+  coord_flip() +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "none") +
+  labs(
+    title = "Business Applications by Comparison Group (Average State)",
+    subtitle = "All years in BFS county file; average across states within each group",
+    x = NULL,
+    y = "Average state business applications"
+  )
+
+```
+
+There are some obvious population effects at play here. Let's zoom in on rural counties with the same average-state framing:
+
+```{r piechart_bizapp_rural, echo=FALSE, warning= FALSE, message= FALSE}
+
+bfs |>
+  filter(rurality == 'rural') |>
+  ungroup() |>
+  group_by(state_fips, category) |>
+  summarise(state_total = sum(business_app, na.rm = TRUE), .groups = "drop") |>
+  group_by(category) |>
+  summarise(avg_state_app = mean(state_total, na.rm = TRUE), .groups = "drop") |>
+  mutate(category = forcats::fct_reorder(category, avg_state_app)) |>
+  ggplot(aes(x = category, y = avg_state_app, color = category)) +
+  geom_segment(aes(xend = category, y = 0, yend = avg_state_app), linewidth = 1) +
+  geom_point(size = 3) +
+  scale_color_manual(values = category_colors) +
+  coord_flip() +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "none") +
+  labs(
+    title = "Business Applications by Comparison Group (Average State)",
+    subtitle = "All years in BFS county file; rural counties only; average across states within each group",
+    x = NULL,
+    y = "Average state business applications"
+  )
+
+```
+
+This pattern is striking. When I select only rural counties (RUCC codes > 3), Wisconsin leads compared to the "average" other state across categories. One way to interpret this is that while other metro areas are a hub for business formation, Wisconsin's rural counties outperform the rural areas of other categories in expectation. 
+
+Descriptive patterns suggest that these patterns might be driven by adjacency effects. Look what happens when I select only on rural counties that are not adjacent to a metro area using RUCC definitions:
+
+
+```{r piechart_bizapp_rural_nonadj, echo=FALSE, warning= FALSE, message= FALSE}
+
+bfs |>
+  filter(RUCC_2023 %in% c(5,7,9)) |>
+  ungroup() |>
+  group_by(state_fips, category) |>
+  summarise(state_total = sum(business_app, na.rm = TRUE), .groups = "drop") |>
+  group_by(category) |>
+  summarise(avg_state_app = mean(state_total, na.rm = TRUE), .groups = "drop") |>
+  mutate(category = forcats::fct_reorder(category, avg_state_app)) |>
+  ggplot(aes(x = category, y = avg_state_app, color = category)) +
+  geom_segment(aes(xend = category, y = 0, yend = avg_state_app), linewidth = 1) +
+  geom_point(size = 3) +
+  scale_color_manual(values = category_colors) +
+  coord_flip() +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "none") +
+  labs(
+    title = "Business Applications by Comparison Group (Average State)",
+    subtitle = "All years in BFS county file; rural counties only (not metro adj.); average across states within each group",
+    x = NULL,
+    y = "Average state business applications"
+  )
+
+```
+
+## Business Formation Over Time
+
+The above graphs provide some intuition in the aggregate, but I'd like to see trends over time. Is the pattern we're seeing in the aggregate driven by a recent trend upwards? Or have Wisconsin's rural counties persistently outperformed relative to our benchmarks?
+
+Below is a time series of yearly business formation data. I normalized the Y axis so the first value is an intercept, so we can view the time series as relative to 2005 values.
+
+
+```{r timeseries_overall_normalized, echo=FALSE, warning=FALSE, message=FALSE}
+
+state_year <- bfs |>
+  ungroup() |>
+  group_by(state_fips, category, year) |>
+  summarise(state_total = sum(business_app, na.rm = TRUE), .groups = "drop")
+
+cat_year <- state_year |>
+  group_by(category, year) |>
+  summarise(avg_state_app = mean(state_total, na.rm = TRUE), .groups = "drop")
+
+baseline <- cat_year |>
+  filter(year == 2005) |>
+  select(category, baseline_app = avg_state_app)
+
+cat_year <- cat_year |>
+  left_join(baseline, by = "category") |>
+  mutate(delta_from_2005 = avg_state_app - baseline_app)
+
+cat_year |>
+  ggplot(aes(x = year, y = delta_from_2005, color = category)) +
+  geom_hline(yintercept = 0, color = "grey70", linewidth = 0.5) +
+  geom_line(linewidth = 1) +
+  scale_color_manual(values = category_colors) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 8)) +
+  labs(
+    title = "Business Applications Over Time (Average State, Δ from 2005)",
+    subtitle = "Comparison groups shown as difference from 2005 baseline",
+    x = NULL,
+    y = "Average state business applications (Δ from 2005)",
+    color = "Category"
+  ) +
+  theme_minimal(base_size = 12)
+
+```
+
+
+Repeating the same exercise for rural counties only, we see that Wisconsin saw a sharper contraction then what was typical in other regions of the county during the Great Financial Crisis.
+
+
+```{r timeseries_overall_normalized_rural, echo=FALSE, warning=FALSE, message=FALSE}
+
+state_year <- bfs |>
+  filter(rurality == 'rural') |>
+  ungroup() |>
+  group_by(state_fips, category, year) |>
+  summarise(state_total = sum(business_app, na.rm = TRUE), .groups = "drop")
+
+cat_year <- state_year |>
+  group_by(category, year) |>
+  summarise(avg_state_app = mean(state_total, na.rm = TRUE), .groups = "drop")
+
+baseline <- cat_year |>
+  filter(year == 2005) |>
+  select(category, baseline_app = avg_state_app)
+
+cat_year <- cat_year |>
+  left_join(baseline, by = "category") |>
+  mutate(delta_from_2005 = avg_state_app - baseline_app)
+
+cat_year |>
+  ggplot(aes(x = year, y = delta_from_2005, color = category)) +
+  geom_hline(yintercept = 0, color = "grey70", linewidth = 0.5) +
+  geom_line(linewidth = 1) +
+  scale_color_manual(values = category_colors) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 8)) +
+  labs(
+    title = "Business Applications Over Time (Average State, Δ from 2005), rural only",
+    subtitle = "Comparison groups shown as difference from 2005 baseline",
+    x = NULL,
+    y = "Average state business applications (Δ from 2005)",
+    color = "Category"
+  ) +
+  theme_minimal(base_size = 12)
+
+
+
+```
+
+Nonetheless, rural countires experienced a period of acute growth in business formation from approx. 2011 onwards, after a trough around the great recession. The next graph shows rural business formation growth in terms of YoY percent change: 
+
+```{r timeseries_overall_normalized_rural_YoY, echo=FALSE, warning=FALSE, message=FALSE}
+
+state_year <- bfs |>
+  filter(rurality == 'rural') |>
+  ungroup() |>
+  group_by(state_fips, category, year) |>
+  summarise(state_total = sum(business_app, na.rm = TRUE), .groups = "drop")
+
+cat_year <- state_year |>
+  group_by(category, year) |>
+  summarise(avg_state_app = mean(state_total, na.rm = TRUE), .groups = "drop")
+
+cat_year <- cat_year |>
+  arrange(category, year) |>
+  group_by(category) |>
+  mutate(yoy_pct = 100 * (avg_state_app / dplyr::lag(avg_state_app) - 1)) |>
+  ungroup()
+
+cat_year |>
+  ggplot(aes(x = year, y = yoy_pct, color = category)) +
+  geom_hline(yintercept = 0, color = "grey70", linewidth = 0.5) +
+  geom_line(linewidth = 1) +
+  scale_color_manual(values = category_colors) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 8)) +
+  labs(
+    title = "Business Applications Over Time (Average State, YoY %), rural only",
+    subtitle = "Year-over-year percent change by comparison group",
+    x = NULL,
+    y = "YoY % change",
+    color = "Category"
+  ) +
+  theme_minimal(base_size = 12)
+
+```
+
+For completness, I'm including a county map characterizing percent change between 2005 and 2024, though I find the map less informative than the above graphs.
+
+## Wisconsin county map: % change (2005 → 2024)
+
+```{r WI_county_map_pct_growth, echo=FALSE, warning=FALSE, message=FALSE}
+suppressPackageStartupMessages({
+  library(sf)
+  library(tigris)
+  library(scales)
+})
+
+wi_county_growth <- bfs |>
+  filter(state_fips == wi_fips, year %in% c(2005, 2024)) |>
+  mutate(county_fips_full = stringr::str_pad(as.character(county_fips_full), width = 5, pad = "0")) |>
+  group_by(county_fips_full, year) |>
+  summarise(total_app = sum(business_app, na.rm = TRUE), .groups = "drop") |>
+  tidyr::pivot_wider(names_from = year, values_from = total_app) |>
+  rename(app_2005 = `2005`, app_2024 = `2024`) |>
+  mutate(
+    pct_change = if_else(app_2005 > 0, (app_2024 - app_2005) / app_2005, NA_real_)
+  )
+
+wi_counties <- tigris::counties(state = "WI", cb = TRUE, year = 2023) |>
+  st_transform(5070)
+
+wi_map <- wi_counties |>
+  mutate(county_fips_full = GEOID) |>
+  left_join(wi_county_growth, by = "county_fips_full")
+
+ggplot(wi_map) +
+  geom_sf(aes(fill = pct_change), color = "white", linewidth = 0.2) +
+  scale_fill_gradient2(
+    low = "#2b8cbe",
+    mid = "white",
+    high = "#c5050c",
+    midpoint = 0,
+    na.value = "grey90",
+    labels = label_percent(accuracy = 1),
+    name = "% change\n(2005→2024)"
+  ) +
+  labs(
+    title = "Business Applications in Wisconsin by County",
+    subtitle = "Percent change from 2005 to 2024",
+    caption = "Source: Census BFS county file. Percent change uses county totals for 2005 and 2024."
+  ) +
+  coord_sf() +
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid = element_blank(),
+    plot.margin = margin(10, 10, 18, 10)
+  )
+```
