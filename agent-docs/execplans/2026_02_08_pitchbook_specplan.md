@@ -19,7 +19,13 @@ This is an updated initial spec plan. It incorporates user clarifications receiv
 - [x] (2026-02-08 18:32Z) Read the updated chunked workbook scaffold and integrated user clarifications (render-only workflow, chunk-to-output mapping, and reuse of `pitchbook_explore.qmd` helper logic).
 - [x] (2026-02-08 18:32Z) Located prior rationale for 2024 cutover in historical execplans and existing helper logic.
 - [x] (2026-02-08 18:32Z) Resolved decision requests with user: fixed `year_max = 2024`, fixed Figure 1 outliers to `CA, NY, MA`, and confirmed dynamic top-10 recomputation under year-slider interactions.
-- [ ] Implement chunk population in `1_code/workbooks/2026_02_08_pitchbook.qmd` and validate by rendering.
+- [x] (2026-02-08 19:39Z) Implemented all target chunks in `1_code/workbooks/2026_02_08_pitchbook.qmd`, including static figures and interactive slider/toggle controls for `fig3b` and `fig4c`.
+- [x] (2026-02-08 19:39Z) Render-validated workbook with `quarto render 1_code/workbooks/2026_02_08_pitchbook.qmd`; output written to `1_code/workbooks/2026_02_08_pitchbook.html`.
+- [x] (2026-02-08 19:39Z) Revised `fig3b` interaction so slider markers are single years (2015–2024) instead of year ranges, then re-rendered successfully.
+- [x] (2026-02-08 19:39Z) Revised `fig3b` frame construction to per-year explicit frames so both values and top-10+WI membership update by year.
+- [x] (2026-02-08 19:39Z) Updated `fig4c` controls to vertical button orientation and re-rendered successfully.
+- [x] (2026-02-08 19:39Z) Reworked `fig4c` to explicit traces + explicit animation frames so toggle selection controls category domain (states vs groups) and slider updates state top-10+WI membership by selected period.
+- [x] (2026-02-08 19:39Z) Updated `fig4c` slider ordering and labels to block by start year (2015-2015, 2015-2016, …) with single-year windows labeled by year only; moved slider lower to avoid overlap with x-axis labels.
 
 ## Surprises & Discoveries
 
@@ -31,6 +37,18 @@ This is an updated initial spec plan. It incorporates user clarifications receiv
   Evidence: `build_state_per_million()` computes `year_use <- max(intersect(raw_years, pop_years))`; with current inputs this resolves to 2024.
 - Observation: The new workbook already contains explicit chunk placeholders that should be treated as the output contract for implementation.
   Evidence: Chunks present are `confg`, `fig1`, `fig2`, `fig3`, `fig3b`, `fig4`, `fig4a`, `figb`, `fig4c` in `1_code/workbooks/2026_02_08_pitchbook.qmd`.
+- Observation: Joining state lookup with a `state_name` column created a duplicate-name collision during implementation.
+  Evidence: Initial render failed in `confg` with `select(): Column state_name doesn't exist` after suffixing from join.
+- Observation: `coord_map()` required the optional `mapproj` package in this environment.
+  Evidence: Render failed in `fig1` with `The package "mapproj" is required for coord_map()`; switching to `coord_equal()` resolved it.
+- Observation: Initial `fig3b` implementation used year-range frames, which did not match desired slider behavior.
+  Evidence: User feedback requested “one year per marker”; implementation was revised to frame on single `year`.
+- Observation: `fig3b` with `plot_ly(..., frame=...)` did not reliably refresh category membership/ordering in animation the way needed for top-10 turnover.
+  Evidence: User observed values changing without full top-state turnover; switching to explicit `plotly_build()` frames fixed the behavior.
+- Observation: `fig4c` with `split + frame` did not provide robust axis-domain switching between group categories and state categories.
+  Evidence: User feedback requested strict domain switching; implementation moved to explicit traces and explicit frame payloads per control combination.
+- Observation: `range_grid` column additions affect downstream `pmap_dfr` signatures directly.
+  Evidence: Adding `range_display` triggered an `unused argument` error until the `fig4c_data` mapper was updated.
 
 ## Decision Log
 
@@ -55,10 +73,25 @@ This is an updated initial spec plan. It incorporates user clarifications receiv
 - Decision: Year sliders in `fig3b` and `fig4c` must dynamically recompute top-10 selection within the selected range.
   Rationale: User explicitly confirmed dynamic recomputation behavior.
   Date/Author: 2026-02-08 / Codex
+- Decision: Use `coord_equal()` instead of `coord_map()` for Figure 1.
+  Rationale: Avoids introducing an extra dependency (`mapproj`) while preserving a reproducible U.S. state choropleth in the current environment.
+  Date/Author: 2026-02-08 / Codex
+- Decision: Set `fig3b` slider frames to single years (2015–2024).
+  Rationale: Aligns the interaction with precedent in `pitchbook_explore.qmd` and explicit user feedback.
+  Date/Author: 2026-02-08 / Codex
+- Decision: Set `fig4c` button orientation to vertical.
+  Rationale: Reduces top-row crowding and improves usable plotting area in the interactive layout.
+  Date/Author: 2026-02-08 / Codex
+- Decision: Use explicit `plotly_build()` frame construction for `fig4c` (mirroring `fig3b` approach where needed).
+  Rationale: Ensures category sets and top-10+WI state membership update correctly under both toggle and slider interactions.
+  Date/Author: 2026-02-08 / Codex
+- Decision: Order `fig4c` slider steps by `(start_year, end_year)` and shorten labels for single-year windows.
+  Rationale: Matches requested navigation sequence while improving slider readability.
+  Date/Author: 2026-02-08 / Codex
 
 ## Outcomes & Retrospective
 
-Planning revision complete. The spec now aligns to the updated workbook structure and user clarifications, explicitly ties expected results to each existing code chunk, and captures the project’s documented rationale for why 2024 has been used in prior per‑million normalizations.
+Implementation complete. `1_code/workbooks/2026_02_08_pitchbook.qmd` now contains executable code in `confg`, `fig1`, `fig2`, `fig3`, `fig3b`, `fig4`, `fig4a`, `figb`, and `fig4c`, with `year_max = 2024`, fixed Figure 1 outliers (`CA, NY, MA`), single-year slider markers in `fig3b`, and slider/toggle behavior in `fig4c`. Render validation succeeded and produced `1_code/workbooks/2026_02_08_pitchbook.html` with embedded resources.
 
 ## Context and Orientation
 
@@ -129,7 +162,7 @@ The implementation must satisfy these chunk-level outputs in `1_code/workbooks/2
 2. `fig1`: render Figure 1 map of venture capital committed at state level using the chosen year logic and outlier rule.
 3. `fig2`: render Figure 2 line chart of average capital committed per 1 million residents (2015–2024 unless year decision changes), using four-series grouping consistent with precedent workbook.
 4. `fig3`: render Figure 3 horizontal bar chart of VC deal count per 1 million residents for top 10 + Wisconsin, summed over analysis window.
-5. `fig3b`: render interactive Figure 3 variant, reusing the same metric and ranking basis as `fig3`, with a year-range slider (default full window `2015–2024`) that updates the aggregation window and dynamically recomputes top 10 + Wisconsin for the selected years.
+5. `fig3b`: render interactive Figure 3 variant, reusing the same metric and ranking basis as `fig3`, with one slider marker per year (`2015` to `2024`) that dynamically recomputes top 10 + Wisconsin for the selected year.
 6. `fig4`: optional orienting chunk for Figure 4 section-level setup or narrative (if kept as code, keep it lightweight and non-duplicative).
 7. `fig4a`: render Figure 4A static vertical bar chart for top 10 + Wisconsin using summed deal-size definition.
 8. `figb`: render Figure 4B static vertical bar chart for top 10 + Wisconsin using average deal-size definition.

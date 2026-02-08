@@ -18,91 +18,663 @@ My last workbook (sent on February 3, 2026) and analysis of Business Formation S
 
 This document makes refinements to the Pitchbook descriptives per your email dates on February 5, addressing point (1) above. The other points will are addressed in seperate documents.
 
-```{r confg}
+```{r confg, echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(plotly)
+library(maps)
 
+theme_im <- function(base_size = 12) {
+  theme_minimal(base_size = base_size) +
+    theme(
+      plot.title.position = "plot",
+      plot.caption.position = "plot",
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_line(linewidth = 0.3),
+      panel.grid.major.y = element_line(linewidth = 0.3),
+      legend.position = "top",
+      legend.title = element_text(face = "bold"),
+      plot.title = element_text(face = "bold"),
+      axis.title = element_text(face = "bold")
+    )
+}
+
+safe_divide <- function(num, den) {
+  ifelse(is.na(den) | den == 0, NA_real_, num / den)
+}
+
+year_min <- 2015
+year_max <- 2024
+full_window_label <- paste0(year_min, "-", year_max)
+
+wi_fips <- "55"
+midwest_excl_wi <- c("27", "19", "17", "26", "18")
+big3_fips <- c("06", "25", "36")
+outlier_states <- c("California", "New York", "Massachusetts")
+
+series_levels <- c(
+  "National",
+  "National (excl. CA, MA, NY)",
+  "Midwest (excl. WI)",
+  "Wisconsin"
+)
+
+series_colors <- c(
+  "Wisconsin" = "#c5050c",
+  "Midwest (excl. WI)" = "#0072B2",
+  "National (excl. CA, MA, NY)" = "grey60",
+  "National" = "black"
+)
+
+count_raw <- readxl::read_xlsx(
+  file.path("..", "..", "0_inputs", "Pitchbook", "Pitchbook_dealcount.xlsx")
+)
+
+vol_raw <- readxl::read_xlsx(
+  file.path("..", "..", "0_inputs", "Pitchbook", "Pitchbook_dealvol.xlsx")
+)
+
+participation <- readr::read_csv(
+  file.path("..", "..", "0_inputs", "CORI", "fips_participation.csv"),
+  show_col_types = FALSE
+) |>
+  mutate(
+    FIPS = stringr::str_pad(as.character(FIPS), width = 2, pad = "0"),
+    Participation = readr::parse_number(as.character(Participation)),
+    Force = readr::parse_number(as.character(Force)),
+    year = as.integer(year),
+    population = safe_divide(Force, Participation / 100)
+  ) |>
+  select(FIPS, year, population)
+
+state_fips <- readr::read_csv(
+  file.path("..", "..", "0_inputs", "state_fips.csv"),
+  show_col_types = FALSE
+) |>
+  mutate(
+    FIPS = stringr::str_pad(as.character(FIPS_CODE), width = 2, pad = "0"),
+    state_name_key = tolower(STATE_NAME)
+  ) |>
+  select(FIPS, state_name_key)
+
+count_long <- count_raw |>
+  pivot_longer(-State, names_to = "year", values_to = "dealcount") |>
+  mutate(year = as.integer(year)) |>
+  filter(year >= year_min, year <= year_max)
+
+vol_long <- vol_raw |>
+  pivot_longer(-State, names_to = "year", values_to = "capital_committed") |>
+  mutate(year = as.integer(year)) |>
+  filter(year >= year_min, year <= year_max)
+
+state_year <- count_long |>
+  left_join(vol_long, by = c("State", "year")) |>
+  mutate(state_name = State, state_name_key = tolower(state_name)) |>
+  left_join(state_fips, by = "state_name_key") |>
+  left_join(participation, by = c("FIPS", "year")) |>
+  filter(!is.na(FIPS), FIPS != "11") |>
+  mutate(
+    deal_size_year = safe_divide(capital_committed, dealcount)
+  ) |>
+  select(state_name, FIPS, year, dealcount, capital_committed, population, deal_size_year)
+
+state_period <- state_year |>
+  group_by(state_name, FIPS) |>
+  summarise(
+    sum_dealcount = sum(dealcount, na.rm = TRUE),
+    sum_capital = sum(capital_committed, na.rm = TRUE),
+    sum_population = sum(population, na.rm = TRUE),
+    dealcount_per_million = safe_divide(sum_dealcount, sum_population / 1000000),
+    committed_per_million = safe_divide(sum_capital, sum_population / 1000000),
+    dealsize_summed = safe_divide(sum_capital, sum_dealcount),
+    dealsize_average = mean(deal_size_year, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+build_group_series_year <- function(df_state_year) {
+  all_states <- sort(unique(df_state_year$FIPS))
+
+  bind_rows(
+    df_state_year |>
+      filter(FIPS %in% all_states) |>
+      group_by(year) |>
+      summarise(
+        numerator = sum(capital_committed, na.rm = TRUE),
+        denominator = sum(population, na.rm = TRUE),
+        .groups = "drop"
+      ) |>
+      mutate(series = "National"),
+
+    df_state_year |>
+      filter(FIPS %in% setdiff(all_states, big3_fips)) |>
+      group_by(year) |>
+      summarise(
+        numerator = sum(capital_committed, na.rm = TRUE),
+        denominator = sum(population, na.rm = TRUE),
+        .groups = "drop"
+      ) |>
+      mutate(series = "National (excl. CA, MA, NY)"),
+
+    df_state_year |>
+      filter(FIPS %in% midwest_excl_wi) |>
+      group_by(year) |>
+      summarise(
+        numerator = sum(capital_committed, na.rm = TRUE),
+        denominator = sum(population, na.rm = TRUE),
+        .groups = "drop"
+      ) |>
+      mutate(series = "Midwest (excl. WI)"),
+
+    df_state_year |>
+      filter(FIPS == wi_fips) |>
+      group_by(year) |>
+      summarise(
+        numerator = sum(capital_committed, na.rm = TRUE),
+        denominator = sum(population, na.rm = TRUE),
+        .groups = "drop"
+      ) |>
+      mutate(series = "Wisconsin")
+  ) |>
+    mutate(
+      committed_per_million = safe_divide(numerator, denominator / 1000000),
+      series = factor(series, levels = series_levels)
+    )
+}
+
+fig2_data <- build_group_series_year(state_year)
+
+top10_plus_wi <- function(df, value_col, label_col = "state_name") {
+  ranked <- df |>
+    filter(!is.na(.data[[value_col]])) |>
+    arrange(desc(.data[[value_col]]))
+
+  top10 <- ranked |> slice_head(n = 10)
+  wi_row <- ranked |> filter(.data[[label_col]] == "Wisconsin")
+
+  bind_rows(top10, wi_row) |>
+    distinct(.data[[label_col]], .keep_all = TRUE) |>
+    arrange(.data[[value_col]])
+}
+
+build_range_grid <- function(min_year, max_year) {
+  tidyr::expand_grid(start_year = min_year:max_year, end_year = min_year:max_year) |>
+    filter(start_year <= end_year) |>
+    arrange(start_year, end_year) |>
+    mutate(
+      range_label = paste0(start_year, "-", end_year),
+      range_display = if_else(start_year == end_year, as.character(start_year), range_label)
+    )
+}
+
+range_grid <- build_range_grid(year_min, year_max)
+
+build_state_period_for_range <- function(df_state_year, start_year, end_year) {
+  df_state_year |>
+    filter(year >= start_year, year <= end_year) |>
+    group_by(state_name, FIPS) |>
+    summarise(
+      sum_dealcount = sum(dealcount, na.rm = TRUE),
+      sum_capital = sum(capital_committed, na.rm = TRUE),
+      sum_population = sum(population, na.rm = TRUE),
+      dealsize_summed = safe_divide(sum_capital, sum_dealcount),
+      dealsize_average = mean(deal_size_year, na.rm = TRUE),
+      dealcount_per_million = safe_divide(sum_dealcount, sum_population / 1000000),
+      .groups = "drop"
+    )
+}
+
+build_group_dealsize_for_range <- function(df_state_year, start_year, end_year) {
+  df <- df_state_year |> filter(year >= start_year, year <= end_year)
+  all_states <- sort(unique(df$FIPS))
+
+  group_lists <- list(
+    "National" = all_states,
+    "National (excl. CA, MA, NY)" = setdiff(all_states, big3_fips),
+    "Midwest (excl. WI)" = midwest_excl_wi,
+    "Wisconsin" = wi_fips
+  )
+
+  purrr::imap_dfr(group_lists, function(states, label) {
+    df_group <- df |> filter(FIPS %in% states)
+
+    yearly <- df_group |>
+      group_by(year) |>
+      summarise(
+        year_capital = sum(capital_committed, na.rm = TRUE),
+        year_count = sum(dealcount, na.rm = TRUE),
+        year_dealsize = safe_divide(year_capital, year_count),
+        .groups = "drop"
+      )
+
+    tibble(
+      label = label,
+      metric = c("Summed", "Average"),
+      value = c(
+        safe_divide(sum(df_group$capital_committed, na.rm = TRUE), sum(df_group$dealcount, na.rm = TRUE)),
+        mean(yearly$year_dealsize, na.rm = TRUE)
+      )
+    )
+  })
+}
+
+fig3b_data <- purrr::map_dfr(year_min:year_max, function(y) {
+  state_year_single <- build_state_period_for_range(state_year, y, y)
+
+  top10_plus_wi(state_year_single, "dealcount_per_million") |>
+    mutate(
+      year = y,
+      state_name = factor(state_name, levels = unique(state_name))
+    )
+})
+
+fig4c_data <- purrr::pmap_dfr(range_grid, function(start_year, end_year, range_label, range_display) {
+  state_period_range <- build_state_period_for_range(state_year, start_year, end_year)
+
+  states_summed <- top10_plus_wi(state_period_range, "dealsize_summed") |>
+    transmute(label = state_name, metric = "Summed", mode = "States", value = dealsize_summed)
+
+  states_avg <- top10_plus_wi(state_period_range, "dealsize_average") |>
+    transmute(label = state_name, metric = "Average", mode = "States", value = dealsize_average)
+
+  groups <- build_group_dealsize_for_range(state_year, start_year, end_year) |>
+    mutate(mode = "Groups")
+
+  bind_rows(states_summed, states_avg, groups) |>
+    mutate(
+      range_label = range_label,
+      combo = case_when(
+        mode == "States" & metric == "Summed" ~ "States | Summed",
+        mode == "States" & metric == "Average" ~ "States | Average",
+        mode == "Groups" & metric == "Summed" ~ "Groups | Summed",
+        TRUE ~ "Groups | Average"
+      ),
+      range_display = range_display
+    )
+})
 ```
 
 
 ## Figure 1: Map of Venture Capital Committed
 
-US Map of average venture capital committed by U.S. state from 2024 - 2025 (confirm - what are we not using 2025 here?)
+US map of venture capital committed per 1 million residents across states, using 2015-2024 totals and fixed outlier exclusions (CA, NY, MA).
 
-```{r fig1}
+```{r fig1, echo=FALSE, warning=FALSE, message=FALSE}
+map_base <- ggplot2::map_data("state")
 
+fig1_state <- state_period |>
+  filter(!state_name %in% outlier_states) |>
+  mutate(region = tolower(state_name))
+
+fig1_map <- map_base |>
+  left_join(fig1_state, by = "region")
+
+ggplot(fig1_map, aes(long, lat, group = group, fill = committed_per_million)) +
+  geom_polygon(color = "white", linewidth = 0.1) +
+  coord_equal(1.3) +
+  scale_fill_viridis_c(option = "C", na.value = "grey92", labels = scales::label_comma()) +
+  labs(
+    title = "Figure 1. Venture Capital Committed per 1M Residents",
+    subtitle = "2015-2024 totals; CA, MA, and NY excluded",
+    fill = "USD (millions)",
+    caption = "Source: Pitchbook Venture Monitor and BLS participation-based population estimates."
+  ) +
+  theme_void(base_size = 11) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    plot.subtitle = element_text(size = 10),
+    legend.position = "right"
+  )
 ```
 
 
 ### Dealing with outliers
 
-In line with our prior analysis, remove CA, NY, MA. Also remove states like West Virginia, who only have one deal worth a ton, for example.
+In line with prior analysis, the fixed exclusion set is CA, NY, MA.
 
 
 ## Figure 2: Line Chart of average capital committed per 1 million residents from 2015-2024. 
 
-Groups are national average, national average except the outliers removed in figure 1, midwest excl. WI, and WI
+Groups are national average, national average except outliers removed in figure 1, Midwest excl. WI, and WI.
 
-```{r fig2}
-
+```{r fig2, echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(fig2_data, aes(x = year, y = committed_per_million, color = series)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.7) +
+  scale_color_manual(values = series_colors, breaks = series_levels) +
+  scale_y_continuous(labels = scales::label_comma()) +
+  scale_x_continuous(breaks = year_min:year_max) +
+  labs(
+    title = "Figure 2. Capital Committed per 1M Residents Over Time",
+    subtitle = "2015-2024",
+    x = "Year",
+    y = "USD (millions) per 1M residents",
+    color = NULL,
+    caption = "Source: Pitchbook Venture Monitor and BLS participation-based population estimates."
+  ) +
+  theme_im()
 ```
 
 ## Figure 3: Horizontal bar chart of VC deal count per 1 million residents
 
-Do top 10 + WI only, from 2015-2024 summed. 
+Top 10 + WI only, from 2015-2024 summed.
 
-```{r fig3}
+```{r fig3, echo=FALSE, warning=FALSE, message=FALSE}
+fig3_static <- top10_plus_wi(state_period, "dealcount_per_million")
 
+ggplot(fig3_static, aes(x = dealcount_per_million, y = reorder(state_name, dealcount_per_million))) +
+  geom_col(fill = "grey60") +
+  geom_col(
+    data = fig3_static |> filter(state_name == "Wisconsin"),
+    fill = "#c5050c"
+  ) +
+  scale_x_continuous(labels = scales::label_comma()) +
+  labs(
+    title = "Figure 3. Venture Deal Count per 1M Residents",
+    subtitle = "Top 10 states + Wisconsin, 2015-2024 totals",
+    x = "Deals per 1M residents",
+    y = NULL,
+    caption = "Source: Pitchbook Venture Monitor and BLS participation-based population estimates."
+  ) +
+  theme_im()
 ```
 
-## Figure 3.b: Interactive version of figure 3 that has a scale 
+## Figure 3.b: Interactive version of figure 3 with year slider
 
-Use the interactive code from pitchbook_explore.qmd to show technical requirements
+```{r fig3b, echo=FALSE, warning=FALSE, message=FALSE}
+years <- sort(unique(fig3b_data$year))
+latest_year <- max(years, na.rm = TRUE)
 
-```{r fig3b}
+frame_list <- purrr::map(years, function(y) {
+  df <- fig3b_data |>
+    filter(year == y) |>
+    arrange(dealcount_per_million) |>
+    mutate(state_name = factor(state_name, levels = state_name))
 
+  list(
+    name = as.character(y),
+    data = list(
+      list(
+        x = df$dealcount_per_million,
+        y = df$state_name,
+        text = scales::label_comma()(df$dealcount_per_million),
+        textposition = "outside",
+        marker = list(color = ifelse(df$state_name == "Wisconsin", "#c5050c", "grey60"))
+      )
+    ),
+    layout = list(
+      yaxis = list(categoryorder = "array", categoryarray = levels(df$state_name))
+    )
+  )
+})
+
+init_df <- fig3b_data |>
+  filter(year == latest_year) |>
+  arrange(dealcount_per_million) |>
+  mutate(state_name = factor(state_name, levels = state_name))
+
+init_levels <- levels(init_df$state_name)
+
+p <- plot_ly(
+  init_df,
+  x = ~dealcount_per_million,
+  y = ~state_name,
+  text = ~scales::label_comma()(dealcount_per_million),
+  textposition = "outside",
+  type = "bar",
+  orientation = "h",
+  hovertemplate = paste0(
+    "State: %{y}<br>",
+    "Deals per 1M: %{x:,.2f}<extra></extra>"
+  ),
+  marker = list(color = ~if_else(state_name == "Wisconsin", "#c5050c", "grey60"))
+) |>
+  layout(
+    title = list(text = "Figure 3b. Deal Count per 1M Residents (Top 10 + WI)"),
+    xaxis = list(title = "Deals per 1M residents", tickformat = ","),
+    yaxis = list(title = "", categoryorder = "array", categoryarray = init_levels),
+    margin = list(l = 120, r = 20, t = 60, b = 40),
+    showlegend = FALSE
+  )
+
+pb <- plotly_build(p)
+pb$x$frames <- frame_list
+pb$x$layout$sliders <- list(
+  list(
+    active = max(which(years == latest_year)) - 1,
+    currentvalue = list(prefix = "Year: "),
+    steps = purrr::map(years, function(y) {
+      list(
+        method = "animate",
+        args = list(
+          list(as.character(y)),
+          list(mode = "immediate", frame = list(duration = 0, redraw = TRUE), transition = list(duration = 0))
+        ),
+        label = as.character(y)
+      )
+    })
+  )
+)
+
+pb
 ```
 
 ## Figure 4: Vertical bar chart of Venture Capital Deal Size by State
 
-There are two ways to do this. In both specifications, I want you to do top 10 + WI only. The deal size is simply capital committed/deal count for a given state.
+Two definitions are shown below (top 10 + WI): summed and average.
 
-```{r fig4}
-
+```{r fig4, echo=FALSE, warning=FALSE, message=FALSE}
+cat("Figure 4A uses summed numerator/denominator across years; Figure 4B averages year-level deal-size ratios.")
 ```
 
 ## Figure 4A): Summed
 
-For the "Summed" figure, calculate deal count for each state by summing the numerator and denominator seperately across years before dividing.
+For "Summed", deal size = (sum capital committed) / (sum deal count) over 2015-2024.
 
-```{r fig4a}
+```{r fig4a, echo=FALSE, warning=FALSE, message=FALSE}
+fig4a_static <- top10_plus_wi(state_period, "dealsize_summed")
 
+ggplot(fig4a_static, aes(x = reorder(state_name, dealsize_summed), y = dealsize_summed)) +
+  geom_col(fill = "grey60") +
+  geom_col(
+    data = fig4a_static |> filter(state_name == "Wisconsin"),
+    fill = "#c5050c"
+  ) +
+  scale_y_continuous(labels = scales::label_comma()) +
+  labs(
+    title = "Figure 4A. Venture Deal Size by State (Summed)",
+    subtitle = "Top 10 states + Wisconsin, 2015-2024",
+    x = NULL,
+    y = "USD (millions)",
+    caption = "Deal size = sum(capital committed) / sum(deal count)."
+  ) +
+  theme_im() +
+  theme(axis.text.x = element_text(angle = 35, hjust = 1))
 ```
 
 ## Figure 4B): Average
 
-For the "Average" figure, calculate deal count for each state by summing the numerator and denominator for each state-year combination and averaging across time.
+For "Average", deal size = average across year-level state deal-size ratios from 2015-2024.
 
-```{r figb}
+```{r figb, echo=FALSE, warning=FALSE, message=FALSE}
+fig4b_static <- top10_plus_wi(state_period, "dealsize_average")
 
+ggplot(fig4b_static, aes(x = reorder(state_name, dealsize_average), y = dealsize_average)) +
+  geom_col(fill = "grey60") +
+  geom_col(
+    data = fig4b_static |> filter(state_name == "Wisconsin"),
+    fill = "#c5050c"
+  ) +
+  scale_y_continuous(labels = scales::label_comma()) +
+  labs(
+    title = "Figure 4B. Venture Deal Size by State (Average)",
+    subtitle = "Top 10 states + Wisconsin, 2015-2024",
+    x = NULL,
+    y = "USD (millions)",
+    caption = "Deal size = mean over years of state-year capital/dealcount ratios."
+  ) +
+  theme_im() +
+  theme(axis.text.x = element_text(angle = 35, hjust = 1))
 ```
 
 ## Figure 4C): Interactive Version
 
-I want you to create a version of figure 4 that is interactive. I want the following two toggles:
-1) "Average or Sum" - Where I can click a toggle that changes between the metric in 4A and 4B
-2) "States vs. Groups" - Where I can click a toggle that changes between the groupings we did as in Figure 2, and the top ten states setup we've done for other figure 4 visualizations
+This chart has three controls: metric toggle, states-vs-groups toggle, and a year-range slider.
 
-```{r fig4c}
+```{r fig4c, echo=FALSE, warning=FALSE, message=FALSE}
+fig4c_wide <- fig4c_data |>
+  mutate(combo = factor(combo, levels = c(
+    "States | Summed",
+    "States | Average",
+    "Groups | Summed",
+    "Groups | Average"
+  )))
 
+combo_levels <- c(
+  "States | Summed",
+  "States | Average",
+  "Groups | Summed",
+  "Groups | Average"
+)
+
+combo_colors <- c(
+  "States | Summed" = "#4e79a7",
+  "States | Average" = "#59a14f",
+  "Groups | Summed" = "#f28e2b",
+  "Groups | Average" = "#e15759"
+)
+
+range_labels <- range_grid$range_label
+range_display <- range_grid$range_display
+init_range <- range_labels[1]
+
+get_combo_df <- function(range_value, combo_value) {
+  fig4c_wide |>
+    filter(range_label == range_value, combo == combo_value) |>
+    arrange(desc(value))
+}
+
+init_states_summed <- get_combo_df(init_range, "States | Summed")
+
+p <- plot_ly()
+
+for (i in seq_along(combo_levels)) {
+  combo_i <- combo_levels[i]
+  df_i <- get_combo_df(init_range, combo_i)
+
+  p <- p |>
+    add_trace(
+      data = df_i,
+      x = ~label,
+      y = ~value,
+      type = "bar",
+      name = combo_i,
+      marker = list(color = combo_colors[[combo_i]]),
+      visible = i == 1,
+      hovertemplate = paste0(
+        "Category: %{x}<br>",
+        "Value: %{y:,.2f}<extra></extra>"
+      )
+    )
+}
+
+frame_list <- purrr::map(range_labels, function(rng) {
+  frame_data <- purrr::map(combo_levels, function(combo_i) {
+    df_i <- get_combo_df(rng, combo_i)
+    list(x = df_i$label, y = df_i$value)
+  })
+
+  list(
+    name = rng,
+    data = frame_data
+  )
+})
+
+pb <- plotly_build(
+  p |>
+    layout(
+      title = "Figure 4C. Interactive Venture Deal Size",
+      xaxis = list(
+        title = "",
+        tickangle = -30,
+        type = "category",
+        categoryorder = "trace",
+        categoryarray = init_states_summed$label
+      ),
+      yaxis = list(title = "USD (millions)"),
+      showlegend = FALSE,
+      updatemenus = list(
+        list(
+          type = "buttons",
+          direction = "down",
+          x = 1.02,
+          xanchor = "left",
+          y = 1.0,
+          yanchor = "top",
+          buttons = list(
+            list(
+              label = "States | Summed",
+              method = "update",
+              args = list(
+                list(visible = c(TRUE, FALSE, FALSE, FALSE)),
+                list(xaxis = list(categoryorder = "trace"))
+              )
+            ),
+            list(
+              label = "States | Average",
+              method = "update",
+              args = list(
+                list(visible = c(FALSE, TRUE, FALSE, FALSE)),
+                list(xaxis = list(categoryorder = "trace"))
+              )
+            ),
+            list(
+              label = "Groups | Summed",
+              method = "update",
+              args = list(
+                list(visible = c(FALSE, FALSE, TRUE, FALSE)),
+                list(xaxis = list(categoryorder = "trace"))
+              )
+            ),
+            list(
+              label = "Groups | Average",
+              method = "update",
+              args = list(
+                list(visible = c(FALSE, FALSE, FALSE, TRUE)),
+                list(xaxis = list(categoryorder = "trace"))
+              )
+            )
+          )
+        )
+      )
+    )
+)
+
+pb$x$frames <- frame_list
+pb$x$layout$sliders <- list(
+  list(
+    active = 0,
+    currentvalue = list(prefix = "Year window: "),
+    y = -0.28,
+    x = 0,
+    xanchor = "left",
+    len = 0.88,
+    steps = purrr::map2(range_labels, range_display, function(rng, rng_display) {
+      list(
+        method = "animate",
+        args = list(
+          list(rng),
+          list(mode = "immediate", frame = list(duration = 0, redraw = TRUE), transition = list(duration = 0))
+        ),
+        label = rng_display
+      )
+    })
+  )
+)
+
+pb
 ```
 
 
 ## Form D versus Pitchbook NVCA Report Data
 
-Included in a seperate word doc. 
-
-
-
-
-
-
-
+Included in a seperate word doc.
