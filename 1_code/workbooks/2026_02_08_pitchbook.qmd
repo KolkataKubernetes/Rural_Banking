@@ -10,11 +10,13 @@ date: 2026-02-08
 # Motivation
 
 My last workbook (sent on February 3, 2026) and analysis of Business Formation Statistics revealed three stylized facts:
-1.  Dividing invested/committed capital (or deal count) by population before summing across states provides a more intuitive "apples to apples" comparison. The unit of comparison is now "average state" in each category.
+
+
+1. Dividing invested/committed capital (or deal count) by population before summing across states provides a more intuitive "apples to apples" comparison. The unit of comparison is now "average state" in each category.
 2. Rural areas in Wisconsin tend to outperform their rural counterparts in the "average states" constructed from other categories 
 3. in the Wisconsin context, descriptives suggest that the pattern in (2) is driven by metro-adjacent rural counties.
 
-# Goal
+**In line with point 1 above**, this document makes refinements to the Pitchbook descriptives and adds the figures outlined in your email from February 5th. I augmented some of the visuals to include interactive toggles and sliders to help us further explore some of the variation driving our patterns. The other points above are addressed by 
 
 This document makes refinements to the Pitchbook descriptives per your email dates on February 5, addressing point (1) above. The other points will are addressed in seperate documents.
 
@@ -353,21 +355,53 @@ In line with prior analysis, the fixed exclusion set is CA, NY, MA.
 Groups are national average, national average except outliers removed in figure 1, Midwest excl. WI, and WI.
 
 ```{r fig2, echo=FALSE, warning=FALSE, message=FALSE}
-ggplot(fig2_data, aes(x = year, y = committed_per_million, color = series)) +
-  geom_line(linewidth = 1) +
-  geom_point(size = 1.7) +
-  scale_color_manual(values = series_colors, breaks = series_levels) +
-  scale_y_continuous(labels = scales::label_comma()) +
-  scale_x_continuous(breaks = year_min:year_max) +
-  labs(
-    title = "Figure 2. Capital Committed per 1M Residents Over Time",
-    subtitle = "2015-2024",
-    x = "Year",
-    y = "USD (millions) per 1M residents",
-    color = NULL,
-    caption = "Source: Pitchbook Venture Monitor and BLS participation-based population estimates."
-  ) +
-  theme_im()
+fig2_plotly <- plot_ly(
+  fig2_data,
+  x = ~year,
+  y = ~committed_per_million,
+  color = ~series,
+  colors = series_colors,
+  type = "scatter",
+  mode = "lines+markers",
+  hovertemplate = paste0(
+    "Series: %{fullData.name}<br>",
+    "Year: %{x}<br>",
+    "Committed per 1M: %{y:,.2f}<extra></extra>"
+  )
+) |>
+  layout(
+    title = list(text = "Figure 2. Capital Committed per 1M Residents Over Time<br><sup>2015-2024</sup>"),
+    xaxis = list(
+      title = "Year",
+      tickmode = "array",
+      tickvals = year_min:year_max,
+      showspikes = TRUE,
+      spikemode = "across",
+      spikesnap = "cursor",
+      spikethickness = 1.5,
+      spikedash = "solid",
+      spikecolor = "#4d4d4d"
+    ),
+    yaxis = list(
+      title = "USD (millions) per 1M residents",
+      tickformat = ","
+    ),
+    hovermode = "x unified",
+    legend = list(orientation = "h", y = 1.08),
+    margin = list(l = 70, r = 20, t = 70, b = 60),
+    annotations = list(
+      list(
+        text = "Source: Pitchbook Venture Monitor and BLS participation-based population estimates.",
+        xref = "paper", yref = "paper",
+        x = 0, y = -0.26,
+        showarrow = FALSE,
+        xanchor = "left",
+        font = list(size = 11, color = "#5f5f5f")
+      )
+    )
+  )
+
+fig2_plotly
 ```
 
 ## Figure 3: Horizontal bar chart of VC deal count per 1 million residents

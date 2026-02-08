@@ -28,6 +28,7 @@ This is an updated initial spec plan. It incorporates user clarifications receiv
 - [x] (2026-02-08 19:39Z) Updated `fig4c` slider ordering and labels to block by start year (2015-2015, 2015-2016, …) with single-year windows labeled by year only; moved slider lower to avoid overlap with x-axis labels.
 - [x] (2026-02-08 19:39Z) Iterated `fig4c` slider display to rely on dynamic `Year window:` subtitle for exact range and removed custom slider annotation row after user review.
 - [x] (2026-02-08 19:39Z) Added `fig4c` hover fields for each category/window: `total capital raised` and `total deals`.
+- [x] (2026-02-08 19:39Z) Converted Figure 2 to an interactive Plotly line chart with cursor-tracking vertical spike line (in-plot slider behavior) and validated render output.
 
 ## Surprises & Discoveries
 
@@ -53,6 +54,8 @@ This is an updated initial spec plan. It incorporates user clarifications receiv
   Evidence: Adding `range_display` triggered an `unused argument` error until the `fig4c_data` mapper was updated.
 - Observation: Plotly slider tick labels are auto-suppressed when many steps are densely packed.
   Evidence: Even with explicit labels for year anchors, intermediate rendering hid some anchor labels; final design uses `Year window:` subtitle as canonical range display.
+- Observation: Plotly x-axis spike lines provide the requested in-plot “slider-like” interaction without adding a separate slider control.
+  Evidence: Figure 2 now uses `showspikes`, `spikemode = "across"`, and `spikesnap = "cursor"` with unified x-hover.
 
 ## Decision Log
 
@@ -97,6 +100,9 @@ This is an updated initial spec plan. It incorporates user clarifications receiv
   Date/Author: 2026-02-08 / Codex
 - Decision: Extend `fig4c` category hover payload with `total_capital` and `total_deals`.
   Rationale: User requested category-level context values for each selected window.
+  Date/Author: 2026-02-08 / Codex
+- Decision: Keep Figure 2 as interactive Plotly (instead of static ggplot) with cursor-following vertical line.
+  Rationale: User requested and approved the interaction change as the preferred behavior.
   Date/Author: 2026-02-08 / Codex
 
 ## Outcomes & Retrospective

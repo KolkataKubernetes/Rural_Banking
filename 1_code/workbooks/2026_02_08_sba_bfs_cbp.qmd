@@ -1,0 +1,51 @@
+---
+title: "Business Formation, CBP, and SBA"
+author: "Inder Majumdar"
+format:
+  html:
+    embed-resources: true
+date: 2026-02-08
+---
+
+# Motivation
+
+```{r config}
+
+library('tidyverse')
+
+cbp <- read_rds(file.path("..", "..", "2_processed_data","CBP_all.rds"))
+
+
+```
+
+
+# 1) Replicating the urban-rural split in Business Formation Statistics
+
+```{r bfs_lollipop_bizapp_all}
+
+
+```
+
+```{r bfs_lollipop_bizapp_rural}
+
+
+```
+
+
+```{r cbp_lollipop_bizapp_all}
+
+
+```
+
+```{r cbp_lollipop_bizapp_rural}
+
+
+```
+
+# 2) Sector decomposition
+
+```{r cbp_piechart_wi_agg}
+
+
+```
+
