@@ -78,7 +78,7 @@ if (!is.finite(year_use)) {
 # -----------------------------
 
 state_lookup <- state_fips |>
-  filter(FIPS_CODE != "11") |>
+  filter(FIPS_CODE != "11") |> #Remove District of Columbia
   transmute(
     state_fips = stringr::str_pad(as.character(FIPS_CODE), width = 2, pad = "0"),
     state_name = stringr::str_to_title(tolower(STATE_NAME)),

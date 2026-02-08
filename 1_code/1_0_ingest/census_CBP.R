@@ -36,7 +36,7 @@ cbp_get <- function(year,
                     state = NULL,         # e.g., "55" for Wisconsin
                     county = "*",         # "*" for all counties; or "025" for Dane County
                     naics = NULL,         # e.g., "11" or "5413" or "541330"
-                    naics_var = "NAICS2017",
+                    naics_var = "NAICS2017", #Q: is it necessary to pre-specify?
                     lfo = NULL,           # legal form of org (optional)
                     empsz = NULL,         # employment-size class (optional)
                     key = Sys.getenv("CENSUS_API_KEY", unset = NA)) {
@@ -47,6 +47,7 @@ cbp_get <- function(year,
   # County-level: for=county:<code or *> & in=state:<FIPS>
   if (is.null(state)) stop("Provide a 2-digit state FIPS code (e.g., '55' for WI).")
   
+  #Query parameters to build URL
   query <- list(
     get = paste(vars, collapse = ","),
     `for` = paste0("county:", county),
@@ -54,18 +55,18 @@ cbp_get <- function(year,
   )
   
   # Optional filters (CBP supports NAICS* variants, LFO, EMPSZES, etc., depending on year)
-  if (!is.null(naics)) query[[naics_var]] <- naics
-  if (!is.null(lfo))   query$LFO <- lfo
+  if (!is.null(naics)) query[[naics_var]] <- naics ## Assign Appropriate form to  nacs_vair, year-dependent
+  if (!is.null(lfo))   query$LFO <- lfo ## Optional arg
   if (!is.null(empsz)) query$EMPSZES <- empsz
   
   # API key is optional for small requests, but recommended.
-  if (is.na(key) || !nzchar(key)) key <- load_census_key()
-  if (!is.na(key) && nzchar(key)) query$key <- key
+  if (is.na(key) || !nzchar(key)) key <- load_census_key() #Function above
+  if (!is.na(key) && nzchar(key)) query$key <- key #make sure md pull is "well behaved"
   
-  resp <- request(base) |>
-    req_url_query(!!!query) |>
-    req_error(is_error = function(resp) FALSE) |>
-    req_perform()
+  resp <- request(base) |> #Build request using base spec
+    req_url_query(!!!query) |> # Expand into named arguments using "!!!"
+    req_error(is_error = function(resp) FALSE) |> #Supress errors - idea here is that some states might not have relevant fields
+    req_perform() #Send it
   
   make_empty <- function(cols) {
     num_cols <- c("ESTAB", "EMP", "PAYANN", "PAYQTR1")
@@ -184,42 +185,10 @@ out <- map_dfr(states, function(s) {
         naics = nc,
         naics_var = naics_var
       ) |>
+        rename(naics = all_of(naics_var)) |>
         mutate(year = y)
     })
   })
-})
-
-
-wi_all <- map_dfr(years, function(y) {
-  message("Pulling CBP data for ", y)
-  vars_y <- cbp_list_vars(y)$name
-  naics_var <- if ("NAICS2022" %in% vars_y) {
-    "NAICS2022"
-  } else if ("NAICS2017" %in% vars_y) {
-    "NAICS2017"
-  } else if ("NAICS2012" %in% vars_y) {
-    "NAICS2012"
-  } else if ("NAICS2007" %in% vars_y) {
-    "NAICS2007"
-  } else if ("NAICS" %in% vars_y) {
-    "NAICS"
-  } else {
-    NA_character_
-  }
-  if (is.na(naics_var)) {
-    stop("No NAICS variable available for year ", y, " state 55")
-  }
-  vars_use <- vars_common
-  if (!is.na(naics_var)) vars_use <- c(vars_use, naics_var)
-  cbp_get(
-    year  = y,
-    vars  = vars_use,
-    state = "55",
-    county = "*",
-    naics = naics_filter,
-    naics_var = naics_var
-  ) |>
-    mutate(year = y)
 })
 
 # ---- Join RUCC to classify metro vs rural (RUCC 1-3 = metro, else rural) ----
@@ -241,25 +210,25 @@ out <- out |>
   )
 
 # ---- Aggregate to state x year x NAICS (sum across counties) ----
-out <- out |>
-  mutate(
-    naics = dplyr::coalesce(
-      dplyr::if_else("NAICS2022" %in% names(out), as.character(NAICS2022), NA_character_),
-      dplyr::if_else("NAICS2017" %in% names(out), as.character(NAICS2017), NA_character_),
-      dplyr::if_else("NAICS2012" %in% names(out), as.character(NAICS2012), NA_character_),
-      dplyr::if_else("NAICS2007" %in% names(out), as.character(NAICS2007), NA_character_),
-      dplyr::if_else("NAICS" %in% names(out), as.character(NAICS), NA_character_)
-    )
-  )
+#out <- out |>
+#  mutate(
+#    naics = dplyr::coalesce(
+#      dplyr::if_else("NAICS2022" %in% names(out), as.character(NAICS2022), NA_character_),
+#      dplyr::if_else("NAICS2017" %in% names(out), as.character(NAICS2017), NA_character_),
+#      dplyr::if_else("NAICS2012" %in% names(out), as.character(NAICS2012), NA_character_),
+#      dplyr::if_else("NAICS2007" %in% names(out), as.character(NAICS2007), NA_character_),
+#    dplyr::if_else("NAICS" %in% names(out), as.character(NAICS), NA_character_)
+#    )
+#  )
 
-state_year_naics <- out |>
-  group_by(state, year, naics) |>
-  summarise(
-    ESTAB = sum(ESTAB, na.rm = TRUE),
-    EMP = sum(EMP, na.rm = TRUE),
-    PAYANN = sum(PAYANN, na.rm = TRUE),
-    .groups = "drop"
-  )
+# state_year_naics <- out |>
+#  group_by(state, year, naics) |>
+#  summarise(
+#    ESTAB = sum(ESTAB, na.rm = TRUE),
+#    EMP = sum(EMP, na.rm = TRUE),
+#    PAYANN = sum(PAYANN, na.rm = TRUE),
+#    .groups = "drop"
+#  )
 
 
 # --- Save RDS 

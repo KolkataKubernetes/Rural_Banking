@@ -85,10 +85,23 @@ This repository organizes inputs, R scripts, processed outputs, and project docu
   - Ingest script(s): `1_code/1_1_transform/1_0_1_wi_descriptives.R`.
   - Notes/constraints: Used for county labor force and population normalization.
 
+- Census County Business Patterns (CBP)
+  - Origin (local copy, agency, vendor): U.S. Census Bureau (CBP API).
+  - Local path(s): None (API pull); RUCC join uses `0_inputs/Ruralurbancontinuumcodes2023.xlsx`.
+  - Ingest script(s): `1_code/1_0_ingest/census_CBP.R`.
+  - Notes/constraints: Produces an in-memory `wi_all` data frame; no files written by default.
+
+- Business Formation Statistics (BFS), county level
+  - Origin (local copy, agency, vendor): U.S. Census Bureau (Business Formation Statistics).
+  - Local path(s): `0_inputs/bfs_county_apps_annual.xlsx`.
+  - Ingest script(s): None identified in current pipeline.
+  - Notes/constraints: County-level granularity; source: `https://www.census.gov/econ/bfs/data.html`.
+
 - Additional inputs referenced in transforms
   - `0_inputs/CORI/fips_participation.csv` (BLS source; TODO: verify provenance).
   - `0_inputs/bds2023_st_fa.csv` (U.S. Census Bureau Business Dynamics Statistics).
   - `0_inputs/Ruralurbancontinuumcodes2023.xlsx` (USDA ERS Rural-Urban Continuum Codes, 2013 vintage; reference link: `https://www.ers.usda.gov/data-products/rural-urban-continuum-codes`).
+  - `0_inputs/state_fips.csv` (FCC state FIPS code list; source: `https://transition.fcc.gov/oet/info/maps/census/fips/fips.txt`).
 
 ## Derived or Upstream Data
 
@@ -135,6 +148,11 @@ Raw inputs in `0_inputs/` are transformed by `1_code/1_1_transform/1_0_1_wi_desc
   - Inputs: CORI Form D API (via `dform`), `0_inputs/CORI/HUD_crosswalks/ZIP_COUNTY_122020.xlsx`, `0_inputs/upstream/formd-interactive-map/src/data/formd_map.json`, `0_inputs/CORI/fips_participation.csv`.
   - Outputs: `1_processed_data/formd_years/formd_YYYY.csv`, `1_processed_data/formd_qc_summary.csv`, `1_processed_data/formd_fig8_validation.csv`, `1_processed_data/formd_fig11_summary.csv`.
   - Notes: Output directory is configurable in-script (`config$output_dir`).
+
+- `1_code/1_0_ingest/census_CBP.R`
+  - Inputs: CBP API (county-level), `0_inputs/Ruralurbancontinuumcodes2023.xlsx`.
+  - Outputs: In-memory `wi_all` data frame; no files written by default.
+  - Notes: Uses network access for CBP API pulls; RUCC join labels metro vs rural.
 
 ## Transform/Clean Scripts
 
@@ -296,6 +314,9 @@ This repository is conditionally reproducible given access to external input dat
 
 - 2026-02-02: README updated to new template; sections populated from repository inventory and documented hardcoded paths (mechanical update).
 - 2026-02-02: Updated agency provenance notes for BDS, RUCC, and FIPS participation inputs; added USDA ERS reference link (mechanical update).
+- 2026-02-02: Added FCC provenance note for `0_inputs/state_fips.csv` (mechanical update).
+- 2026-02-02: Documented Census CBP ingest script and data source in inventory (mechanical update).
+- 2026-02-02: Added BFS county-level input (`0_inputs/bfs_county_apps_annual.xlsx`) and Census provenance link (mechanical update).
 
 # Legacy Code
 
