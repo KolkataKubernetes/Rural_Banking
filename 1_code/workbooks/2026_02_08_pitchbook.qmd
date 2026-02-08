@@ -252,7 +252,9 @@ build_group_dealsize_for_range <- function(df_state_year, start_year, end_year) 
       value = c(
         safe_divide(sum(df_group$capital_committed, na.rm = TRUE), sum(df_group$dealcount, na.rm = TRUE)),
         mean(yearly$year_dealsize, na.rm = TRUE)
-      )
+      ),
+      total_capital = sum(df_group$capital_committed, na.rm = TRUE),
+      total_deals = sum(df_group$dealcount, na.rm = TRUE)
     )
   })
 }
@@ -271,10 +273,24 @@ fig4c_data <- purrr::pmap_dfr(range_grid, function(start_year, end_year, range_l
   state_period_range <- build_state_period_for_range(state_year, start_year, end_year)
 
   states_summed <- top10_plus_wi(state_period_range, "dealsize_summed") |>
-    transmute(label = state_name, metric = "Summed", mode = "States", value = dealsize_summed)
+    transmute(
+      label = state_name,
+      metric = "Summed",
+      mode = "States",
+      value = dealsize_summed,
+      total_capital = sum_capital,
+      total_deals = sum_dealcount
+    )
 
   states_avg <- top10_plus_wi(state_period_range, "dealsize_average") |>
-    transmute(label = state_name, metric = "Average", mode = "States", value = dealsize_average)
+    transmute(
+      label = state_name,
+      metric = "Average",
+      mode = "States",
+      value = dealsize_average,
+      total_capital = sum_capital,
+      total_deals = sum_dealcount
+    )
 
   groups <- build_group_dealsize_for_range(state_year, start_year, end_year) |>
     mutate(mode = "Groups")
@@ -544,7 +560,7 @@ combo_colors <- c(
 )
 
 range_labels <- range_grid$range_label
-range_display <- range_grid$range_display
+slider_tick_labels <- rep("", nrow(range_grid))
 init_range <- range_labels[1]
 
 get_combo_df <- function(range_value, combo_value) {
@@ -566,13 +582,16 @@ for (i in seq_along(combo_levels)) {
       data = df_i,
       x = ~label,
       y = ~value,
+      customdata = ~cbind(total_capital, total_deals),
       type = "bar",
       name = combo_i,
       marker = list(color = combo_colors[[combo_i]]),
       visible = i == 1,
       hovertemplate = paste0(
         "Category: %{x}<br>",
-        "Value: %{y:,.2f}<extra></extra>"
+        "Value: %{y:,.2f}<br>",
+        "Total capital raised: %{customdata[0]:,.2f}<br>",
+        "Total deals: %{customdata[1]:,.0f}<extra></extra>"
       )
     )
 }
@@ -580,19 +599,33 @@ for (i in seq_along(combo_levels)) {
 frame_list <- purrr::map(range_labels, function(rng) {
   frame_data <- purrr::map(combo_levels, function(combo_i) {
     df_i <- get_combo_df(rng, combo_i)
-    list(x = df_i$label, y = df_i$value)
+    list(
+      x = df_i$label,
+      y = df_i$value,
+      customdata = cbind(df_i$total_capital, df_i$total_deals)
+    )
   })
 
   list(
     name = rng,
-    data = frame_data
+    data = frame_data,
+    layout = list(
+      title = list(text = paste0(
+        "Figure 4C. Interactive Venture Deal Size",
+        "<br><sup>Year window: ", rng, "</sup>"
+      ))
+    )
   )
 })
 
 pb <- plotly_build(
   p |>
     layout(
-      title = "Figure 4C. Interactive Venture Deal Size",
+      title = list(text = paste0(
+        "Figure 4C. Interactive Venture Deal Size",
+        "<br><sup>Year window: ", init_range, "</sup>"
+      )),
+      margin = list(t = 110, b = 120, l = 60, r = 40),
       xaxis = list(
         title = "",
         tickangle = -30,
@@ -600,7 +633,7 @@ pb <- plotly_build(
         categoryorder = "trace",
         categoryarray = init_states_summed$label
       ),
-      yaxis = list(title = "USD (millions)"),
+      yaxis = list(title = "USD (millions)", domain = c(0, 0.82)),
       showlegend = FALSE,
       updatemenus = list(
         list(
@@ -653,19 +686,20 @@ pb$x$frames <- frame_list
 pb$x$layout$sliders <- list(
   list(
     active = 0,
-    currentvalue = list(prefix = "Year window: "),
-    y = -0.28,
+    currentvalue = list(prefix = "Year-window step: "),
+    y = -0.34,
     x = 0,
     xanchor = "left",
-    len = 0.88,
-    steps = purrr::map2(range_labels, range_display, function(rng, rng_display) {
+    len = 1.0,
+    font = list(size = 9),
+    steps = purrr::map2(range_labels, slider_tick_labels, function(rng, tick_label) {
       list(
         method = "animate",
         args = list(
           list(rng),
           list(mode = "immediate", frame = list(duration = 0, redraw = TRUE), transition = list(duration = 0))
         ),
-        label = rng_display
+        label = tick_label
       )
     })
   )

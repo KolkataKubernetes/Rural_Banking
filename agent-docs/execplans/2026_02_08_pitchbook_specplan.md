@@ -26,6 +26,8 @@ This is an updated initial spec plan. It incorporates user clarifications receiv
 - [x] (2026-02-08 19:39Z) Updated `fig4c` controls to vertical button orientation and re-rendered successfully.
 - [x] (2026-02-08 19:39Z) Reworked `fig4c` to explicit traces + explicit animation frames so toggle selection controls category domain (states vs groups) and slider updates state top-10+WI membership by selected period.
 - [x] (2026-02-08 19:39Z) Updated `fig4c` slider ordering and labels to block by start year (2015-2015, 2015-2016, …) with single-year windows labeled by year only; moved slider lower to avoid overlap with x-axis labels.
+- [x] (2026-02-08 19:39Z) Iterated `fig4c` slider display to rely on dynamic `Year window:` subtitle for exact range and removed custom slider annotation row after user review.
+- [x] (2026-02-08 19:39Z) Added `fig4c` hover fields for each category/window: `total capital raised` and `total deals`.
 
 ## Surprises & Discoveries
 
@@ -49,6 +51,8 @@ This is an updated initial spec plan. It incorporates user clarifications receiv
   Evidence: User feedback requested strict domain switching; implementation moved to explicit traces and explicit frame payloads per control combination.
 - Observation: `range_grid` column additions affect downstream `pmap_dfr` signatures directly.
   Evidence: Adding `range_display` triggered an `unused argument` error until the `fig4c_data` mapper was updated.
+- Observation: Plotly slider tick labels are auto-suppressed when many steps are densely packed.
+  Evidence: Even with explicit labels for year anchors, intermediate rendering hid some anchor labels; final design uses `Year window:` subtitle as canonical range display.
 
 ## Decision Log
 
@@ -87,6 +91,12 @@ This is an updated initial spec plan. It incorporates user clarifications receiv
   Date/Author: 2026-02-08 / Codex
 - Decision: Order `fig4c` slider steps by `(start_year, end_year)` and shorten labels for single-year windows.
   Rationale: Matches requested navigation sequence while improving slider readability.
+  Date/Author: 2026-02-08 / Codex
+- Decision: Remove custom year annotation row under `fig4c` slider and keep range communication in dynamic subtitle.
+  Rationale: User preferred cleaner layout with exact range shown in subtitle.
+  Date/Author: 2026-02-08 / Codex
+- Decision: Extend `fig4c` category hover payload with `total_capital` and `total_deals`.
+  Rationale: User requested category-level context values for each selected window.
   Date/Author: 2026-02-08 / Codex
 
 ## Outcomes & Retrospective
