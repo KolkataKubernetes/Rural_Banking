@@ -4,7 +4,7 @@ author: "Inder Majumdar"
 format:
   html:
     embed-resources: true
-date: 2026-02-03
+date: 2026-02-08
 ---
 
 # Motivation
@@ -18,10 +18,19 @@ My last workbook (sent on February 3, 2026) and analysis of Business Formation S
 
 This document makes refinements to the Pitchbook descriptives per your email dates on February 5, addressing point (1) above. The other points will are addressed in seperate documents.
 
+```{r confg}
+
+```
+
 
 ## Figure 1: Map of Venture Capital Committed
 
 US Map of average venture capital committed by U.S. state from 2024 - 2025 (confirm - what are we not using 2025 here?)
+
+```{r fig1}
+
+```
+
 
 ### Dealing with outliers
 
@@ -32,31 +41,59 @@ In line with our prior analysis, remove CA, NY, MA. Also remove states like West
 
 Groups are national average, national average except the outliers removed in figure 1, midwest excl. WI, and WI
 
+```{r fig2}
+
+```
+
 ## Figure 3: Horizontal bar chart of VC deal count per 1 million residents
 
 Do top 10 + WI only, from 2015-2024 summed. 
+
+```{r fig3}
+
+```
 
 ## Figure 3.b: Interactive version of figure 3 that has a scale 
 
 Use the interactive code from pitchbook_explore.qmd to show technical requirements
 
+```{r fig3b}
+
+```
+
 ## Figure 4: Vertical bar chart of Venture Capital Deal Size by State
 
 There are two ways to do this. In both specifications, I want you to do top 10 + WI only. The deal size is simply capital committed/deal count for a given state.
+
+```{r fig4}
+
+```
 
 ## Figure 4A): Summed
 
 For the "Summed" figure, calculate deal count for each state by summing the numerator and denominator seperately across years before dividing.
 
+```{r fig4a}
+
+```
+
 ## Figure 4B): Average
 
 For the "Average" figure, calculate deal count for each state by summing the numerator and denominator for each state-year combination and averaging across time.
+
+```{r figb}
+
+```
 
 ## Figure 4C): Interactive Version
 
 I want you to create a version of figure 4 that is interactive. I want the following two toggles:
 1) "Average or Sum" - Where I can click a toggle that changes between the metric in 4A and 4B
 2) "States vs. Groups" - Where I can click a toggle that changes between the groupings we did as in Figure 2, and the top ten states setup we've done for other figure 4 visualizations
+
+```{r fig4c}
+
+```
 
 
 ## Form D versus Pitchbook NVCA Report Data
