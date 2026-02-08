@@ -15,7 +15,7 @@
 
 
 ## What sectors are contributing most to Wisconsin's change in business dynamics? 
-- I would then like an interactive pie chart that takes Wisconsin's CBP data, and does a pie chart of establishments by two-digit NAICS code. The pie chart should be the sum of establishments in the state from 2005 to 2024, matching the time range of the BFS data.
+- I would then like an interactive pie chart that takes Wisconsin's CBP data, and does a pie chart of establishments by two-digit NAICS code. The pie chart should be the sum of establishments in the state from 2005 to 2024, matching the time range of the BFS data. (Chunk: )
 
 ## Section contribution analysis
 
