@@ -18,7 +18,11 @@ This document is an initial spec draft based on `agent-docs/agent_context/2026_0
 - [x] (2026-02-08 23:18Z) Inspected key local inputs for data contracts: `2_processed_data/BFS_county.rds`, `2_processed_data/CBP_all.rds`, `0_inputs/naics_2digit_sectors_2007_2012_2017.csv`, and staged SBA FOIA files under `0_inputs/SBA/`.
 - [x] (2026-02-08 23:18Z) Drafted this spec plan in `agent-docs/execplans/2026_02_08_sba_bfs_cbp_specplan.md`.
 - [x] (2026-02-08 23:18Z) Resolved scope decisions with user: use exact `bfs_explore.qmd` grouping scheme, use year-aware NAICS description mapping, ignore non-chunk markdown asks below section contribution heading for now, and defer all SBA pulls/analysis.
-- [ ] Implement workbook chunks and validate render/output behavior.
+- [x] (2026-02-08 23:18Z) Implemented workbook chunks in `1_code/workbooks/2026_02_08_sba_bfs_cbp.qmd` for BFS all/rural lollipops, CBP all/rural lollipops, and Wisconsin CBP sector pie chart.
+- [x] (2026-02-08 23:18Z) Validated with `quarto render 1_code/workbooks/2026_02_08_sba_bfs_cbp.qmd`; output created at `1_code/workbooks/2026_02_08_sba_bfs_cbp.html`.
+- [x] (2026-02-08 23:18Z) Implemented new chunk `cbp_piechart_wi_rural_only` for Wisconsin rural-only CBP sector composition pie chart (2005–2024).
+- [x] (2026-02-08 23:18Z) Implemented two new WI-vs-other-states sector-composition comparison graphics in `wi_natl_sect_comparison_1` and `wi_natl_sect_comparison_2`.
+- [x] (2026-02-08 23:18Z) Re-rendered workbook after adding new chunks; output refreshed at `1_code/workbooks/2026_02_08_sba_bfs_cbp.html`.
 
 ## Surprises & Discoveries
 
@@ -30,6 +34,10 @@ This document is an initial spec draft based on `agent-docs/agent_context/2026_0
   Evidence: `0_inputs/SBA/7_A/*.csv` and `0_inputs/SBA/504/*.csv` contain `ProjectCounty`, `ProjectState`, `ApprovalDate`/`ApprovalFY`, `GrossApproval`, `NAICSCode`/`NaicsCode`.
 - Observation: The immediate, concrete asks currently map only to chunk-referenced BFS/CBP visuals; the markdown sections beginning at “Section contribution analysis” are still in-progress user notes.
   Evidence: User explicitly directed to ignore non-chunk markdown asks for this pass and defer SBA.
+- Observation: CBP year-aware NAICS mapping can be implemented without external lookups using local NAICS-era columns plus the provided 2-digit lookup CSV.
+  Evidence: Rendered workbook successfully with mapping via `NAICS2007.1`/`NAICS2012.1`/`NAICS2017.1` and local `0_inputs/naics_2digit_sectors_2007_2012_2017.csv`.
+- Observation: The added comparison chunk asks can be satisfied with state-level sector-share diagnostics without introducing SBA data yet.
+  Evidence: `wi_natl_sect_comparison_1` and `wi_natl_sect_comparison_2` were implemented using CBP rural shares and rendered successfully.
 
 ## Decision Log
 
@@ -51,10 +59,14 @@ This document is an initial spec draft based on `agent-docs/agent_context/2026_0
 - Decision: Defer SBA integration and any asks from “Section contribution analysis” onward until user provides further concrete chunk-scoped instructions.
   Rationale: User explicitly limited scope to concrete asks already tied to existing chunks.
   Date/Author: 2026-02-08 / Codex
+- Decision: For added comparison chunks, benchmark Wisconsin rural sector shares against other states using two diagnostics: WI-vs-average-state dumbbell and WI percentile-by-sector scatter.
+  Rationale: User requested 1–2 visuals comparing Wisconsin composition to other states without adding SBA scope.
+  Date/Author: 2026-02-08 / Codex
 
 ## Outcomes & Retrospective
 
 Initial drafting milestone complete. The new workbook objective is converted into an executable specification tied to the existing chunk scaffold and local data contracts. Scope is now explicitly narrowed to chunk-referenced BFS/CBP visuals and CBP sector pie implementation; SBA and later markdown sections are intentionally deferred.
+Implementation complete for the currently scoped chunks. `1_code/workbooks/2026_02_08_sba_bfs_cbp.qmd` now renders BFS/CBP comparative lollipop plots, interactive Wisconsin all-county and rural-only CBP sector pie charts (2005–2024), and two Wisconsin-vs-other-states rural sector-composition comparison graphics, all with year-aware single-description NAICS mapping. Render validation succeeded and produced `1_code/workbooks/2026_02_08_sba_bfs_cbp.html`.
 
 ## Context and Orientation
 

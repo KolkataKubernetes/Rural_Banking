@@ -9,43 +9,564 @@ date: 2026-02-08
 
 # Motivation
 
-```{r config}
+```{r config, echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(plotly)
 
-library('tidyverse')
+bfs <- read_rds(file.path("..", "..", "2_processed_data", "BFS_county.rds")) |>
+  mutate(across(everything(), ~ replace_na(.x, 0)))
 
-cbp <- read_rds(file.path("..", "..", "2_processed_data","CBP_all.rds"))
+cbp <- read_rds(file.path("..", "..", "2_processed_data", "CBP_all.rds"))
 
+participation <- readr::read_csv(
+  file.path("..", "..", "0_inputs", "CORI", "fips_participation.csv"),
+  show_col_types = FALSE
+) |>
+  mutate(
+    FIPS = stringr::str_pad(as.character(FIPS), width = 2, pad = "0"),
+    Participation = readr::parse_number(as.character(Participation)),
+    Force = readr::parse_number(as.character(Force)),
+    year = as.integer(year),
+    population = dplyr::if_else(Participation > 0, Force / (Participation / 100), NA_real_)
+  ) |>
+  select(FIPS, year, population)
 
+naics_lookup <- readr::read_csv(
+  file.path("..", "..", "0_inputs", "naics_2digit_sectors_2007_2012_2017.csv"),
+  show_col_types = FALSE
+) |>
+  mutate(
+    year = as.integer(year),
+    naics_2digit = stringr::str_pad(as.character(naics_2digit), width = 2, pad = "0")
+  ) |>
+  distinct(year, naics_2digit, description)
+
+midwest_excl_wi <- c("19", "17", "18", "26", "27")
+big3 <- c("06", "25", "36")
+wi_fips <- "55"
+
+label_nat <- "National"
+label_nat_excl <- "National (excl. CA, MA, NY)"
+label_midwest <- "Midwest (excl. WI)"
+label_wi <- "Wisconsin"
+label_big3 <- "Big 3 (CA, MA, NY)"
+
+category_colors <- c(
+  "Wisconsin" = "#c5050c",
+  "Midwest (excl. WI)" = "grey60",
+  "National (excl. CA, MA, NY)" = "#6baed6",
+  "National" = "#08519c",
+  "Big 3 (CA, MA, NY)" = "#9e9ac8"
+)
+
+apply_grouping <- function(df, state_col) {
+  df |>
+    mutate(
+      state_fips = stringr::str_pad(as.character(.data[[state_col]]), width = 2, pad = "0"),
+      category = case_when(
+        state_fips == wi_fips ~ label_wi,
+        state_fips %in% midwest_excl_wi ~ label_midwest,
+        state_fips %in% big3 ~ label_big3,
+        TRUE ~ label_nat_excl
+      )
+    )
+}
+
+avg_state_lollipop <- function(df, value_col) {
+  df |>
+    ungroup() |>
+    group_by(state_fips, category) |>
+    summarise(state_total = sum(.data[[value_col]], na.rm = TRUE), .groups = "drop") |>
+    group_by(category) |>
+    summarise(avg_state_value = mean(state_total, na.rm = TRUE), .groups = "drop") |>
+    mutate(category = forcats::fct_reorder(category, avg_state_value))
+}
+avg_state_lollipop_per_million <- function(df, value_col) {
+  years_use <- df |>
+    distinct(year) |>
+    pull(year) |>
+    as.integer()
+
+  state_totals <- df |>
+    ungroup() |>
+    group_by(state_fips, category) |>
+    summarise(state_total = sum(.data[[value_col]], na.rm = TRUE), .groups = "drop")
+
+  pop_totals <- participation |>
+    filter(year %in% years_use) |>
+    group_by(FIPS) |>
+    summarise(sum_population = sum(population, na.rm = TRUE), .groups = "drop")
+
+  state_totals |>
+    left_join(pop_totals, by = c("state_fips" = "FIPS")) |>
+    mutate(per_million = state_total / (sum_population / 1000000)) |>
+    group_by(category) |>
+    summarise(avg_state_value = mean(per_million, na.rm = TRUE), .groups = "drop") |>
+    mutate(category = forcats::fct_reorder(category, avg_state_value))
+}
+
+avg_state_lollipop <- function(df, value_col) {
+  df |>
+    ungroup() |>
+    group_by(state_fips, category) |>
+    summarise(state_total = sum(.data[[value_col]], na.rm = TRUE), .groups = "drop") |>
+    group_by(category) |>
+    summarise(avg_state_value = mean(state_total, na.rm = TRUE), .groups = "drop") |>
+    mutate(category = forcats::fct_reorder(category, avg_state_value))
+}
+
+bfs_grouped <- apply_grouping(bfs, "state_fips")
+
+cbp_grouped <- cbp |>
+  mutate(
+    year = as.integer(year),
+    ESTAB = suppressWarnings(as.numeric(ESTAB))
+  ) |>
+  apply_grouping("state")
+
+cbp_sector_mapped <- cbp_grouped |>
+  filter(year >= 2005, year <= 2024) |>
+  mutate(
+    naics_vintage = case_when(
+      year <= 2011 ~ 2007L,
+      year <= 2016 ~ 2012L,
+      TRUE ~ 2017L
+    ),
+    naics_source = case_when(
+      naics_vintage == 2007L ~ as.character(NAICS2007.1),
+      naics_vintage == 2012L ~ as.character(NAICS2012.1),
+      TRUE ~ as.character(NAICS2017.1)
+    ),
+    naics_source = dplyr::coalesce(naics_source, as.character(naics)),
+    naics_2digit = stringr::str_extract(naics_source, "^[0-9]{2}")
+  ) |>
+  filter(!is.na(naics_2digit), naics_2digit != "00") |>
+  left_join(
+    naics_lookup,
+    by = c("naics_vintage" = "year", "naics_2digit" = "naics_2digit")
+  ) |>
+  mutate(description = dplyr::coalesce(description, "Unknown / Unmapped")) |>
+  filter(!is.na(ESTAB))
+
+cbp_wi_sector <- cbp_sector_mapped |>
+  filter(state_fips == wi_fips) |>
+  group_by(naics_2digit, description) |>
+  summarise(estab_total = sum(ESTAB, na.rm = TRUE), .groups = "drop") |>
+  arrange(desc(estab_total))
+
+cbp_wi_sector_rural <- cbp_sector_mapped |>
+  filter(state_fips == wi_fips, rurality == "rural") |>
+  group_by(naics_2digit, description) |>
+  summarise(estab_total = sum(ESTAB, na.rm = TRUE), .groups = "drop") |>
+  arrange(desc(estab_total))
+
+collapse_top5_other <- function(df) {
+  top5 <- df |>
+    slice_max(order_by = estab_total, n = 5, with_ties = FALSE) |>
+    mutate(sector_label = description)
+
+  other_total <- df |>
+    anti_join(top5 |> select(description), by = "description") |>
+    summarise(estab_total = sum(estab_total, na.rm = TRUE)) |>
+    pull(estab_total)
+
+  out <- top5 |>
+    transmute(sector_label, estab_total)
+
+  if (!is.na(other_total) && other_total > 0) {
+    out <- bind_rows(out, tibble(sector_label = "Other sectors", estab_total = other_total))
+  }
+
+  out
+}
+
+cbp_wi_sector_top5 <- collapse_top5_other(cbp_wi_sector)
+cbp_wi_sector_rural_top5 <- collapse_top5_other(cbp_wi_sector_rural)
+
+sector_levels <- cbp_wi_sector_top5 |>
+  bind_rows(cbp_wi_sector_rural_top5) |>
+  distinct(sector_label) |>
+  arrange(sector_label) |>
+  pull(sector_label)
+
+sector_palette <- scales::hue_pal(l = 65, c = 90)(length(sector_levels))
+sector_color_map <- stats::setNames(sector_palette, sector_levels)
+
+cbp_sector_state_rural <- cbp_sector_mapped |>
+  filter(rurality == "rural") |>
+  group_by(state_fips, naics_2digit, description) |>
+  summarise(estab_total = sum(ESTAB, na.rm = TRUE), .groups = "drop") |>
+  group_by(state_fips) |>
+  mutate(state_total = sum(estab_total, na.rm = TRUE)) |>
+  ungroup() |>
+  filter(state_total > 0) |>
+  mutate(sector_share = estab_total / state_total)
+
+wi_vs_states_rural <- cbp_sector_state_rural |>
+  group_by(naics_2digit, description) |>
+  summarise(
+    wi_share = sector_share[state_fips == wi_fips][1],
+    us_avg_state_share = mean(sector_share[state_fips != wi_fips], na.rm = TRUE),
+    us_median_state_share = median(sector_share[state_fips != wi_fips], na.rm = TRUE),
+    wi_rank = min_rank(desc(sector_share))[state_fips == wi_fips][1],
+    n_states = n_distinct(state_fips),
+    .groups = "drop"
+  ) |>
+  mutate(
+    wi_percentile = if_else(!is.na(wi_rank) & n_states > 1, 100 * (n_states - wi_rank) / (n_states - 1), NA_real_),
+    share_diff_vs_avg = wi_share - us_avg_state_share
+  ) |>
+  filter(!is.na(wi_share), !is.na(us_avg_state_share))
+
+comparison_top_sectors <- wi_vs_states_rural |>
+  slice_max(order_by = abs(share_diff_vs_avg), n = 12, with_ties = FALSE) |>
+  mutate(description = forcats::fct_reorder(description, share_diff_vs_avg))
+
+wi_top5_rural_sectors <- cbp_wi_sector_rural |>
+  slice_max(order_by = estab_total, n = 5, with_ties = FALSE) |>
+  pull(description)
+
+wi_top5_distribution <- cbp_sector_state_rural |>
+  filter(description %in% wi_top5_rural_sectors) |>
+  mutate(
+    sector_label = forcats::fct_reorder(description, sector_share, .fun = median, .desc = FALSE),
+    is_wi = state_fips == wi_fips
+  )
+
+# Year-point decomposition for sector growth/decay diagnostics (2015 vs 2024)
+growth_year_start <- 2015L
+growth_year_target_end <- 2024L
+growth_year_end <- min(growth_year_target_end, max(cbp_sector_mapped$year, na.rm = TRUE))
+growth_window_label <- paste0(growth_year_start, " to ", growth_year_end)
+
+cbp_sector_state_rural_year <- cbp_sector_mapped |>
+  filter(rurality == "rural", year %in% c(growth_year_start, growth_year_end)) |>
+  group_by(state_fips, year, naics_2digit, description) |>
+  summarise(estab_total = sum(ESTAB, na.rm = TRUE), .groups = "drop") |>
+  group_by(state_fips, year) |>
+  mutate(state_year_total = sum(estab_total, na.rm = TRUE)) |>
+  ungroup() |>
+  filter(state_year_total > 0) |>
+  mutate(sector_share = estab_total / state_year_total)
+
+wi_share_change <- cbp_sector_state_rural_year |>
+  filter(state_fips == wi_fips) |>
+  select(year, naics_2digit, description, wi_share = sector_share) |>
+  tidyr::pivot_wider(names_from = year, values_from = wi_share) |>
+  rename_with(
+    ~ c("naics_2digit", "description", "wi_start", "wi_end"),
+    .cols = everything()
+  )
+
+us_state_avg_share <- cbp_sector_state_rural_year |>
+  filter(state_fips != wi_fips) |>
+  group_by(year, naics_2digit, description) |>
+  summarise(us_avg_share = mean(sector_share, na.rm = TRUE), .groups = "drop") |>
+  tidyr::pivot_wider(names_from = year, values_from = us_avg_share) |>
+  rename_with(
+    ~ c("naics_2digit", "description", "us_start", "us_end"),
+    .cols = everything()
+  )
+
+sector_shift <- wi_share_change |>
+  left_join(us_state_avg_share, by = c("naics_2digit", "description")) |>
+  mutate(
+    wi_shift = wi_end - wi_start,
+    us_shift = us_end - us_start,
+    wi_minus_us_shift = wi_shift - us_shift
+  ) |>
+  filter(!is.na(wi_shift), !is.na(us_shift)) |>
+  arrange(desc(abs(wi_minus_us_shift)))
+
+sector_growth <- cbp_sector_state_rural_year |>
+  group_by(state_fips, year, naics_2digit, description) |>
+  summarise(estab_total = sum(estab_total, na.rm = TRUE), .groups = "drop") |>
+  tidyr::pivot_wider(names_from = year, values_from = estab_total) |>
+  rename_with(
+    ~ c("state_fips", "naics_2digit", "description", "start_total", "end_total"),
+    .cols = everything()
+  ) |>
+  mutate(
+    growth_start_to_end = (end_total / start_total) - 1
+  )
+
+wi_growth <- sector_growth |>
+  filter(state_fips == wi_fips) |>
+  select(naics_2digit, description, wi_growth = growth_start_to_end)
+
+us_growth_avg <- sector_growth |>
+  filter(state_fips != wi_fips) |>
+  group_by(naics_2digit, description) |>
+  summarise(us_avg_growth = mean(growth_start_to_end, na.rm = TRUE), .groups = "drop")
+
+growth_compare <- wi_growth |>
+  left_join(us_growth_avg, by = c("naics_2digit", "description")) |>
+  mutate(diff_growth = wi_growth - us_avg_growth) |>
+  filter(!is.na(wi_growth), !is.na(us_avg_growth)) |>
+  arrange(desc(abs(diff_growth)))
 ```
-
 
 # 1) Replicating the urban-rural split in Business Formation Statistics
 
-```{r bfs_lollipop_bizapp_all}
+This figure summarizes BFS business applications as an average-state metric across the comparison groups. Each bar reflects the mean state total within a category over the available years.
 
+```{r bfs_lollipop_bizapp_all, echo=FALSE, warning=FALSE, message=FALSE}
+plot_data <- avg_state_lollipop(bfs_grouped, "business_app")
 
+ggplot(plot_data, aes(x = category, y = avg_state_value, color = category)) +
+  geom_segment(aes(xend = category, y = 0, yend = avg_state_value), linewidth = 1) +
+  geom_point(size = 3) +
+  scale_color_manual(values = category_colors) +
+  coord_flip() +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "none") +
+  labs(
+    title = "BFS Business Applications (Average State)",
+    subtitle = "All counties",
+    x = NULL,
+    y = "Average state business applications"
+  )
 ```
 
-```{r bfs_lollipop_bizapp_rural}
+This version applies the same BFS comparison framework but restricts the sample to rural counties only. It shows whether the cross-group pattern changes once metro counties are excluded.
 
+```{r bfs_lollipop_bizapp_rural, echo=FALSE, warning=FALSE, message=FALSE}
+plot_data <- bfs_grouped |>
+  filter(rurality == "rural") |>
+  avg_state_lollipop("business_app")
 
+ggplot(plot_data, aes(x = category, y = avg_state_value, color = category)) +
+  geom_segment(aes(xend = category, y = 0, yend = avg_state_value), linewidth = 1) +
+  geom_point(size = 3) +
+  scale_color_manual(values = category_colors) +
+  coord_flip() +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "none") +
+  labs(
+    title = "BFS Business Applications (Average State)",
+    subtitle = "Rural counties",
+    x = NULL,
+    y = "Average state business applications"
+  )
 ```
 
+This CBP analog replaces business applications with establishment counts while keeping the same average-state framing. It provides a direct comparison between BFS and CBP-based patterns.
 
-```{r cbp_lollipop_bizapp_all}
+```{r cbp_lollipop_bizapp_all, echo=FALSE, warning=FALSE, message=FALSE}
+plot_data <- avg_state_lollipop(cbp_grouped, "ESTAB")
 
-
+ggplot(plot_data, aes(x = category, y = avg_state_value, color = category)) +
+  geom_segment(aes(xend = category, y = 0, yend = avg_state_value), linewidth = 1) +
+  geom_point(size = 3) +
+  scale_color_manual(values = category_colors) +
+  coord_flip() +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "none") +
+  labs(
+    title = "CBP Establishments (Average State)",
+    subtitle = "All counties, 2005-2024",
+    x = NULL,
+    y = "Average state establishments"
+  )
 ```
 
-```{r cbp_lollipop_bizapp_rural}
+This CBP counterpart focuses only on rural counties to mirror the BFS rural-only chart above. It helps isolate whether rural establishment composition differs from the all-county profile.
 
+```{r cbp_lollipop_bizapp_rural, echo=FALSE, warning=FALSE, message=FALSE}
+plot_data <- cbp_grouped |>
+  filter(rurality == "rural") |>
+  avg_state_lollipop("ESTAB")
 
+ggplot(plot_data, aes(x = category, y = avg_state_value, color = category)) +
+  geom_segment(aes(xend = category, y = 0, yend = avg_state_value), linewidth = 1) +
+  geom_point(size = 3) +
+  scale_color_manual(values = category_colors) +
+  coord_flip() +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "none") +
+  labs(
+    title = "CBP Establishments (Average State)",
+    subtitle = "Rural counties, 2005-2024",
+    x = NULL,
+    y = "Average state establishments"
+  )
 ```
 
 # 2) Sector decomposition
 
-```{r cbp_piechart_wi_agg}
+This pie chart shows Wisconsin’s total CBP establishments by sector over 2005-2024, collapsed to Top 5 sectors plus an “Other sectors” remainder. Sector colors are fixed and reused in the rural-only chart for easier visual comparison.
+
+```{r cbp_piechart_wi_agg, echo=FALSE, warning=FALSE, message=FALSE}
+plot_ly(
+  cbp_wi_sector_top5,
+  labels = ~sector_label,
+  values = ~estab_total,
+  type = "pie",
+  marker = list(colors = ~unname(sector_color_map[sector_label])),
+  textposition = "inside",
+  textinfo = "percent",
+  hovertemplate = paste0(
+    "Sector: %{label}<br>",
+    "Establishments: %{value:,.0f}<br>",
+    "Share: %{percent}<extra></extra>"
+  )
+) |>
+  layout(
+    title = "WI CBP Sector Mix (Top 5 + Other), 2005-2024",
+    legend = list(orientation = "v")
+  )
+```
+
+This chart repeats the same sector decomposition for Wisconsin rural counties only. Because the legend colors are aligned to the all-county version, differences in composition can be compared directly across the two pies.
+
+```{r cbp_piechart_wi_rural_only, echo=FALSE, warning=FALSE, message=FALSE}
+plot_ly(
+  cbp_wi_sector_rural_top5,
+  labels = ~sector_label,
+  values = ~estab_total,
+  type = "pie",
+  marker = list(colors = ~unname(sector_color_map[sector_label])),
+  textposition = "inside",
+  textinfo = "percent",
+  hovertemplate = paste0(
+    "Sector: %{label}<br>",
+    "Establishments: %{value:,.0f}<br>",
+    "Share: %{percent}<extra></extra>"
+  )
+) |>
+  layout(
+    title = "WI Rural CBP Sector Mix (Top 5 + Other), 2005-2024",
+    legend = list(orientation = "v")
+  )
 
 
 ```
 
+This comparison visual benchmarks Wisconsin’s rural sector shares against the U.S. average state share for the sectors where differences are largest. The connecting segment emphasizes both direction and magnitude of Wisconsin’s deviation.
+
+```{r wi_natl_sect_comparison_1, echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(comparison_top_sectors, aes(y = description)) +
+  geom_segment(
+    aes(x = us_avg_state_share, xend = wi_share, yend = description),
+    color = "grey70",
+    linewidth = 1
+  ) +
+  geom_point(aes(x = us_avg_state_share), color = "#6baed6", size = 2.3) +
+  geom_point(aes(x = wi_share), color = "#c5050c", size = 2.8) +
+  scale_x_continuous(labels = scales::label_percent(accuracy = 0.1)) +
+  scale_y_discrete(labels = function(x) stringr::str_trunc(x, width = 45)) +
+  labs(
+    title = "WI vs U.S. Avg State: Rural Sector Share",
+    subtitle = "Top 12 sectors by absolute share difference",
+    x = "Share of rural establishments",
+    y = NULL,
+    caption = "Blue = average state share (excluding WI), Red = Wisconsin share."
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(plot.margin = margin(10, 10, 10, 30))
+
+
+```
+
+This percentile chart shows where Wisconsin sits in the cross-state distribution for each rural sector. Higher values indicate sectors where Wisconsin’s rural share ranks near the top of states.
+
+```{r wi_natl_sect_comparison_2, echo=FALSE, warning=FALSE, message=FALSE}
+wi_vs_states_rural |>
+  mutate(description = forcats::fct_reorder(description, wi_percentile)) |>
+  ggplot(aes(x = wi_percentile, y = description, color = wi_share)) +
+  geom_point(size = 3) +
+  scale_x_continuous(labels = scales::label_number(accuracy = 1), limits = c(0, 100)) +
+  scale_color_viridis_c(labels = scales::label_percent(accuracy = 0.1), option = "C") +
+  scale_y_discrete(labels = function(x) stringr::str_trunc(x, width = 45)) +
+  labs(
+    title = "WI Rural Sector Percentile Across States",
+    subtitle = "0 = lowest, 100 = highest",
+    x = "WI percentile among states",
+    y = NULL,
+    color = "WI share"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(plot.margin = margin(10, 10, 10, 30))
+
+
+```
+
+This distribution plot focuses on Wisconsin’s top 5 rural sectors and shows each sector’s state-level spread. The red point marks Wisconsin’s specific position within each sector distribution.
+
+```{r wi_natl_sect_comparison_3, echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(wi_top5_distribution, aes(x = sector_share, y = sector_label)) +
+  geom_violin(fill = "grey90", color = "grey70", alpha = 0.8, trim = FALSE) +
+  geom_jitter(
+    data = wi_top5_distribution |> filter(!is_wi),
+    width = 0,
+    height = 0.12,
+    alpha = 0.35,
+    size = 1.2,
+    color = "#4d4d4d"
+  ) +
+  geom_point(
+    data = wi_top5_distribution |> filter(is_wi),
+    color = "#c5050c",
+    size = 3
+  ) +
+  scale_x_continuous(labels = scales::label_percent(accuracy = 0.1)) +
+  scale_y_discrete(labels = function(x) stringr::str_trunc(x, width = 45)) +
+  labs(
+    title = "Top 5 WI Rural Sectors: State Dist. Position",
+    subtitle = "Red point marks Wisconsin",
+    x = "Share of rural establishments (CBP Data)",
+    y = NULL
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(plot.margin = margin(10, 10, 10, 30))
+```
+
+This chart isolates sectoral composition shifts by comparing each sector’s rural share between the selected start and end years in the data. Positive values indicate sectors where Wisconsin’s share rose more than the average state’s share.
+
+```{r wi_natl_sect_growth_1, echo=FALSE, warning=FALSE, message=FALSE}
+shift_plot_data <- sector_shift |>
+  slice_max(order_by = abs(wi_minus_us_shift), n = 12, with_ties = FALSE) |>
+  mutate(description = forcats::fct_reorder(description, wi_minus_us_shift))
+
+ggplot(shift_plot_data, aes(x = wi_minus_us_shift, y = description, fill = wi_minus_us_shift > 0)) +
+  geom_col() +
+  scale_x_continuous(labels = scales::label_percent(accuracy = 0.1)) +
+  scale_fill_manual(values = c(`TRUE` = "#c5050c", `FALSE` = "#6baed6"), guide = "none") +
+  scale_y_discrete(labels = function(x) stringr::str_trunc(x, width = 45)) +
+  labs(
+    title = "Rural Sector Share Shift: WI vs Avg State",
+    subtitle = paste0("Change from ", growth_window_label, " (WI minus average state)"),
+    x = "Difference in share change",
+    y = NULL
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(plot.margin = margin(10, 10, 10, 30))
+```
+
+This figure compares growth in rural establishment counts by sector over the same start-to-end window. It highlights sectors where Wisconsin’s count growth outpaced or lagged the average state.
+
+```{r wi_natl_sect_growth_2, echo=FALSE, warning=FALSE, message=FALSE}
+growth_plot_data <- growth_compare |>
+  slice_max(order_by = abs(diff_growth), n = 12, with_ties = FALSE) |>
+  mutate(description = forcats::fct_reorder(description, diff_growth))
+
+ggplot(growth_plot_data, aes(y = description)) +
+  geom_segment(
+    aes(x = us_avg_growth, xend = wi_growth, yend = description),
+    color = "grey70",
+    linewidth = 1
+  ) +
+  geom_point(aes(x = us_avg_growth), color = "#6baed6", size = 2.3) +
+  geom_point(aes(x = wi_growth), color = "#c5050c", size = 2.8) +
+  scale_x_continuous(labels = scales::label_percent(accuracy = 1)) +
+  scale_y_discrete(labels = function(x) stringr::str_trunc(x, width = 45)) +
+  labs(
+    title = "Rural Establishment Growth: WI vs Avg State",
+    subtitle = paste0("Growth from ", growth_window_label, " by sector"),
+    x = "Growth rate",
+    y = NULL,
+    caption = "Blue = average state, Red = Wisconsin."
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(plot.margin = margin(10, 10, 10, 30))
+```

@@ -7,7 +7,7 @@ format:
 date: 2026-02-03
 ---
 
-The Pitchbook data provides useful aggregte statistics at the state level. Data include number of VC deals and number of dollars invested (What I call "capital committed") per year. 
+The Pitchbook data provides useful aggregate statistics at the state level. Data include number of VC deals and number of dollars invested (What I call "capital committed") per year. 
 
 We're trying to explain an odd discrepency - when we look at capital committed or dealcount, Wisconsin lags other states and categories. However, when we look at "per 1 million population" figures, the pattern flips. The goal is to better understand what years might be driving this, and come up with a normalization that "makes sense."
 

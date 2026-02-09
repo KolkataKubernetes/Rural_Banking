@@ -314,13 +314,14 @@ fig4c_data <- purrr::pmap_dfr(range_grid, function(start_year, end_year, range_l
 
 ## Figure 1: Map of Venture Capital Committed
 
-US map of venture capital committed per 1 million residents across states, using 2015-2024 totals and fixed outlier exclusions (CA, NY, MA).
+US map of venture capital committed per 1 million residents across states, using 2015-2024 totals and fixed outlier exclusions (CA, NY, MA, Delaware).
 
 ```{r fig1, echo=FALSE, warning=FALSE, message=FALSE}
 map_base <- ggplot2::map_data("state")
 
 fig1_state <- state_period |>
   filter(!state_name %in% outlier_states) |>
+  filter(!state_name %in% c("Delaware")) |>
   mutate(region = tolower(state_name))
 
 fig1_map <- map_base |>
@@ -332,7 +333,7 @@ ggplot(fig1_map, aes(long, lat, group = group, fill = committed_per_million)) +
   scale_fill_viridis_c(option = "C", na.value = "grey92", labels = scales::label_comma()) +
   labs(
     title = "Figure 1. Venture Capital Committed per 1M Residents",
-    subtitle = "2015-2024 totals; CA, MA, and NY excluded",
+    subtitle = "2015-2024 totals; CA, DE, MA, and NY excluded",
     fill = "USD (millions)",
     caption = "Source: Pitchbook Venture Monitor and BLS participation-based population estimates."
   ) +
@@ -345,14 +346,9 @@ ggplot(fig1_map, aes(long, lat, group = group, fill = committed_per_million)) +
 ```
 
 
-### Dealing with outliers
-
-In line with prior analysis, the fixed exclusion set is CA, NY, MA.
-
-
 ## Figure 2: Line Chart of average capital committed per 1 million residents from 2015-2024. 
 
-Groups are national average, national average except outliers removed in figure 1, Midwest excl. WI, and WI.
+While Wisconsin missed some of the "Easy money" that came post-Covid (low rate environment combined with excess cash reserves from VCs under-investing in 2020), Wiscconsin's VC capital has remained steady through the last decade when normalized per 1 million.
 
 ```{r fig2, echo=FALSE, warning=FALSE, message=FALSE}
 fig2_plotly <- plot_ly(
@@ -406,7 +402,7 @@ fig2_plotly
 
 ## Figure 3: Horizontal bar chart of VC deal count per 1 million residents
 
-Top 10 + WI only, from 2015-2024 summed.
+Figures 3 illustrates VC deal count per 1 million residents, showing the top 10 states + WI only. Bar chart values are calculated by summing all deal between 2015 and 2014, and then divided by the population summed between 2015 and 2024. Interactive figure 3b) shows that Wisconsin Wisconsin consistently has between 19 and 24 deals per million people in a given year. The interactive version also shows that Delaware becomes an outlier later in the observation period.
 
 ```{r fig3, echo=FALSE, warning=FALSE, message=FALSE}
 fig3_static <- top10_plus_wi(state_period, "dealcount_per_million")
@@ -510,11 +506,9 @@ pb
 
 ## Figure 4: Vertical bar chart of Venture Capital Deal Size by State
 
-Two definitions are shown below (top 10 + WI): summed and average.
+Two definitions are shown below (top 10 + WI): summed and average. Figure 4A uses summed numerator/denominator across years; Figure 4B averages year-level deal-size ratios. Both 4A and 4B show a similar pattern, but I keep both for completeness.
 
-```{r fig4, echo=FALSE, warning=FALSE, message=FALSE}
-cat("Figure 4A uses summed numerator/denominator across years; Figure 4B averages year-level deal-size ratios.")
-```
+Figure 4C builds on 4A and 4B by providing the option to compare Wisconsin against the same groupings used in figure 2. Overall, the choice of "summed" versus "averaged" deal size doesn't make a significant difference in trends or levels.
 
 ## Figure 4A): Summed
 
