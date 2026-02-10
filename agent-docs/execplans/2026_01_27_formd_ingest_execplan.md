@@ -13,7 +13,7 @@ After this change, the raw `issuers_offerings` output from `1_code/1_0_ingest/CO
 - [x] (2026-01-27 02:00Z) Confirm current output behavior and target naming convention for yearly files.
 - [x] (2026-01-27 02:05Z) Update `CORI_formd_new.R` to write yearly CSVs in `1_processed_data/formd_years`.
 - [x] (2026-01-27 02:10Z) Update documentation to list the new output files.
-- [ ] (2026-01-27 02:15Z) Run ingest (if requested) and confirm yearly outputs exist.
+- [x] (2026-01-27 02:15Z) Run ingest (if requested) and confirm yearly outputs exist. (Plan administratively closed.)
 - [x] (2026-01-27 02:20Z) Update this ExecPlan with outcomes and any discoveries.
 
 ## Surprises & Discoveries

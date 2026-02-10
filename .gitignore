@@ -1,12 +1,16 @@
+.DS_Store
 .Rproj.user
 .Rhistory
 .RData
 .Ruserdata
 .DS_Store
 agent-docs/agent_context/docs
+legacy_processed_data/
 0_inputs/bds2023_st_fa.csv
+0_inputs/bfs_county_apps_annual.xlsx
 0_inputs/CORI
 0_inputs/census_apikey.md
+0_inputs/naics_2digit_sectors_2007_2012_2017.csv
 0_inputs/Pitchbook
 0_inputs/state_fips.md
 0_inputs/state_fips.csv
@@ -15,4 +19,4 @@ agent-docs/agent_context/docs
 0_inputs/Ruralurbancontinuumcodes2023.xlsx
 1_code/.DS_Store
 1_processed_data/.
-2_processed_data/.
+2_processed_data/

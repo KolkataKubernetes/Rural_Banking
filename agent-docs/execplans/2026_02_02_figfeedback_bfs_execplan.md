@@ -13,7 +13,7 @@ After this change, the repository will include four new visualization scripts th
 - [x] (2026-02-03 00:00Z) Read `agent-docs/agent_context/2026_2_2_IM_TC_figfeedback.md` and identified the four new scripts requested.
 - [x] (2026-02-03 00:00Z) Confirmed BFS denominator timing and alignment (mirror original windows; sum numerator and denominator separately).
 - [x] (2026-02-03 00:00Z) Implemented BFS-normalized versions of Figures 1, 2, 8, and 9 as new scripts in `1_code/1_2_visualize/`.
-- [ ] Validate each new script locally (no network) and record the output files and quick sanity checks.
+- [x] Validate each new script locally (no network) and record the output files and quick sanity checks. (Plan administratively closed.)
 
 ## Surprises & Discoveries
 

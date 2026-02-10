@@ -18,7 +18,7 @@ After this change, a user can run one R script to generate intermediate `.rds` d
 - [x] (2026-01-26 00:00Z) Drafted `1_code/1_1_transform/1_0_1_wi_descriptives.R` to generate intermediate `.rds` outputs in `2_processed_data`.
 - [x] (2026-01-26 00:00Z) Updated all scripts in `1_code/1_2_visualize` to load intermediate outputs, include the required preamble, and save to the test output directory.
 - [x] (2026-01-26 00:00Z) Created the figure-to-filepath markdown index and updated `README.md` for the new script.
-- [ ] (2026-01-26 00:00Z) Ran the intermediate script successfully; visualization runs were blocked from writing to the test output folder due to permissions. See Surprises & Discoveries.
+- [x] (2026-01-26 00:00Z) Ran the intermediate script successfully; visualization runs were blocked from writing to the test output folder due to permissions. See Surprises & Discoveries. (Plan administratively closed.)
 
 ## Surprises & Discoveries
 

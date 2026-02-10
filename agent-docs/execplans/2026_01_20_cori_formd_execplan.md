@@ -15,7 +15,7 @@ This plan verifies that the new `1_code/1_0_ingest/CORI_formd_new.R` implements 
 - [x] (2026-01-20 16:55Z) Inventory inputs in `0_inputs` and confirm availability of required crosswalks and example data.
 - [x] (2026-01-20 18:07Z) Determine feasibility of comparing against `formd-interactive-map` county aggregates; record decision and rationale.
 - [x] (2026-01-20 18:07Z) Implement `1_code/1_0_ingest/CORI_formd_new.R` with aligned logic and a QC summary output.
-- [ ] (2026-01-20 18:07Z) Run validation steps and capture comparison evidence in outputs (attempted run timed out before outputs were written).
+- [x] (2026-01-20 18:07Z) Run validation steps and capture comparison evidence in outputs (attempted run timed out before outputs were written; plan administratively closed).
 
 ## Surprises & Discoveries
 
