@@ -1,0 +1,3 @@
+We had previously built an API call to save CBP data in @/Users/indermajumdar/Research/Rural_Banking/1_code/1_0_ingest/census_CBP.r. What I'd like to do next is create a script called census_NES.r that uses the same structure in /Users/indermajumdar/Research/Rural_Banking/1_code/1_0_ingest/census_CBP.r to instead call the Non Employer Statistics (NES) data. 
+
+Information on the NES data pull can be found here: https://www.census.gov/data/developers/data-sets/nonemp-api.2023.html#list-tab-1358655114. I will give you temporary internet access to build out the spec plan, but it's important that you ONLY access this link using the internet access permission (I don't want you visiting other websites). Please feel free to ask me any clarifying questions.
