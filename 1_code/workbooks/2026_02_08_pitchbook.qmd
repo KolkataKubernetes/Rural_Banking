@@ -1,10 +1,10 @@
 ---
-title: "02/09/2026 Update: Updated Pitchbook Figures"
+title: "02/10/2026 Update: Updated Pitchbook Figures"
 author: "Inder Majumdar"
 format:
   html:
     embed-resources: true
-date: 2026-02-08
+date: 2026-02-10
 ---
 
 # Motivation
@@ -263,10 +263,17 @@ build_group_dealsize_for_range <- function(df_state_year, start_year, end_year) 
 
 fig3b_data <- purrr::map_dfr(year_min:year_max, function(y) {
   state_year_single <- build_state_period_for_range(state_year, y, y)
+  wi_rank_all <- state_year_single |>
+    filter(!is.na(dealcount_per_million)) |>
+    arrange(desc(dealcount_per_million)) |>
+    mutate(rank_all_states = row_number()) |>
+    filter(state_name == "Wisconsin") |>
+    pull(rank_all_states)
 
   top10_plus_wi(state_year_single, "dealcount_per_million") |>
     mutate(
       year = y,
+      wi_rank_all_states = wi_rank_all,
       state_name = factor(state_name, levels = unique(state_name))
     )
 })
@@ -406,6 +413,16 @@ Figures 3 illustrates VC deal count per 1 million residents, showing the top 10 
 
 ```{r fig3, echo=FALSE, warning=FALSE, message=FALSE}
 fig3_static <- top10_plus_wi(state_period, "dealcount_per_million")
+wi_rank_fig3 <- state_period |>
+  filter(!is.na(dealcount_per_million)) |>
+  arrange(desc(dealcount_per_million)) |>
+  mutate(rank_all_states = row_number()) |>
+  filter(state_name == "Wisconsin") |>
+  pull(rank_all_states)
+
+wi_label_fig3 <- fig3_static |>
+  filter(state_name == "Wisconsin") |>
+  mutate(rank_label = paste0("(", wi_rank_fig3,")"))
 
 ggplot(fig3_static, aes(x = dealcount_per_million, y = reorder(state_name, dealcount_per_million))) +
   geom_col(fill = "grey60") +
@@ -413,13 +430,21 @@ ggplot(fig3_static, aes(x = dealcount_per_million, y = reorder(state_name, dealc
     data = fig3_static |> filter(state_name == "Wisconsin"),
     fill = "#c5050c"
   ) +
+  geom_text(
+    data = wi_label_fig3,
+    aes(label = rank_label),
+    color = "#c5050c",
+    hjust = 0,
+    nudge_x = max(fig3_static$dealcount_per_million, na.rm = TRUE) * 0.03,
+    fontface = "bold"
+  ) +
   scale_x_continuous(labels = scales::label_comma()) +
   labs(
     title = "Figure 3. Venture Deal Count per 1M Residents",
     subtitle = "Top 10 states + Wisconsin, 2015-2024 totals",
     x = "Deals per 1M residents",
     y = NULL,
-    caption = "Source: Pitchbook Venture Monitor and BLS participation-based population estimates."
+    caption = "Source: Pitchbook Venture Monitor and BLS participation-based population estimates. WI rank in parentheses"
   ) +
   theme_im()
 ```
@@ -435,6 +460,8 @@ frame_list <- purrr::map(years, function(y) {
     filter(year == y) |>
     arrange(dealcount_per_million) |>
     mutate(state_name = factor(state_name, levels = state_name))
+  wi_row <- df |> filter(state_name == "Wisconsin")
+  wi_rank <- unique(df$wi_rank_all_states)[1]
 
   list(
     name = as.character(y),
@@ -448,7 +475,20 @@ frame_list <- purrr::map(years, function(y) {
       )
     ),
     layout = list(
-      yaxis = list(categoryorder = "array", categoryarray = levels(df$state_name))
+      yaxis = list(categoryorder = "array", categoryarray = levels(df$state_name)),
+      annotations = list(
+        list(
+          x = 1.02,
+          y = wi_row$state_name,
+          xref = "paper",
+          yref = "y",
+          text = paste0("WI rank: #", wi_rank),
+          showarrow = FALSE,
+          xanchor = "left",
+          yanchor = "middle",
+          font = list(color = "#c5050c", size = 12)
+        )
+      )
     )
   )
 })
@@ -457,6 +497,8 @@ init_df <- fig3b_data |>
   filter(year == latest_year) |>
   arrange(dealcount_per_million) |>
   mutate(state_name = factor(state_name, levels = state_name))
+init_wi <- init_df |> filter(state_name == "Wisconsin")
+init_wi_rank <- unique(init_df$wi_rank_all_states)[1]
 
 init_levels <- levels(init_df$state_name)
 
@@ -478,7 +520,20 @@ p <- plot_ly(
     title = list(text = "Figure 3b. Deal Count per 1M Residents (Top 10 + WI)"),
     xaxis = list(title = "Deals per 1M residents", tickformat = ","),
     yaxis = list(title = "", categoryorder = "array", categoryarray = init_levels),
-    margin = list(l = 120, r = 20, t = 60, b = 40),
+    margin = list(l = 120, r = 130, t = 60, b = 40),
+    annotations = list(
+      list(
+        x = 1.02,
+        y = init_wi$state_name,
+        xref = "paper",
+        yref = "y",
+        text = paste0("WI rank: #", init_wi_rank),
+        showarrow = FALSE,
+        xanchor = "left",
+        yanchor = "middle",
+        font = list(color = "#c5050c", size = 12)
+      )
+    ),
     showlegend = FALSE
   )
 
@@ -516,6 +571,16 @@ For "Summed", deal size = (sum capital committed) / (sum deal count) over 2015-2
 
 ```{r fig4a, echo=FALSE, warning=FALSE, message=FALSE}
 fig4a_static <- top10_plus_wi(state_period, "dealsize_summed")
+wi_rank_fig4a <- state_period |>
+  filter(!is.na(dealsize_summed)) |>
+  arrange(desc(dealsize_summed)) |>
+  mutate(rank_all_states = row_number()) |>
+  filter(state_name == "Wisconsin") |>
+  pull(rank_all_states)
+
+wi_label_fig4a <- fig4a_static |>
+  filter(state_name == "Wisconsin") |>
+  mutate(rank_label = paste0("(", wi_rank_fig4a,")"))
 
 ggplot(fig4a_static, aes(x = reorder(state_name, dealsize_summed), y = dealsize_summed)) +
   geom_col(fill = "grey60") +
@@ -523,13 +588,20 @@ ggplot(fig4a_static, aes(x = reorder(state_name, dealsize_summed), y = dealsize_
     data = fig4a_static |> filter(state_name == "Wisconsin"),
     fill = "#c5050c"
   ) +
+  geom_text(
+    data = wi_label_fig4a,
+    aes(label = rank_label),
+    color = "#c5050c",
+    vjust = -0.4,
+    fontface = "bold"
+  ) +
   scale_y_continuous(labels = scales::label_comma()) +
   labs(
-    title = "Figure 4A. Venture Deal Size by State (Summed)",
+    title = "Figure 4A. Venture Deal Size by State, Summed",
     subtitle = "Top 10 states + Wisconsin, 2015-2024",
     x = NULL,
     y = "USD (millions)",
-    caption = "Deal size = sum(capital committed) / sum(deal count)."
+    caption = "Deal size = sum(capital committed) / sum(deal count). WI rank in parentheses."
   ) +
   theme_im() +
   theme(axis.text.x = element_text(angle = 35, hjust = 1))
@@ -541,6 +613,16 @@ For "Average", deal size = average across year-level state deal-size ratios from
 
 ```{r figb, echo=FALSE, warning=FALSE, message=FALSE}
 fig4b_static <- top10_plus_wi(state_period, "dealsize_average")
+wi_rank_fig4b <- state_period |>
+  filter(!is.na(dealsize_average)) |>
+  arrange(desc(dealsize_average)) |>
+  mutate(rank_all_states = row_number()) |>
+  filter(state_name == "Wisconsin") |>
+  pull(rank_all_states)
+
+wi_label_fig4b <- fig4b_static |>
+  filter(state_name == "Wisconsin") |>
+  mutate(rank_label = paste0("(", wi_rank_fig4b,")"))
 
 ggplot(fig4b_static, aes(x = reorder(state_name, dealsize_average), y = dealsize_average)) +
   geom_col(fill = "grey60") +
@@ -548,13 +630,20 @@ ggplot(fig4b_static, aes(x = reorder(state_name, dealsize_average), y = dealsize
     data = fig4b_static |> filter(state_name == "Wisconsin"),
     fill = "#c5050c"
   ) +
+  geom_text(
+    data = wi_label_fig4b,
+    aes(label = rank_label),
+    color = "#c5050c",
+    vjust = -0.4,
+    fontface = "bold"
+  ) +
   scale_y_continuous(labels = scales::label_comma()) +
   labs(
     title = "Figure 4B. Venture Deal Size by State (Average)",
     subtitle = "Top 10 states + Wisconsin, 2015-2024",
     x = NULL,
     y = "USD (millions)",
-    caption = "Deal size = mean over years of state-year capital/dealcount ratios."
+    caption = "Deal size = mean over years of state-year capital/dealcount ratios. WI rank in parentheses."
   ) +
   theme_im() +
   theme(axis.text.x = element_text(angle = 35, hjust = 1))

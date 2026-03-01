@@ -1,0 +1,38 @@
+---
+title: "What's driving rural Business Growth in Wisconsin?"
+author: "Inder Majumdar"
+format: html
+---
+
+```{r config, echo= FALSE, warning= FALSE, message= FALSE}
+
+
+```
+
+
+## Motivation
+
+When analyzing the Business Formation Statistics (BFS) data in bfs_explore.html, we found that rural Wisconsin leads with respect to business applications between 2005 and 2024.
+
+
+```{r lollipop_bfs, echo= FALSE, warning= FALSE, message= FALSE}
+
+
+
+```
+
+
+This exact same pattern was found in the County Business Patterns (CBP) establishments data from 2010 to 2023, which provides more granular details on sector-wise establishment statistics (note to self: Was there a reason we didn't use the same time period, 2005-2024, as in BFS?)
+
+
+```{r lollipop_cbp, echo= FALSE, warning= FALSE, message= FALSE}
+
+
+
+```
+
+
+
+## To what degree does population play a role?
+
+## Does the pattern hold using nonemployer statistics?
