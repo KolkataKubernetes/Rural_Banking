@@ -37,6 +37,9 @@ After this change, a user can run `1_code/1_0_ingest/census_CBP.R` and obtain a 
 - Decision: Treat user-made manual edits to `1_code/1_0_ingest/census_CBP.R` as authoritative and document them without overwriting or reinterpreting the changes.
   Rationale: The user reported manual edits and requested documentation rather than re-implementation.
   Date/Author: 2026-02-02 / Codex
+- Decision: Source the hard-coded 2-digit NAICS sector list from Census NAICS guidance (`https://www.census.gov/programs-surveys/economic-census/year/2022/guidance/understanding-naics.html`) and include `00` as the all-industries aggregate code.
+  Rationale: This anchors the sector list to a documented Census reference and explains why the script loops explicit 2-digit sectors plus an aggregate code.
+  Date/Author: 2026-03-01 / Codex
 
 ## Outcomes & Retrospective
 
@@ -52,13 +55,15 @@ Legacy rurality context: Before adopting the CORI Form D JSON rurality field, th
 
 The data pull depends on the US Census CBP API and requires an internet connection. It uses R packages `httr2`, `jsonlite`, `dplyr`, `purrr`, and `readr`, all already referenced in `1_code/1_0_ingest/census_CBP.R`. The contract for `cbp_get(year, vars, state, county, naics, lfo, empsz)` is that it returns a tibble with the requested variables plus geography columns `state` and `county` (as returned by the API). The combined output `wi_all` must preserve one row per county–industry combination returned by the API for each year. The plan will add a `year` column to each yearly pull so that `wi_all` can be filtered or grouped by year without relying on external metadata.
 
+For sector scope, the script-level `naics_2digit` list is a fixed request set sourced from Census NAICS guidance at `https://www.census.gov/programs-surveys/economic-census/year/2022/guidance/understanding-naics.html`. `00` is intentionally included as the all-industries aggregate in addition to explicit 2-digit sectors. Some requested codes may return no rows in specific year/state slices; that is a data-availability outcome, not a change in requested sector scope.
+
 If rurality is required for CBP outputs or joins, use county FIPS to join USDA RUCC codes from `0_inputs/Ruralurbancontinuumcodes2023.xlsx` and apply the simplified rule for this spec: RUCC 1, 2, 3 ⇒ “metro”; all other RUCC codes ⇒ “rural.” The join must occur after `wi_all` is assembled so the rural/urban flag is present on the combined multi-year dataset.
 
 ## Plan of Work
 
 First, keep the existing `vars_2023` and `wi_2023` example as the template, then design a consistent variable strategy across 2010–2023 by using `cbp_list_vars()` to determine a set of variables that exist in all years. A simple and reliable approach is to choose a short list of core variables (`NAME`, `ESTAB`, `EMP`, `PAYANN`, optionally `PAYQTR1`) and verify their availability across the full year range. If a variable is missing for any year, remove it from the common list to avoid failing year pulls. Then, implement the multi-year Wisconsin pull in the “Collect all Wisconsin Data from 2010 to present” section by mapping over `years <- 2010:2023`, calling `cbp_get()` for each year, and binding the results with `bind_rows`. Add a `year` column before binding. Store the final combined data frame as `wi_all` in memory. Do not overwrite or create output files unless explicitly requested; if a saved output is desired, include a commented-out `write_csv()` line with a repository-relative path and a note that it is optional.
 
-Because earlier CBP years may not accept the `NAICS2017` parameter, the plan should keep `naics = NULL` unless the API parameter name is verified for each year. If a NAICS filter is required for the desired output, add a small helper that maps each year to the correct NAICS parameter (for example `NAICS2007` in earlier years and `NAICS2017` later), and apply it only when the corresponding variable exists in that year’s `cbp_list_vars()` output. Document the chosen approach in the script so the next contributor understands the compatibility decision.
+Because earlier CBP years may not accept the `NAICS2017` parameter, the plan should keep `naics = NULL` unless the API parameter name is verified for each year. If a NAICS filter is required for the desired output, add a small helper that maps each year to the correct NAICS parameter (for example `NAICS2007` in earlier years and `NAICS2017` later), and apply it only when the corresponding variable exists in that year’s `cbp_list_vars()` output. Use the fixed `naics_2digit` request list sourced from Census NAICS guidance (`https://www.census.gov/programs-surveys/economic-census/year/2022/guidance/understanding-naics.html`) and retain `00` as the all-industries aggregate code. Document the chosen approach in the script so the next contributor understands the compatibility decision.
 
 After `wi_all` is created, read `0_inputs/Ruralurbancontinuumcodes2023.xlsx`, build a 5-digit county FIPS code compatible with CBP’s `state` + `county` fields, and join RUCC to label each row as `metro` (RUCC 1–3) or `rural` (all other RUCC values). Keep the RUCC code and the derived rurality label in `wi_all` (or as a new object if the original should remain untouched).
 
@@ -107,3 +112,5 @@ Plan updated on 2026-02-02 to adopt the simplified RUCC 1–3 metro split for th
 Plan updated on 2026-02-02 to record implementation and validation results for the `wi_all` pull and RUCC join.
 
 Plan updated on 2026-02-02 to document that the user made manual edits to `1_code/1_0_ingest/census_CBP.R` after implementation.
+
+Plan updated on 2026-03-01 to document that the hard-coded 2-digit NAICS sector list is sourced from Census NAICS guidance (`understanding-naics.html`) and that `00` is included as the all-industries aggregate code.

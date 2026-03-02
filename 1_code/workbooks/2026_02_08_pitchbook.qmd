@@ -350,6 +350,41 @@ ggplot(fig1_map, aes(long, lat, group = group, fill = committed_per_million)) +
     plot.subtitle = element_text(size = 10),
     legend.position = "right"
   )
+
+#ggsave(
+#  filename = "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/report/2026_02_28/visuals/fig1.png",
+#  width = 8,
+#  height = 6,
+#  dpi = 300
+#)
+
+```
+
+```{r fig1_wi_value_rank, echo=FALSE, warning=FALSE, message=FALSE, results='asis'}
+fig1_rank_tbl <- fig1_state |>
+  filter(!is.na(committed_per_million)) |>
+  arrange(desc(committed_per_million)) |>
+  mutate(rank = row_number())
+
+wi_fig1 <- fig1_rank_tbl |>
+  filter(state_name == "Wisconsin")
+
+if (nrow(wi_fig1) == 0) {
+  cat("Wisconsin is not present in the Figure 1 state set.")
+} else {
+  cat(
+    paste0(
+      "**Wisconsin Figure 1 value:** ",
+      scales::comma(wi_fig1$committed_per_million[[1]], accuracy = 0.01),
+      " USD per 1M residents  \n",
+      "**Wisconsin rank:** ",
+      wi_fig1$rank[[1]],
+      " of ",
+      nrow(fig1_rank_tbl),
+      " states shown in Figure 1."
+    )
+  )
+}
 ```
 
 
@@ -407,6 +442,58 @@ fig2_plotly <- plot_ly(
 fig2_plotly
 ```
 
+
+```{r fig2_noncapita, echo=FALSE, warning=FALSE, message=FALSE}
+fig2_plotly <- plot_ly(
+  fig2_data,
+  x = ~year,
+  y = ~numerator,
+  color = ~series,
+  colors = series_colors,
+  type = "scatter",
+  mode = "lines+markers",
+  hovertemplate = paste0(
+    "Series: %{fullData.name}<br>",
+    "Year: %{x}<br>",
+    "Capital committed: %{y:,.2f}<extra></extra>"
+  )
+) |>
+  layout(
+    title = list(text = "Figure 2. Capital Committed Over Time<br><sup>2015-2024</sup>"),
+    xaxis = list(
+      title = "Year",
+      tickmode = "array",
+      tickvals = year_min:year_max,
+      showspikes = TRUE,
+      spikemode = "across",
+      spikesnap = "cursor",
+      spikethickness = 1.5,
+      spikedash = "solid",
+      spikecolor = "#4d4d4d"
+    ),
+    yaxis = list(
+      title = "USD (millions)",
+      tickformat = ","
+    ),
+    hovermode = "x unified",
+    legend = list(orientation = "h", y = 1.08),
+    margin = list(l = 70, r = 20, t = 70, b = 60),
+    annotations = list(
+      list(
+        text = "Source: Pitchbook Venture Monitor and BLS participation-based population estimates.",
+        xref = "paper", yref = "paper",
+        x = 0, y = -0.26,
+        showarrow = FALSE,
+        xanchor = "left",
+        font = list(size = 11, color = "#5f5f5f")
+      )
+    )
+  )
+
+fig2_plotly
+```
+
+
 ## Figure 3: Horizontal bar chart of VC deal count per 1 million residents
 
 Figures 3 illustrates VC deal count per 1 million residents, showing the top 10 states + WI only. Bar chart values are calculated by summing all deal between 2015 and 2014, and then divided by the population summed between 2015 and 2024. Interactive figure 3b) shows that Wisconsin Wisconsin consistently has between 19 and 24 deals per million people in a given year. The interactive version also shows that Delaware becomes an outlier later in the observation period.
@@ -447,6 +534,14 @@ ggplot(fig3_static, aes(x = dealcount_per_million, y = reorder(state_name, dealc
     caption = "Source: Pitchbook Venture Monitor and BLS participation-based population estimates. WI rank in parentheses"
   ) +
   theme_im()
+
+# ggsave(
+#   filename = "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/report/2026_02_28/visuals/fig3.png",
+#   width = 8,
+#   height = 6,
+#   dpi = 300
+# )
+
 ```
 
 ## Figure 3.b: Interactive version of figure 3 with year slider
@@ -639,7 +734,7 @@ ggplot(fig4b_static, aes(x = reorder(state_name, dealsize_average), y = dealsize
   ) +
   scale_y_continuous(labels = scales::label_comma()) +
   labs(
-    title = "Figure 4B. Venture Deal Size by State (Average)",
+    title = "Figure 4. Venture Deal Size by State (Average)",
     subtitle = "Top 10 states + Wisconsin, 2015-2024",
     x = NULL,
     y = "USD (millions)",
@@ -647,6 +742,15 @@ ggplot(fig4b_static, aes(x = reorder(state_name, dealsize_average), y = dealsize
   ) +
   theme_im() +
   theme(axis.text.x = element_text(angle = 35, hjust = 1))
+
+ # ggsave(
+ #   filename = "/Users/indermajumdar/Documents/Research/Rural Banking/2025_WI_report/report/2026_02_28/visuals/fig4.png",
+ #   width = 8,
+ #   height = 6,
+ #   dpi = 300
+ # )
+
+
 ```
 
 ## Figure 4C): Interactive Version

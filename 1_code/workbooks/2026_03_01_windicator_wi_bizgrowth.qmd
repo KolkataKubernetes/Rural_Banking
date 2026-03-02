@@ -5,7 +5,56 @@ format: html
 ---
 
 ```{r config, echo= FALSE, warning= FALSE, message= FALSE}
+library(tidyverse)
+library(plotly)
 
+bfs <- read_rds(file.path("..", "..", "2_processed_data", "BFS_county.rds")) |>
+  mutate(across(everything(), ~ replace_na(.x, 0)))
+
+cbp <- read_rds(file.path("..", "..", "2_processed_data", "CBP_all.rds"))
+
+participation <- readr::read_csv(
+  file.path("..", "..", "0_inputs", "CORI", "fips_participation.csv"),
+  show_col_types = FALSE
+) |>
+  mutate(
+    FIPS = stringr::str_pad(as.character(FIPS), width = 2, pad = "0"),
+    Participation = readr::parse_number(as.character(Participation)),
+    Force = readr::parse_number(as.character(Force)),
+    year = as.integer(year),
+    population = dplyr::if_else(Participation > 0, Force / (Participation / 100), NA_real_)
+  ) |>
+  select(FIPS, year, population)
+
+naics_lookup <- readr::read_csv(
+  file.path("..", "..", "0_inputs", "naics_2digit_sectors_2007_2012_2017.csv"),
+  show_col_types = FALSE
+) |>
+  mutate(
+    year = as.integer(year),
+    naics_2digit = stringr::str_pad(as.character(naics_2digit), width = 2, pad = "0")
+  ) |>
+  distinct(year, naics_2digit, description)
+
+midwest_excl_wi <- c("19", "17", "18", "26", "27")
+big3 <- c("06", "25", "36")
+wi_fips <- "55"
+
+label_nat <- "National"
+label_nat_excl <- "National (excl. CA, MA, NY)"
+label_midwest <- "Midwest (excl. WI)"
+label_wi <- "Wisconsin"
+label_big3 <- "Big 3 (CA, MA, NY)"
+
+category_colors <- c(
+  "Wisconsin" = "#c5050c",
+  "Midwest (excl. WI)" = "grey60",
+  "National (excl. CA, MA, NY)" = "#6baed6",
+  "National" = "#08519c",
+  "Big 3 (CA, MA, NY)" = "#9e9ac8"
+)
+
+nes <- read_rds(file.path("..", "..", "2_processed_data", "NES_all.rds"))
 
 ```
 
@@ -31,8 +80,16 @@ This exact same pattern was found in the County Business Patterns (CBP) establis
 
 ```
 
-
-
 ## To what degree does population play a role?
 
+Below is the CBP lollipop but adjusted per 1 million rural population. Population statistics are collected
+
+```{r lollipop_cbp_1mill, echo= FALSE, warning= FALSE, message= FALSE}
+
+
+```
+
+
 ## Does the pattern hold using nonemployer statistics?
+
+Nonemployer statistics are found 
