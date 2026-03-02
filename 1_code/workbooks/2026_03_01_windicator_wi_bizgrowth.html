@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.1.251">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Inder Majumdar">
+
+<title>What’s driving rural Business Growth in Wisconsin?</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1.6em;
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="2026_03_01_windicator_wi_bizgrowth_files/libs/clipboard/clipboard.min.js"></script>
+<script src="2026_03_01_windicator_wi_bizgrowth_files/libs/quarto-html/quarto.js"></script>
+<script src="2026_03_01_windicator_wi_bizgrowth_files/libs/quarto-html/popper.min.js"></script>
+<script src="2026_03_01_windicator_wi_bizgrowth_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="2026_03_01_windicator_wi_bizgrowth_files/libs/quarto-html/anchor.min.js"></script>
+<link href="2026_03_01_windicator_wi_bizgrowth_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="2026_03_01_windicator_wi_bizgrowth_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="2026_03_01_windicator_wi_bizgrowth_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="2026_03_01_windicator_wi_bizgrowth_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="2026_03_01_windicator_wi_bizgrowth_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<link href="2026_03_01_windicator_wi_bizgrowth_files/libs/htmltools-fill-0.5.8.1/fill.css" rel="stylesheet">
+<script src="2026_03_01_windicator_wi_bizgrowth_files/libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
+<script src="2026_03_01_windicator_wi_bizgrowth_files/libs/plotly-binding-4.11.0/plotly.js"></script>
+<script src="2026_03_01_windicator_wi_bizgrowth_files/libs/typedarray-0.1/typedarray.min.js"></script>
+<script src="2026_03_01_windicator_wi_bizgrowth_files/libs/jquery-3.5.1/jquery.min.js"></script>
+<link href="2026_03_01_windicator_wi_bizgrowth_files/libs/crosstalk-1.2.2/css/crosstalk.min.css" rel="stylesheet">
+<script src="2026_03_01_windicator_wi_bizgrowth_files/libs/crosstalk-1.2.2/js/crosstalk.min.js"></script>
+<link href="2026_03_01_windicator_wi_bizgrowth_files/libs/plotly-htmlwidgets-css-2.11.1/plotly-htmlwidgets.css" rel="stylesheet">
+<script src="2026_03_01_windicator_wi_bizgrowth_files/libs/plotly-main-2.11.1/plotly-latest.min.js"></script>
+
+
+</head>
+
+<body class="fullcontent">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">What’s driving rural Business Growth in Wisconsin?</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Inder Majumdar </p>
+          </div>
+  </div>
+    
+    
+  </div>
+  
+
+</header>
+
+<div class="cell">
+
+</div>
+<section id="motivation" class="level2">
+<h2 class="anchored" data-anchor-id="motivation">Motivation</h2>
+<p>When analyzing the Business Formation Statistics (BFS) data in bfs_explore.html, we found that rural Wisconsin leads with respect to business applications between 2005 and 2024.</p>
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="2026_03_01_windicator_wi_bizgrowth_files/figure-html/lollipop_bfs-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>This exact same pattern was found in the County Business Patterns (CBP) establishments data from 2010 to 2023, which provides more granular details on sector-wise establishment statistics (note to self: Was there a reason we didn’t use the same time period, 2005-2024, as in BFS?)</p>
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="2026_03_01_windicator_wi_bizgrowth_files/figure-html/lollipop_cbp-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+<section id="to-what-degree-does-population-play-a-role" class="level2">
+<h2 class="anchored" data-anchor-id="to-what-degree-does-population-play-a-role">To what degree does population play a role?</h2>
+<p>Below is the CBP lollipop but adjusted per 1 million rural population.</p>
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="2026_03_01_windicator_wi_bizgrowth_files/figure-html/lollipop_cbp_1mill-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+<section id="does-the-pattern-hold-using-nonemployer-statistics" class="level2">
+<h2 class="anchored" data-anchor-id="does-the-pattern-hold-using-nonemployer-statistics">Does the pattern hold using nonemployer statistics?</h2>
+<p>Nonemployer statistics are shown below using nonemployer establishments (<code>NESTAB</code>) and the same rural-only comparison framework.</p>
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="2026_03_01_windicator_wi_bizgrowth_files/figure-html/lollipop_nes-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="2026_03_01_windicator_wi_bizgrowth_files/figure-html/lollipop_nes_1mill-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+<section id="using-the-nes-statistics-where-does-wisconsin-rank" class="level2">
+<h2 class="anchored" data-anchor-id="using-the-nes-statistics-where-does-wisconsin-rank">Using the NES Statistics, Where does Wisconsin Rank?</h2>
+<div class="cell">
+<div class="cell-output-display">
+<div class="plotly html-widget html-fill-item" id="htmlwidget-6c2feb8be49006522b23" style="width:100%;height:464px;"></div>
+<script type="application/json" data-for="htmlwidget-6c2feb8be49006522b23">{"x":{"visdat":{"1ddd3ce928c9":["function () ","plotlyVisDat"]},"cur_data":"1ddd3ce928c9","attrs":{"1ddd3ce928c9":{"x":{},"y":{},"text":{},"textposition":"outside","orientation":"h","hovertemplate":"State: %{y}<br>NESTAB per 1M: %{x:,.2f}<extra><\/extra>","marker":{"color":{}},"alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"type":"bar"}},"layout":{"margin":{"b":40,"l":120,"t":60,"r":130},"title":{"text":"Wisconsin NES Establishments per 1M (Top 10 + WI)"},"xaxis":{"domain":[0,1],"automargin":true,"title":"NESTAB per 1M residents","tickformat":","},"yaxis":{"domain":[0,1],"automargin":true,"title":"","categoryorder":"array","categoryarray":["Wisconsin","Arkansas","New Hampshire","North Dakota","Alaska","Maine","South Dakota","Mississippi","Montana","Vermont","Wyoming"],"type":"category"},"annotations":[{"x":1.02,"y":"Wisconsin","xref":"paper","yref":"y","text":"WI rank: #22","showarrow":false,"xanchor":"left","yanchor":"middle","font":{"color":"#c5050c","size":12}}],"showlegend":false,"hovermode":"closest","sliders":[{"active":13,"currentvalue":{"prefix":"Year: "},"steps":[{"method":"animate","args":[["2010"],{"mode":"immediate","frame":{"duration":0,"redraw":true},"transition":{"duration":0}}],"label":"2010"},{"method":"animate","args":[["2011"],{"mode":"immediate","frame":{"duration":0,"redraw":true},"transition":{"duration":0}}],"label":"2011"},{"method":"animate","args":[["2012"],{"mode":"immediate","frame":{"duration":0,"redraw":true},"transition":{"duration":0}}],"label":"2012"},{"method":"animate","args":[["2013"],{"mode":"immediate","frame":{"duration":0,"redraw":true},"transition":{"duration":0}}],"label":"2013"},{"method":"animate","args":[["2014"],{"mode":"immediate","frame":{"duration":0,"redraw":true},"transition":{"duration":0}}],"label":"2014"},{"method":"animate","args":[["2015"],{"mode":"immediate","frame":{"duration":0,"redraw":true},"transition":{"duration":0}}],"label":"2015"},{"method":"animate","args":[["2016"],{"mode":"immediate","frame":{"duration":0,"redraw":true},"transition":{"duration":0}}],"label":"2016"},{"method":"animate","args":[["2017"],{"mode":"immediate","frame":{"duration":0,"redraw":true},"transition":{"duration":0}}],"label":"2017"},{"method":"animate","args":[["2018"],{"mode":"immediate","frame":{"duration":0,"redraw":true},"transition":{"duration":0}}],"label":"2018"},{"method":"animate","args":[["2019"],{"mode":"immediate","frame":{"duration":0,"redraw":true},"transition":{"duration":0}}],"label":"2019"},{"method":"animate","args":[["2020"],{"mode":"immediate","frame":{"duration":0,"redraw":true},"transition":{"duration":0}}],"label":"2020"},{"method":"animate","args":[["2021"],{"mode":"immediate","frame":{"duration":0,"redraw":true},"transition":{"duration":0}}],"label":"2021"},{"method":"animate","args":[["2022"],{"mode":"immediate","frame":{"duration":0,"redraw":true},"transition":{"duration":0}}],"label":"2022"},{"method":"animate","args":[["2023"],{"mode":"immediate","frame":{"duration":0,"redraw":true},"transition":{"duration":0}}],"label":"2023"}]}]},"source":"A","config":{"modeBarButtonsToAdd":["hoverclosest","hovercompare"],"showSendToCloud":false},"data":[{"x":[21758.11853937032,36775.327355963018,38684.248949579836,39707.299155166082,40651.568950007153,44944.930804389944,51053.489699548547,52910.356601822699,53984.017063335785,80225.698560179138,101591.10616259256],"y":["Wisconsin","Arkansas","New Hampshire","North Dakota","Alaska","Maine","South Dakota","Mississippi","Montana","Vermont","Wyoming"],"text":["21,758","36,775","38,684","39,707","40,652","44,945","51,053","52,910","53,984","80,226","101,591"],"textposition":["outside","outside","outside","outside","outside","outside","outside","outside","outside","outside","outside"],"orientation":"h","hovertemplate":["State: %{y}<br>NESTAB per 1M: %{x:,.2f}<extra><\/extra>","State: %{y}<br>NESTAB per 1M: %{x:,.2f}<extra><\/extra>","State: %{y}<br>NESTAB per 1M: %{x:,.2f}<extra><\/extra>","State: %{y}<br>NESTAB per 1M: %{x:,.2f}<extra><\/extra>","State: %{y}<br>NESTAB per 1M: %{x:,.2f}<extra><\/extra>","State: %{y}<br>NESTAB per 1M: %{x:,.2f}<extra><\/extra>","State: %{y}<br>NESTAB per 1M: %{x:,.2f}<extra><\/extra>","State: %{y}<br>NESTAB per 1M: %{x:,.2f}<extra><\/extra>","State: %{y}<br>NESTAB per 1M: %{x:,.2f}<extra><\/extra>","State: %{y}<br>NESTAB per 1M: %{x:,.2f}<extra><\/extra>","State: %{y}<br>NESTAB per 1M: %{x:,.2f}<extra><\/extra>"],"marker":{"color":["#c5050c","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60"],"line":{"color":"rgba(31,119,180,1)"}},"type":"bar","error_y":{"color":"rgba(31,119,180,1)"},"error_x":{"color":"rgba(31,119,180,1)"},"xaxis":"x","yaxis":"y","frame":null}],"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.20000000000000001,"selected":{"opacity":1},"debounce":0},"shinyEvents":["plotly_hover","plotly_click","plotly_selected","plotly_relayout","plotly_brushed","plotly_brushing","plotly_clickannotation","plotly_doubleclick","plotly_deselect","plotly_afterplot","plotly_sunburstclick"],"base_url":"https://plot.ly","frames":[{"name":"2010","data":[{"x":[21505.901683625863,39496.545998527545,39798.952093369327,42878.25200016149,43545.206891678048,46416.351985353016,50164.980715374877,51279.87771298812,77185.77513139903,83329.61229946524,91084.447255135747],"y":["Wisconsin","North Dakota","New Hampshire","Mississippi","Alaska","Maine","Montana","South Dakota","Wyoming","Vermont","Connecticut"],"text":["21,506","39,497","39,799","42,878","43,545","46,416","50,165","51,280","77,186","83,330","91,084"],"textposition":"outside","marker":{"color":["#c5050c","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60"]}}],"layout":{"yaxis":{"categoryorder":"array","categoryarray":["Wisconsin","North Dakota","New Hampshire","Mississippi","Alaska","Maine","Montana","South Dakota","Wyoming","Vermont","Connecticut"]},"annotations":[{"x":1.02,"y":"Wisconsin","xref":"paper","yref":"y","text":"WI rank: #22","showarrow":false,"xanchor":"left","yanchor":"middle","font":{"color":"#c5050c","size":12}}]}},{"name":"2011","data":[{"x":[21344.628977240955,39215.180836379288,40790.767098322576,42880.330880330876,43143.189150458311,46059.299745564516,50058.713324082019,51219.646886370771,76644.871008076545,82363.861213391807,91786.550889792459],"y":["Wisconsin","New Hampshire","North Dakota","Alaska","Mississippi","Maine","Montana","South Dakota","Wyoming","Vermont","Connecticut"],"text":["21,345","39,215","40,791","42,880","43,143","46,059","50,059","51,220","76,645","82,364","91,787"],"textposition":"outside","marker":{"color":["#c5050c","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60"]}}],"layout":{"yaxis":{"categoryorder":"array","categoryarray":["Wisconsin","New Hampshire","North Dakota","Alaska","Mississippi","Maine","Montana","South Dakota","Wyoming","Vermont","Connecticut"]},"annotations":[{"x":1.02,"y":"Wisconsin","xref":"paper","yref":"y","text":"WI rank: #22","showarrow":false,"xanchor":"left","yanchor":"middle","font":{"color":"#c5050c","size":12}}]}},{"name":"2012","data":[{"x":[21168.556986292286,38831.896551724138,40562.942470921094,41649.684245284319,43289.05950672747,45525.771433942813,49831.918850047718,51035.044282141796,76055.730702735673,81266.38533006511,91845.913924264562],"y":["Wisconsin","New Hampshire","North Dakota","Alaska","Mississippi","Maine","Montana","South Dakota","Wyoming","Vermont","Connecticut"],"text":["21,169","38,832","40,563","41,650","43,289","45,526","49,832","51,035","76,056","81,266","91,846"],"textposition":"outside","marker":{"color":["#c5050c","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60"]}}],"layout":{"yaxis":{"categoryorder":"array","categoryarray":["Wisconsin","New Hampshire","North Dakota","Alaska","Mississippi","Maine","Montana","South Dakota","Wyoming","Vermont","Connecticut"]},"annotations":[{"x":1.02,"y":"Wisconsin","xref":"paper","yref":"y","text":"WI rank: #22","showarrow":false,"xanchor":"left","yanchor":"middle","font":{"color":"#c5050c","size":12}}]}},{"name":"2013","data":[{"x":[20881.256873771468,38126.942705799833,40247.173155826618,41173.346668540216,43450.542991425456,44686.014634941101,49004.92400540354,50614.212226612181,75277.315816282644,79950.762931375764,91927.737463007259],"y":["Wisconsin","New Hampshire","North Dakota","Alaska","Mississippi","Maine","Montana","South Dakota","Wyoming","Vermont","Connecticut"],"text":["20,881","38,127","40,247","41,173","43,451","44,686","49,005","50,614","75,277","79,951","91,928"],"textposition":"outside","marker":{"color":["#c5050c","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60"]}}],"layout":{"yaxis":{"categoryorder":"array","categoryarray":["Wisconsin","New Hampshire","North Dakota","Alaska","Mississippi","Maine","Montana","South Dakota","Wyoming","Vermont","Connecticut"]},"annotations":[{"x":1.02,"y":"Wisconsin","xref":"paper","yref":"y","text":"WI rank: #22","showarrow":false,"xanchor":"left","yanchor":"middle","font":{"color":"#c5050c","size":12}}]}},{"name":"2014","data":[{"x":[20906.629880769655,38100.884936755727,40654.374992409794,42801.945436499758,44959.1773543011,45097.184680179882,49128.212200973205,50620.898484201774,76820.314203948365,80339.364195099566,93656.111025673978],"y":["Wisconsin","New Hampshire","North Dakota","Alaska","Mississippi","Maine","Montana","South Dakota","Wyoming","Vermont","Connecticut"],"text":["20,907","38,101","40,654","42,802","44,959","45,097","49,128","50,621","76,820","80,339","93,656"],"textposition":"outside","marker":{"color":["#c5050c","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60"]}}],"layout":{"yaxis":{"categoryorder":"array","categoryarray":["Wisconsin","New Hampshire","North Dakota","Alaska","Mississippi","Maine","Montana","South Dakota","Wyoming","Vermont","Connecticut"]},"annotations":[{"x":1.02,"y":"Wisconsin","xref":"paper","yref":"y","text":"WI rank: #22","showarrow":false,"xanchor":"left","yanchor":"middle","font":{"color":"#c5050c","size":12}}]}},{"name":"2015","data":[{"x":[20823.523938717761,38021.54674360979,39066.226783968727,41754.384508990326,45088.047306404624,45383.163430940884,48701.092406945609,50654.936900106644,77058.275895318191,79757.08378919847,94452.428911571056],"y":["Wisconsin","New Hampshire","North Dakota","Alaska","Maine","Mississippi","Montana","South Dakota","Wyoming","Vermont","Connecticut"],"text":["20,824","38,022","39,066","41,754","45,088","45,383","48,701","50,655","77,058","79,757","94,452"],"textposition":"outside","marker":{"color":["#c5050c","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60"]}}],"layout":{"yaxis":{"categoryorder":"array","categoryarray":["Wisconsin","New Hampshire","North Dakota","Alaska","Maine","Mississippi","Montana","South Dakota","Wyoming","Vermont","Connecticut"]},"annotations":[{"x":1.02,"y":"Wisconsin","xref":"paper","yref":"y","text":"WI rank: #23","showarrow":false,"xanchor":"left","yanchor":"middle","font":{"color":"#c5050c","size":12}}]}},{"name":"2016","data":[{"x":[20856.727711898249,37822.688963316912,39234.947141899036,41662.167965665423,45134.412601935452,45531.441568560724,48766.591226024735,50876.878520846949,79012.544472968133,79037.728190119873,95977.188826379672],"y":["Wisconsin","New Hampshire","North Dakota","Alaska","Maine","Mississippi","Montana","South Dakota","Wyoming","Vermont","Connecticut"],"text":["20,857","37,823","39,235","41,662","45,134","45,531","48,767","50,877","79,013","79,038","95,977"],"textposition":"outside","marker":{"color":["#c5050c","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60"]}}],"layout":{"yaxis":{"categoryorder":"array","categoryarray":["Wisconsin","New Hampshire","North Dakota","Alaska","Maine","Mississippi","Montana","South Dakota","Wyoming","Vermont","Connecticut"]},"annotations":[{"x":1.02,"y":"Wisconsin","xref":"paper","yref":"y","text":"WI rank: #23","showarrow":false,"xanchor":"left","yanchor":"middle","font":{"color":"#c5050c","size":12}}]}},{"name":"2017","data":[{"x":[20883.624073315073,37970.612873819788,39499.960164075717,41415.991135475597,45110.901069408261,46319.220849297548,49370.109451532924,51142.483556889434,79802.596258880701,82071.247823247715,96968.583273740151],"y":["Wisconsin","New Hampshire","North Dakota","Alaska","Maine","Mississippi","Montana","South Dakota","Vermont","Wyoming","Connecticut"],"text":["20,884","37,971","39,500","41,416","45,111","46,319","49,370","51,142","79,803","82,071","96,969"],"textposition":"outside","marker":{"color":["#c5050c","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60"]}}],"layout":{"yaxis":{"categoryorder":"array","categoryarray":["Wisconsin","New Hampshire","North Dakota","Alaska","Maine","Mississippi","Montana","South Dakota","Vermont","Wyoming","Connecticut"]},"annotations":[{"x":1.02,"y":"Wisconsin","xref":"paper","yref":"y","text":"WI rank: #23","showarrow":false,"xanchor":"left","yanchor":"middle","font":{"color":"#c5050c","size":12}}]}},{"name":"2018","data":[{"x":[20888.450683505522,37941.857224347965,39988.391634205334,41757.691363493999,44708.905307991481,46704.185974594795,49616.384511624514,51172.85019518897,79745.431303052188,84937.895858812917,98599.53412582977],"y":["Wisconsin","New Hampshire","North Dakota","Alaska","Maine","Mississippi","Montana","South Dakota","Vermont","Wyoming","Connecticut"],"text":["20,888","37,942","39,988","41,758","44,709","46,704","49,616","51,173","79,745","84,938","98,600"],"textposition":"outside","marker":{"color":["#c5050c","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60"]}}],"layout":{"yaxis":{"categoryorder":"array","categoryarray":["Wisconsin","New Hampshire","North Dakota","Alaska","Maine","Mississippi","Montana","South Dakota","Vermont","Wyoming","Connecticut"]},"annotations":[{"x":1.02,"y":"Wisconsin","xref":"paper","yref":"y","text":"WI rank: #23","showarrow":false,"xanchor":"left","yanchor":"middle","font":{"color":"#c5050c","size":12}}]}},{"name":"2019","data":[{"x":[20704.072382508544,37844.83095764937,39309.089238610337,41756.388444752956,44520.261584036671,47811.502918687183,50204.708092248962,50928.318673727845,78563.98564934991,86661.430702071011,100132.49162898805],"y":["Wisconsin","New Hampshire","North Dakota","Alaska","Maine","Mississippi","South Dakota","Montana","Vermont","Wyoming","Connecticut"],"text":["20,704","37,845","39,309","41,756","44,520","47,812","50,205","50,928","78,564","86,661","100,132"],"textposition":"outside","marker":{"color":["#c5050c","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60"]}}],"layout":{"yaxis":{"categoryorder":"array","categoryarray":["Wisconsin","New Hampshire","North Dakota","Alaska","Maine","Mississippi","South Dakota","Montana","Vermont","Wyoming","Connecticut"]},"annotations":[{"x":1.02,"y":"Wisconsin","xref":"paper","yref":"y","text":"WI rank: #23","showarrow":false,"xanchor":"left","yanchor":"middle","font":{"color":"#c5050c","size":12}}]}},{"name":"2020","data":[{"x":[20363.505037052935,37026.566877556652,38017.605762773936,39080.485383789477,43634.220852560102,46673.820709157553,48992.896782787015,50801.238351366563,76170.351320104775,87852.449247825891,98631.363646771701],"y":["Wisconsin","New Hampshire","North Dakota","Alaska","Maine","Mississippi","South Dakota","Montana","Vermont","Wyoming","Connecticut"],"text":["20,364","37,027","38,018","39,080","43,634","46,674","48,993","50,801","76,170","87,852","98,631"],"textposition":"outside","marker":{"color":["#c5050c","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60"]}}],"layout":{"yaxis":{"categoryorder":"array","categoryarray":["Wisconsin","New Hampshire","North Dakota","Alaska","Maine","Mississippi","South Dakota","Montana","Vermont","Wyoming","Connecticut"]},"annotations":[{"x":1.02,"y":"Wisconsin","xref":"paper","yref":"y","text":"WI rank: #23","showarrow":false,"xanchor":"left","yanchor":"middle","font":{"color":"#c5050c","size":12}}]}},{"name":"2021","data":[{"x":[21174.389950086897,38382.560635358008,38736.01509563427,40806.026843683918,45364.804987040712,50315.307104588464,50582.757507470502,52180.38150818547,79303.875654711694,92583.008244798591,101704.0860112778],"y":["Wisconsin","New Hampshire","North Dakota","Alaska","Maine","South Dakota","Mississippi","Montana","Vermont","Wyoming","Connecticut"],"text":["21,174","38,383","38,736","40,806","45,365","50,315","50,583","52,180","79,304","92,583","101,704"],"textposition":"outside","marker":{"color":["#c5050c","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60"]}}],"layout":{"yaxis":{"categoryorder":"array","categoryarray":["Wisconsin","New Hampshire","North Dakota","Alaska","Maine","South Dakota","Mississippi","Montana","Vermont","Wyoming","Connecticut"]},"annotations":[{"x":1.02,"y":"Wisconsin","xref":"paper","yref":"y","text":"WI rank: #23","showarrow":false,"xanchor":"left","yanchor":"middle","font":{"color":"#c5050c","size":12}}]}},{"name":"2022","data":[{"x":[21658.8142343943,36695.875044654669,38884.29948925272,39788.653844757959,40739.419660817191,45404.651367080274,50696.883090117211,52686.333840426953,53080.6114211194,80671.905921087193,97691.543814450531],"y":["Wisconsin","Arkansas","New Hampshire","North Dakota","Alaska","Maine","South Dakota","Mississippi","Montana","Vermont","Wyoming"],"text":["21,659","36,696","38,884","39,789","40,739","45,405","50,697","52,686","53,081","80,672","97,692"],"textposition":"outside","marker":{"color":["#c5050c","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60"]}}],"layout":{"yaxis":{"categoryorder":"array","categoryarray":["Wisconsin","Arkansas","New Hampshire","North Dakota","Alaska","Maine","South Dakota","Mississippi","Montana","Vermont","Wyoming"]},"annotations":[{"x":1.02,"y":"Wisconsin","xref":"paper","yref":"y","text":"WI rank: #22","showarrow":false,"xanchor":"left","yanchor":"middle","font":{"color":"#c5050c","size":12}}]}},{"name":"2023","data":[{"x":[21758.11853937032,36775.327355963018,38684.248949579836,39707.299155166082,40651.568950007153,44944.930804389944,51053.489699548547,52910.356601822699,53984.017063335785,80225.698560179138,101591.10616259256],"y":["Wisconsin","Arkansas","New Hampshire","North Dakota","Alaska","Maine","South Dakota","Mississippi","Montana","Vermont","Wyoming"],"text":["21,758","36,775","38,684","39,707","40,652","44,945","51,053","52,910","53,984","80,226","101,591"],"textposition":"outside","marker":{"color":["#c5050c","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60","grey60"]}}],"layout":{"yaxis":{"categoryorder":"array","categoryarray":["Wisconsin","Arkansas","New Hampshire","North Dakota","Alaska","Maine","South Dakota","Mississippi","Montana","Vermont","Wyoming"]},"annotations":[{"x":1.02,"y":"Wisconsin","xref":"paper","yref":"y","text":"WI rank: #22","showarrow":false,"xanchor":"left","yanchor":"middle","font":{"color":"#c5050c","size":12}}]}}]},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<div class="cell">
+
+</div>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    target: function(trigger) {
+      return trigger.previousElementSibling;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    setTimeout(function() {
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const cites = ref.parentNode.getAttribute('data-cites').split(' ');
+    tippyHover(ref, function() {
+      var popup = window.document.createElement('div');
+      cites.forEach(function(cite) {
+        var citeDiv = window.document.createElement('div');
+        citeDiv.classList.add('hanging-indent');
+        citeDiv.classList.add('csl-entry');
+        var biblioDiv = window.document.getElementById('ref-' + cite);
+        if (biblioDiv) {
+          citeDiv.innerHTML = biblioDiv.innerHTML;
+        }
+        popup.appendChild(citeDiv);
+      });
+      return popup.innerHTML;
+    });
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>

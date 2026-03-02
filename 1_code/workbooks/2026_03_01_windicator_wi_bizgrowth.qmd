@@ -8,11 +8,15 @@ format: html
 library(tidyverse)
 library(plotly)
 
+# Core processed inputs for workbook figures
 bfs <- read_rds(file.path("..", "..", "2_processed_data", "BFS_county.rds")) |>
   mutate(across(everything(), ~ replace_na(.x, 0)))
 
 cbp <- read_rds(file.path("..", "..", "2_processed_data", "CBP_all.rds"))
 
+nes <- read_rds(file.path("..", "..", "2_processed_data", "NES_all.rds"))
+
+# State-level participation data used to build population denominators
 participation <- readr::read_csv(
   file.path("..", "..", "0_inputs", "CORI", "fips_participation.csv"),
   show_col_types = FALSE
@@ -26,21 +30,20 @@ participation <- readr::read_csv(
   ) |>
   select(FIPS, year, population)
 
-naics_lookup <- readr::read_csv(
-  file.path("..", "..", "0_inputs", "naics_2digit_sectors_2007_2012_2017.csv"),
-  show_col_types = FALSE
+# RUCC lookup for county-level metro/rural assignment
+rucc <- readxl::read_excel(
+  file.path("..", "..", "0_inputs", "Ruralurbancontinuumcodes2023.xlsx")
 ) |>
   mutate(
-    year = as.integer(year),
-    naics_2digit = stringr::str_pad(as.character(naics_2digit), width = 2, pad = "0")
+    FIPS = stringr::str_pad(as.character(FIPS), width = 5, side = "left", pad = "0"),
+    RUCC_2023 = as.integer(RUCC_2023)
   ) |>
-  distinct(year, naics_2digit, description)
+  select(FIPS, RUCC_2023)
 
 midwest_excl_wi <- c("19", "17", "18", "26", "27")
 big3 <- c("06", "25", "36")
 wi_fips <- "55"
 
-label_nat <- "National"
 label_nat_excl <- "National (excl. CA, MA, NY)"
 label_midwest <- "Midwest (excl. WI)"
 label_wi <- "Wisconsin"
@@ -50,11 +53,90 @@ category_colors <- c(
   "Wisconsin" = "#c5050c",
   "Midwest (excl. WI)" = "grey60",
   "National (excl. CA, MA, NY)" = "#6baed6",
-  "National" = "#08519c",
   "Big 3 (CA, MA, NY)" = "#9e9ac8"
 )
 
-nes <- read_rds(file.path("..", "..", "2_processed_data", "NES_all.rds"))
+# Shared grouping helper used by all lollipop chunks
+apply_grouping <- function(df, state_col) {
+  df |>
+    mutate(
+      state_fips = stringr::str_pad(as.character(.data[[state_col]]), width = 2, pad = "0"),
+      category = case_when(
+        state_fips == wi_fips ~ label_wi,
+        state_fips %in% midwest_excl_wi ~ label_midwest,
+        state_fips %in% big3 ~ label_big3,
+        TRUE ~ label_nat_excl
+      )
+    )
+}
+
+# Shared average-state aggregation helper used by raw-value lollipop chunks
+avg_state_lollipop <- function(df, value_col) {
+  df |>
+    ungroup() |>
+    group_by(state_fips, category) |>
+    summarise(state_total = sum(.data[[value_col]], na.rm = TRUE), .groups = "drop") |>
+    group_by(category) |>
+    summarise(avg_state_value = mean(state_total, na.rm = TRUE), .groups = "drop") |>
+    mutate(category = forcats::fct_reorder(category, avg_state_value))
+}
+
+# Shared average-state aggregation helper used by per-million lollipop chunks
+avg_state_lollipop_per_million <- function(df, value_col) {
+  years_use <- df |>
+    distinct(year) |>
+    pull(year) |>
+    as.integer()
+
+  state_totals <- df |>
+    ungroup() |>
+    group_by(state_fips, category) |>
+    summarise(state_total = sum(.data[[value_col]], na.rm = TRUE), .groups = "drop")
+
+  pop_totals <- participation |>
+    filter(year %in% years_use) |>
+    group_by(FIPS) |>
+    summarise(sum_population = sum(population, na.rm = TRUE), .groups = "drop")
+
+  state_totals |>
+    left_join(pop_totals, by = c("state_fips" = "FIPS")) |>
+    mutate(per_million = state_total / (sum_population / 1000000)) |>
+    group_by(category) |>
+    summarise(avg_state_value = mean(per_million, na.rm = TRUE), .groups = "drop") |>
+    mutate(category = forcats::fct_reorder(category, avg_state_value))
+}
+
+# Prepped object for chunk lollipop_bfs
+bfs_grouped <- apply_grouping(bfs, "state_fips") |>
+  mutate(
+    year = as.integer(year),
+    business_app = suppressWarnings(as.numeric(business_app))
+  )
+
+# Prepped object for chunks lollipop_cbp and lollipop_cbp_1mill
+cbp_grouped <- cbp |>
+  mutate(
+    year = as.integer(year),
+    ESTAB = suppressWarnings(as.numeric(ESTAB)),
+    naics_2digit = stringr::str_pad(as.character(naics), width = 2, pad = "0")
+  ) |>
+  apply_grouping("state")
+
+# Prepped object for chunks lollipop_nes and lollipop_nes_1mill
+nes_grouped <- nes |>
+  mutate(
+    year = as.integer(year),
+    state = stringr::str_pad(as.character(state), width = 2, pad = "0"),
+    county = stringr::str_pad(as.character(county), width = 3, pad = "0"),
+    county_fips = paste0(state, county),
+    NESTAB = suppressWarnings(as.numeric(NESTAB)),
+    naics_2digit = stringr::str_pad(as.character(naics), width = 2, pad = "0")
+  ) |>
+  left_join(rucc, by = c("county_fips" = "FIPS")) |>
+  mutate(
+    rurality = if_else(RUCC_2023 %in% c(1, 2, 3), "metro", "rural")
+  ) |>
+  apply_grouping("state")
 
 ```
 
@@ -65,8 +147,23 @@ When analyzing the Business Formation Statistics (BFS) data in bfs_explore.html,
 
 
 ```{r lollipop_bfs, echo= FALSE, warning= FALSE, message= FALSE}
+plot_data <- bfs_grouped |>
+  filter(rurality == "rural") |>
+  avg_state_lollipop("business_app")
 
-
+ggplot(plot_data, aes(x = category, y = avg_state_value, color = category)) +
+  geom_segment(aes(xend = category, y = 0, yend = avg_state_value), linewidth = 1) +
+  geom_point(size = 3) +
+  scale_color_manual(values = category_colors) +
+  coord_flip() +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "none") +
+  labs(
+    title = "BFS Business Applications (Average State)",
+    subtitle = "Rural counties",
+    x = NULL,
+    y = "Average state business applications"
+  )
 
 ```
 
@@ -75,21 +172,293 @@ This exact same pattern was found in the County Business Patterns (CBP) establis
 
 
 ```{r lollipop_cbp, echo= FALSE, warning= FALSE, message= FALSE}
+plot_data <- cbp_grouped |>
+  filter(rurality == "rural", naics_2digit == "00") |>
+  avg_state_lollipop("ESTAB")
 
-
+ggplot(plot_data, aes(x = category, y = avg_state_value, color = category)) +
+  geom_segment(aes(xend = category, y = 0, yend = avg_state_value), linewidth = 1) +
+  geom_point(size = 3) +
+  scale_color_manual(values = category_colors) +
+  coord_flip() +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "none") +
+  labs(
+    title = "CBP Establishments (Average State)",
+    subtitle = "Rural counties",
+    x = NULL,
+    y = "Average state establishments"
+  )
 
 ```
 
 ## To what degree does population play a role?
 
-Below is the CBP lollipop but adjusted per 1 million rural population. Population statistics are collected
+Below is the CBP lollipop but adjusted per 1 million rural population.
 
 ```{r lollipop_cbp_1mill, echo= FALSE, warning= FALSE, message= FALSE}
+plot_data <- cbp_grouped |>
+  filter(rurality == "rural", naics_2digit == "00") |>
+  avg_state_lollipop_per_million("ESTAB")
 
+ggplot(plot_data, aes(x = category, y = avg_state_value, color = category)) +
+  geom_segment(aes(xend = category, y = 0, yend = avg_state_value), linewidth = 1) +
+  geom_point(size = 3) +
+  scale_color_manual(values = category_colors) +
+  coord_flip() +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "none") +
+  labs(
+    title = "CBP Establishments per 1 Million Population (Average State)",
+    subtitle = "Rural counties",
+    x = NULL,
+    y = "Average state establishments per 1 million"
+  )
 
 ```
 
 
 ## Does the pattern hold using nonemployer statistics?
 
-Nonemployer statistics are found 
+Nonemployer statistics are shown below using nonemployer establishments (`NESTAB`) and the same rural-only comparison framework.
+
+```{r lollipop_nes, echo= FALSE, warning= FALSE, message= FALSE}
+plot_data <- nes_grouped |>
+  filter(rurality == "rural", naics_2digit == "00") |>
+  avg_state_lollipop("NESTAB")
+
+ggplot(plot_data, aes(x = category, y = avg_state_value, color = category)) +
+  geom_segment(aes(xend = category, y = 0, yend = avg_state_value), linewidth = 1) +
+  geom_point(size = 3) +
+  scale_color_manual(values = category_colors) +
+  coord_flip() +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "none") +
+  labs(
+    title = "NES Establishments (Average State)",
+    subtitle = "Rural counties",
+    x = NULL,
+    y = "Average state nonemployer establishments"
+  )
+
+```
+
+```{r lollipop_nes_1mill, echo= FALSE, warning= FALSE, message= FALSE}
+plot_data <- nes_grouped |>
+  filter(rurality == "rural", naics_2digit == "00") |>
+  avg_state_lollipop_per_million("NESTAB")
+
+ggplot(plot_data, aes(x = category, y = avg_state_value, color = category)) +
+  geom_segment(aes(xend = category, y = 0, yend = avg_state_value), linewidth = 1) +
+  geom_point(size = 3) +
+  scale_color_manual(values = category_colors) +
+  coord_flip() +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "none") +
+  labs(
+    title = "NES Establishments per 1 Million Population (Average State)",
+    subtitle = "Rural counties",
+    x = NULL,
+    y = "Average state nonemployer establishments per 1 million"
+  )
+
+```
+
+## Using the NES Statistics, Where does Wisconsin Rank?
+
+
+```{r Wisco_nes_rank, echo= FALSE, warning= FALSE, message= FALSE}
+# Build yearly state totals for rural NES establishments per 1M population
+state_lookup <- readr::read_csv(
+  file.path("..", "..", "0_inputs", "state_fips.csv"),
+  show_col_types = FALSE
+) |>
+  transmute(
+    state_fips = stringr::str_pad(as.character(FIPS_CODE), width = 2, pad = "0"),
+    state_name = stringr::str_to_title(STATE_NAME)
+  )
+
+nes_state_year <- nes_grouped |>
+  filter(
+    rurality == "rural",
+    naics_2digit == "00"
+  ) |>
+  group_by(state_fips, year) |>
+  summarise(
+    nestab_total = sum(NESTAB, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  left_join(participation, by = c("state_fips" = "FIPS", "year" = "year")) |>
+  mutate(nestab_per_million = nestab_total / (population / 1000000)) |>
+  left_join(state_lookup, by = "state_fips") |>
+  filter(!is.na(nestab_per_million), state_fips != "11", !is.na(state_name))
+
+top10_plus_wi_nes <- function(df, value_col, label_col = "state_name") {
+  ranked <- df |>
+    filter(!is.na(.data[[value_col]])) |>
+    arrange(desc(.data[[value_col]]))
+
+  top10 <- ranked |> slice_head(n = 10)
+  wi_row <- ranked |> filter(.data[[label_col]] == "Wisconsin")
+
+  bind_rows(top10, wi_row) |>
+    distinct(.data[[label_col]], .keep_all = TRUE) |>
+    arrange(.data[[value_col]])
+}
+
+rank_years <- nes_state_year |>
+  filter(state_name == "Wisconsin", !is.na(nestab_per_million)) |>
+  distinct(year) |>
+  pull(year) |>
+  sort()
+
+wi_nes_rank_data <- purrr::map_dfr(rank_years, function(y) {
+  state_year_single <- nes_state_year |> filter(year == y)
+
+  wi_rank_all <- state_year_single |>
+    arrange(desc(nestab_per_million)) |>
+    mutate(rank_all_states = row_number()) |>
+    filter(state_name == "Wisconsin") |>
+    pull(rank_all_states)
+
+  top10_plus_wi_nes(state_year_single, "nestab_per_million") |>
+    mutate(
+      year = y,
+      wi_rank_all_states = wi_rank_all,
+      state_name = factor(state_name, levels = unique(state_name))
+    )
+})
+
+wi_nes_rank_data <- wi_nes_rank_data |>
+  mutate(year = as.integer(year))
+
+years <- sort(unique(wi_nes_rank_data$year))
+latest_year <- max(years, na.rm = TRUE)
+
+frame_list <- purrr::map(years, function(y) {
+  df <- wi_nes_rank_data |>
+    filter(year == y) |>
+    arrange(nestab_per_million) |>
+    mutate(state_name = factor(state_name, levels = state_name))
+  wi_row <- df |> filter(state_name == "Wisconsin")
+  wi_rank <- unique(df$wi_rank_all_states)[1]
+
+  list(
+    name = as.character(y),
+    data = list(
+      list(
+        x = df$nestab_per_million,
+        y = df$state_name,
+        text = scales::label_comma()(df$nestab_per_million),
+        textposition = "outside",
+        marker = list(color = ifelse(df$state_name == "Wisconsin", "#c5050c", "grey60"))
+      )
+    ),
+    layout = list(
+      yaxis = list(categoryorder = "array", categoryarray = levels(df$state_name)),
+      annotations = list(
+        list(
+          x = 1.02,
+          y = wi_row$state_name,
+          xref = "paper",
+          yref = "y",
+          text = paste0("WI rank: #", wi_rank),
+          showarrow = FALSE,
+          xanchor = "left",
+          yanchor = "middle",
+          font = list(color = "#c5050c", size = 12)
+        )
+      )
+    )
+  )
+})
+
+init_df <- wi_nes_rank_data |>
+  filter(year == latest_year) |>
+  arrange(nestab_per_million) |>
+  mutate(state_name = factor(state_name, levels = state_name))
+init_wi <- init_df |> filter(state_name == "Wisconsin")
+init_wi_rank <- unique(init_df$wi_rank_all_states)[1]
+init_levels <- levels(init_df$state_name)
+
+p <- plot_ly(
+  init_df,
+  x = ~nestab_per_million,
+  y = ~state_name,
+  text = ~scales::label_comma()(nestab_per_million),
+  textposition = "outside",
+  type = "bar",
+  orientation = "h",
+  hovertemplate = paste0(
+    "State: %{y}<br>",
+    "NESTAB per 1M: %{x:,.2f}<extra></extra>"
+  ),
+  marker = list(color = ~if_else(state_name == "Wisconsin", "#c5050c", "grey60"))
+) |>
+  layout(
+    title = list(text = "Wisconsin NES Establishments per 1M (Top 10 + WI)"),
+    xaxis = list(title = "NESTAB per 1M residents", tickformat = ","),
+    yaxis = list(title = "", categoryorder = "array", categoryarray = init_levels),
+    margin = list(l = 120, r = 130, t = 60, b = 40),
+    annotations = list(
+      list(
+        x = 1.02,
+        y = init_wi$state_name,
+        xref = "paper",
+        yref = "y",
+        text = paste0("WI rank: #", init_wi_rank),
+        showarrow = FALSE,
+        xanchor = "left",
+        yanchor = "middle",
+        font = list(color = "#c5050c", size = 12)
+      )
+    ),
+    showlegend = FALSE
+  )
+
+pb <- plotly_build(p)
+pb$x$frames <- frame_list
+pb$x$layout$sliders <- list(
+  list(
+    active = max(which(years == latest_year)) - 1,
+    currentvalue = list(prefix = "Year: "),
+    steps = purrr::map(years, function(y) {
+      list(
+        method = "animate",
+        args = list(
+          list(as.character(y)),
+          list(mode = "immediate", frame = list(duration = 0, redraw = TRUE), transition = list(duration = 0))
+        ),
+        label = as.character(y)
+      )
+    })
+  )
+)
+
+pb
+```
+
+```{r county_check, echo= FALSE, warning= FALSE, message= FALSE}
+
+# bfs |>
+#   select(county_fips_full) |>
+#   unique() |>
+#   nrow()
+# 
+# nes |>
+#   mutate(county_fips_full = paste(state,county)) |>
+#   select(county_fips_full) |>
+#   unique() |>
+#   nrow()
+# 
+# cbp |>
+#   mutate(county_fips_full = paste(state,county)) |>
+#   select(county_fips_full) |>
+#   unique() |>
+#   nrow()
+
+
+
+
+
+```
