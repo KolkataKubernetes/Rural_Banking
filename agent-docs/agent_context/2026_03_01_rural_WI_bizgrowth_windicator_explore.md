@@ -8,7 +8,7 @@ There are four main datasources. The first three you've already used in @2026_02
 
 1) bfs: Business formation statistics.
 
-2) cbp: County Business Pattern business statistics.
+2) cbp: County Business Pattern business statistics.1
 
 3) participation: Contains state-level FIPS participation data, w
 
