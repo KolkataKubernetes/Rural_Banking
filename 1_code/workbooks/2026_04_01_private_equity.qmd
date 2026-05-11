@@ -1,0 +1,457 @@
+---
+title: "04/01/2026 Update: Private Equity Figures"
+author: "Inder Majumdar"
+format:
+  html:
+    embed-resources: true
+date: 2026-04-01
+---
+
+# Motivation
+
+This workbook assembles preliminary private equity descriptives that could support a short PE section in the Wisconsin small business finance report. The figures pair two regional PitchBook views, where the Great Lakes region is treated as the most relevant regional benchmark for Wisconsin, with three state-level views built from the PE Risk Index data sheet.
+
+The goal is to separate two related but distinct questions:
+
+1. How has private equity activity in the Great Lakes region changed over time?
+2. Which state-level PE exposure measures appear most relevant for Wisconsin?
+
+```{r confg, echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(maps)
+library(scales)
+
+theme_im <- function(base_size = 12) {
+  theme_minimal(base_size = base_size) +
+    theme(
+      plot.title.position = "plot",
+      plot.caption.position = "plot",
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_line(linewidth = 0.3),
+      panel.grid.major.y = element_line(linewidth = 0.3),
+      legend.position = "top",
+      legend.title = element_text(face = "bold"),
+      plot.title = element_text(face = "bold"),
+      axis.title = element_text(face = "bold")
+    )
+}
+
+safe_divide <- function(num, den) {
+  out <- num / den
+  invalid <- is.na(den) | den == 0
+
+  if (length(invalid) == 1) {
+    if (invalid) {
+      out[] <- NA_real_
+    }
+  } else {
+    out[invalid] <- NA_real_
+  }
+
+  out
+}
+
+reorder_within <- function(x, by, within, fun = mean, sep = "___", ...) {
+  new_x <- paste(x, within, sep = sep)
+  stats::reorder(new_x, by, FUN = fun)
+}
+
+scale_y_reordered <- function(..., sep = "___") {
+  scale_y_discrete(labels = function(x) gsub(paste0(sep, ".*$"), "", x), ...)
+}
+
+region_path <- file.path("..", "..", "0_inputs", "Pitchbook", "pe_region_breakdowns.xlsx")
+risk_path <- file.path("..", "..", "0_inputs", "PE-Risk-Index-DataSheet(1).xlsx")
+
+analysis_year_min <- 2019
+analysis_year_max <- 2025
+analysis_years <- analysis_year_min:analysis_year_max
+
+great_lakes_label <- "Great Lakes"
+peer_states <- c("Wisconsin", "Minnesota", "Iowa", "Illinois", "Indiana", "Michigan")
+
+series_colors <- c(
+  "Overall" = "black",
+  "Middle-market" = "#c5050c"
+)
+
+metric_colors <- c(
+  "Great Lakes" = "#c5050c",
+  "National" = "black"
+)
+
+gl_flow_colors <- c(
+  "Deal count" = "#0072B2",
+  "Deal value ($B)" = "#c5050c"
+)
+
+read_region_table <- function(path, sheet, range, start_year = 2008, end_year = 2025) {
+  tbl <- read_excel(path, sheet = sheet, range = range, col_names = FALSE)
+  names(tbl) <- c("region", as.character(start_year:end_year))
+
+  tbl |>
+    mutate(across(-region, as.numeric)) |>
+    pivot_longer(-region, names_to = "year", values_to = "value") |>
+    mutate(year = as.integer(year))
+}
+
+mm_count_long <- read_region_table(region_path, "Deals by region", "B8:T15")
+mm_value_long <- read_region_table(region_path, "Deals by region", "V8:AN15")
+mm_count_share_long <- read_region_table(region_path, "Deals by region", "B19:T26")
+mm_value_share_long <- read_region_table(region_path, "Deals by region", "V19:AN26")
+
+overall_count_long <- read_region_table(region_path, "Deals by region (2)", "B8:T15")
+overall_value_long <- read_region_table(region_path, "Deals by region (2)", "B45:T52")
+
+overall_count_share_long <- overall_count_long |>
+  group_by(year) |>
+  mutate(share = safe_divide(value, sum(value, na.rm = TRUE))) |>
+  ungroup()
+
+overall_value_share_long <- overall_value_long |>
+  group_by(year) |>
+  mutate(share = safe_divide(value, sum(value, na.rm = TRUE))) |>
+  ungroup()
+
+gl_activity <- bind_rows(
+  overall_count_long |>
+    filter(region == great_lakes_label, year %in% analysis_years) |>
+    mutate(metric = "Deal count"),
+  overall_value_long |>
+    filter(region == great_lakes_label, year %in% analysis_years) |>
+    mutate(metric = "Deal value ($B)")
+)
+
+fig1_index <- bind_rows(
+  overall_count_long |>
+    filter(year %in% analysis_years) |>
+    group_by(year) |>
+    summarise(value = sum(value, na.rm = TRUE), .groups = "drop") |>
+    mutate(metric = "Deal count", series = "National"),
+  overall_count_long |>
+    filter(region == great_lakes_label, year %in% analysis_years) |>
+    mutate(metric = "Deal count", series = "Great Lakes") |>
+    select(year, value, metric, series),
+  overall_value_long |>
+    filter(year %in% analysis_years) |>
+    group_by(year) |>
+    summarise(value = sum(value, na.rm = TRUE), .groups = "drop") |>
+    mutate(metric = "Deal value ($B)", series = "National"),
+  overall_value_long |>
+    filter(region == great_lakes_label, year %in% analysis_years) |>
+    mutate(metric = "Deal value ($B)", series = "Great Lakes") |>
+    select(year, value, metric, series)
+) |>
+  group_by(metric, series) |>
+  mutate(index_2019 = safe_divide(value, value[year == analysis_year_min]) * 100) |>
+  ungroup() |>
+  mutate(series = factor(series, levels = c("National", "Great Lakes")))
+
+gl_share <- bind_rows(
+  overall_count_share_long |>
+    filter(region == great_lakes_label, year %in% analysis_years) |>
+    transmute(year, metric = "Deal count", series = "Overall", share),
+  mm_count_share_long |>
+    filter(region == great_lakes_label, year %in% analysis_years) |>
+    transmute(year, metric = "Deal count", series = "Middle-market", share = value),
+  overall_value_share_long |>
+    filter(region == great_lakes_label, year %in% analysis_years) |>
+    transmute(year, metric = "Deal value ($B)", series = "Overall", share),
+  mm_value_share_long |>
+    filter(region == great_lakes_label, year %in% analysis_years) |>
+    transmute(year, metric = "Deal value ($B)", series = "Middle-market", share = value)
+) |>
+  mutate(series = factor(series, levels = c("Overall", "Middle-market")))
+
+state_lookup <- tibble(
+  ST = state.abb,
+  state_name = state.name
+)
+
+risk_raw <- read_excel(
+  risk_path,
+  sheet = "Data Sheet",
+  range = "A2:AS60",
+  col_names = FALSE
+)
+
+risk_state <- tibble(
+  ST = as.character(risk_raw[[1]][-1]),
+  labor_share = as.numeric(risk_raw[[5]][-1]),
+  labor_change = as.numeric(risk_raw[[8]][-1]),
+  layoffs_rate = as.numeric(risk_raw[[11]][-1]),
+  physician_concentration = as.numeric(risk_raw[[35]][-1]),
+  pension_pe = as.numeric(risk_raw[[45]][-1])
+) |>
+  filter(ST %in% state.abb) |>
+  left_join(state_lookup, by = "ST")
+
+top10_plus_wi <- function(df, value_col, label_col = "state_name") {
+  ranked <- df |>
+    filter(!is.na(.data[[value_col]])) |>
+    arrange(desc(.data[[value_col]]))
+
+  top10 <- ranked |> slice_head(n = 10)
+  wi_row <- ranked |> filter(.data[[label_col]] == "Wisconsin")
+
+  bind_rows(top10, wi_row) |>
+    distinct(.data[[label_col]], .keep_all = TRUE) |>
+    arrange(.data[[value_col]])
+}
+
+fig3_rank_tbl <- risk_state |>
+  filter(!is.na(pension_pe)) |>
+  arrange(desc(pension_pe)) |>
+  mutate(rank = row_number())
+
+fig4_static <- top10_plus_wi(risk_state, "physician_concentration")
+wi_rank_fig4 <- risk_state |>
+  filter(!is.na(physician_concentration)) |>
+  arrange(desc(physician_concentration)) |>
+  mutate(rank_all_states = row_number()) |>
+  filter(state_name == "Wisconsin") |>
+  pull(rank_all_states)
+
+fig5_long <- risk_state |>
+  filter(state_name %in% peer_states) |>
+  transmute(
+    state_name,
+    `PE-controlled workforce share (%)` = labor_share * 100,
+    `WARN layoffs at PE-controlled companies\nper 100,000 private-sector workers` = layoffs_rate * 100000
+  ) |>
+  pivot_longer(-state_name, names_to = "metric", values_to = "value") |>
+  mutate(
+    state_plot = reorder_within(state_name, value, metric),
+    highlight = if_else(state_name == "Wisconsin", "Wisconsin", "Peer state")
+  )
+
+fig5_medians <- tibble(
+  metric = c(
+    "PE-controlled workforce share (%)",
+    "WARN layoffs at PE-controlled companies\nper 100,000 private-sector workers"
+  ),
+  median_value = c(
+    median(risk_state$labor_share * 100, na.rm = TRUE),
+    median(risk_state$layoffs_rate * 100000, na.rm = TRUE)
+  )
+)
+```
+
+## Regional PE Activity
+
+The first two figures use PitchBook regional tabulations. They are intended to establish whether the Great Lakes region has enough sustained PE activity to justify a Wisconsin-focused private equity discussion.
+
+## Figure 0: Indexed PE Activity Since 2019
+
+Figure 0 indexes Great Lakes and national private equity activity to `2019 = 100`, allowing relative growth in deal count and deal value to be compared on the same scale.
+
+```{r fig0, echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(fig1_index, aes(x = year, y = index_2019, color = series, group = series)) +
+  geom_hline(yintercept = 100, linetype = "dashed", color = "grey60", linewidth = 0.5) +
+  geom_line(linewidth = 0.9) +
+  geom_point(size = 2) +
+  facet_wrap(~metric, scales = "free_y", ncol = 2) +
+  scale_color_manual(values = metric_colors) +
+  scale_x_continuous(breaks = analysis_years) +
+  scale_y_continuous(labels = label_number(accuracy = 1)) +
+  labs(
+    title = "Figure 0. Indexed Private Equity Activity Since 2019",
+    subtitle = "2019 = 100; Great Lakes compared with total US activity",
+    x = "Year",
+    y = "Index (2019 = 100)",
+    color = NULL,
+    caption = "Source: PitchBook regional private equity tables. National totals are summed across regions; Great Lakes treated as the most relevant region for Wisconsin."
+  ) +
+  theme_im()
+```
+
+## Figure 1: Great Lakes PE Deal Flow Over Time
+
+Figure 1 shows overall private equity deal count and deal value in the Great Lakes region from 2019 through 2025.
+
+```{r fig1, echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(gl_activity, aes(x = year, y = value, color = metric, group = metric)) +
+  geom_line(linewidth = 0.9, show.legend = FALSE) +
+  geom_point(size = 2, show.legend = FALSE) +
+  facet_wrap(~metric, scales = "free_y", ncol = 2) +
+  scale_color_manual(values = gl_flow_colors) +
+  scale_x_continuous(breaks = analysis_years) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    title = "Figure 1. Great Lakes Private Equity Deal Flow Over Time",
+    subtitle = "Overall PE deal count and deal value, 2019-2025",
+    x = "Year",
+    y = NULL,
+    caption = "Source: PitchBook regional private equity tables. Great Lakes treated as the most relevant region for Wisconsin."
+  ) +
+  theme_im() +
+  theme(legend.position = "none")
+```
+
+## Figure 2: Great Lakes Share of US Private Equity Activity
+
+Figure 2 compares the Great Lakes share of US private equity activity in overall PE versus the middle market.
+
+```{r fig2, echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(gl_share, aes(x = year, y = share, color = series, group = series)) +
+  geom_line(linewidth = 0.95) +
+  geom_point(size = 2) +
+  facet_wrap(~metric, ncol = 2) +
+  scale_color_manual(values = series_colors) +
+  scale_x_continuous(breaks = analysis_years) +
+  scale_y_continuous(labels = label_percent(accuracy = 0.1)) +
+  labs(
+    title = "Figure 2. Great Lakes Share of US Private Equity Activity",
+    subtitle = "Overall PE versus middle-market PE, 2019-2025",
+    x = "Year",
+    y = "Share of US activity",
+    color = NULL,
+    caption = "Source: PitchBook regional private equity tables."
+  ) +
+  theme_im()
+```
+
+## State Exposure Measures
+
+The remaining figures use the PE Risk Index data sheet. These are cross-sectional state exposure measures rather than state-level deal-flow counts.
+
+## Figure 3: State Pension Assets Invested in Private Equity
+
+Figure 3 maps the share of state pension assets invested in private equity. This is the strongest Wisconsin-specific PE signal in the raw state risk variables.
+
+```{r fig3, echo=FALSE, warning=FALSE, message=FALSE}
+map_base <- ggplot2::map_data("state")
+
+fig3_map_data <- risk_state |>
+  mutate(region = tolower(state_name))
+
+fig3_map <- map_base |>
+  left_join(fig3_map_data, by = "region")
+
+ggplot(fig3_map, aes(long, lat, group = group, fill = pension_pe)) +
+  geom_polygon(color = "white", linewidth = 0.1) +
+  coord_equal(1.3) +
+  scale_fill_viridis_c(
+    option = "C",
+    na.value = "grey92",
+    labels = label_percent(accuracy = 1)
+  ) +
+  labs(
+    title = "Figure 3. Share of State Pension Assets Invested in Private Equity",
+    subtitle = "Wisconsin appears in the upper tier of states on this measure",
+    fill = "Share of assets",
+    caption = "Source: PE Risk Index Data Sheet."
+  ) +
+  theme_void(base_size = 11) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    plot.subtitle = element_text(size = 10),
+    legend.position = "right"
+  )
+```
+
+```{r fig3_wi_value_rank, echo=FALSE, warning=FALSE, message=FALSE, results='asis'}
+wi_fig3 <- fig3_rank_tbl |>
+  filter(state_name == "Wisconsin")
+
+if (nrow(wi_fig3) == 0) {
+  cat("Wisconsin is not present in the pension-allocation state set.")
+} else {
+  cat(
+    paste0(
+      "**Wisconsin Figure 3 value:** ",
+      percent(wi_fig3$pension_pe[[1]], accuracy = 0.1),
+      " of state pension assets invested in private equity  \n",
+      "**Wisconsin rank:** ",
+      wi_fig3$rank[[1]],
+      " of ",
+      nrow(fig3_rank_tbl),
+      " states shown in Figure 3."
+    )
+  )
+}
+```
+
+## Figure 4: Physician Specialty Concentration
+
+Figure 4 ranks the top 10 states, plus Wisconsin, by the share of state population living in a metro where a single PE firm controls more than 30 percent of at least one physician specialty.
+
+```{r fig4, echo=FALSE, warning=FALSE, message=FALSE}
+wi_label_fig4 <- fig4_static |>
+  filter(state_name == "Wisconsin") |>
+  mutate(rank_label = paste0("(", wi_rank_fig4, ")"))
+
+ggplot(fig4_static, aes(x = physician_concentration, y = reorder(state_name, physician_concentration))) +
+  geom_col(fill = "grey60") +
+  geom_col(
+    data = fig4_static |> filter(state_name == "Wisconsin"),
+    fill = "#c5050c"
+  ) +
+  geom_text(
+    aes(label = percent(physician_concentration, accuracy = 0.1)),
+    hjust = -0.05,
+    size = 3.2
+  ) +
+  geom_text(
+    data = wi_label_fig4,
+    aes(label = rank_label),
+    color = "#c5050c",
+    hjust = 0,
+    nudge_x = max(fig4_static$physician_concentration, na.rm = TRUE) * 0.06,
+    fontface = "bold"
+  ) +
+  scale_x_continuous(
+    labels = label_percent(accuracy = 1),
+    expand = expansion(mult = c(0, 0.15))
+  ) +
+  labs(
+    title = "Figure 4. Population Exposure to Concentrated PE Ownership in Physician Specialties",
+    subtitle = "Top 10 states + Wisconsin",
+    x = "Share of state population",
+    y = NULL,
+    caption = "Source: PE Risk Index Data Sheet. Wisconsin rank shown in parentheses."
+  ) +
+  theme_im()
+```
+
+## Figure 5: Midwest Labor Exposure and Layoffs
+
+Figure 5 compares Wisconsin with the same Midwest peer group used elsewhere in the report code base: Minnesota, Iowa, Illinois, Indiana, and Michigan. The dashed line in each panel shows the national median.
+
+```{r fig5, echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(fig5_long, aes(x = value, y = state_plot, fill = highlight)) +
+  geom_col(width = 0.7) +
+  geom_vline(
+    data = fig5_medians,
+    aes(xintercept = median_value),
+    linetype = "dashed",
+    color = "grey35",
+    linewidth = 0.6,
+    inherit.aes = FALSE
+  ) +
+  geom_text(
+    aes(
+      label = case_when(
+        metric == "PE-controlled workforce share (%)" ~ paste0(round(value, 1), "%"),
+        TRUE ~ comma(round(value, 0))
+      )
+    ),
+    hjust = -0.05,
+    size = 3.1
+  ) +
+  facet_wrap(~metric, scales = "free") +
+  scale_y_reordered() +
+  scale_fill_manual(values = c("Wisconsin" = "#c5050c", "Peer state" = "grey60")) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Figure 5. Midwest Comparison of PE Labor Exposure and PE-Related Layoffs",
+    subtitle = "Dashed line marks the national median in each panel",
+    x = NULL,
+    y = NULL,
+    fill = NULL,
+    caption = "Source: PE Risk Index Data Sheet. Midwest peers mirror the VC comparison group used elsewhere in the report."
+  ) +
+  theme_im() +
+  theme(legend.position = "none")
+```
