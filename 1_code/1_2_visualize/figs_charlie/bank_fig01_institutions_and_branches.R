@@ -1,0 +1,99 @@
+#///////////////////////////////////////////////////////////////////////////////
+#----                    WI Descriptives Intermediates                     ----
+# File name:  bank_fig01_institutions_and_branches.R
+# Author:     Codex (based on Inder Majumdar's workflow)
+# Created:    2026-05-11
+# Purpose:    Replicate Charlie's banking figure 1. Reference file:
+#             agent-docs/agent_context/docs/code_charlie/fig01_institutions_and_branches.py
+#///////////////////////////////////////////////////////////////////////////////
+
+
+# -----------------------------
+# 0) Setup and configuration
+# -----------------------------
+
+suppressPackageStartupMessages({
+  library(tidyverse)
+})
+
+# Shared helper centralizes repeated local-data parsing and save logic.
+source(file.path("1_code", "1_2_visualize", "figs_charlie", "_charlie_helpers.R"))
+
+output_file <- file.path(
+  charlie_bank_output_dir,
+  "bank_fig01_institutions_and_branches.jpeg"
+)
+
+
+# -----------------------------
+# 1) Load inputs
+# -----------------------------
+
+fig01_data <- map_dfr(fdic_available_years(), function(year) {
+  wi <- load_fdic_sod(year) |>
+    filter(STALPBR == "WI")
+
+  tibble(
+    year = year,
+    n_institutions = n_distinct(wi$CERT),
+    n_branches = nrow(wi)
+  )
+}) |>
+  arrange(year)
+
+fig01_long <- fig01_data |>
+  transmute(
+    year,
+    Institutions = n_institutions,
+    Branches = n_branches
+  ) |>
+  pivot_longer(
+    cols = c(Institutions, Branches),
+    names_to = "series",
+    values_to = "value"
+  ) |>
+  mutate(
+    series = factor(series, levels = c("Institutions", "Branches"))
+  )
+
+
+# -----------------------------
+# 2) Construct Figure
+# -----------------------------
+
+fig01_plot <- ggplot(fig01_long, aes(x = year, y = value, color = series, shape = series)) +
+  geom_line(linewidth = 1.1) +
+  geom_point(size = 2.4) +
+  scale_color_manual(
+    values = c("Institutions" = "#BF4D28", "Branches" = "#2E75B6")
+  ) +
+  scale_shape_manual(
+    values = c("Institutions" = 16, "Branches" = 15)
+  ) +
+  scale_x_continuous(
+    breaks = seq(min(fig01_data$year), max(fig01_data$year), by = 2)
+  ) +
+  scale_y_continuous(
+    limits = c(0, 2500),
+    breaks = seq(0, 2500, by = 250)
+  ) +
+  labs(
+    title = "Figure 1: Wisconsin Banking Institutions and Branches (2000-2024)",
+    x = "Year",
+    y = "Count",
+    color = NULL,
+    shape = NULL,
+    caption = "Data: FDIC Summary of Deposits"
+  ) +
+  charlie_theme() +
+  theme(
+    legend.position = "right",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+
+# -----------------------------
+# 3) Save Outputs
+# -----------------------------
+
+save_charlie_fig(fig01_plot, output_file, width = 10, height = 5)
