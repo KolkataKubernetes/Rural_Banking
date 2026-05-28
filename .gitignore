@@ -1,25 +1,21 @@
+# Local IDE and session artifacts
 .DS_Store
-.Rproj.user
+.Rproj.user/
 .Rhistory
-.RData
 .Ruserdata
-.DS_Store
-agent-docs/agent_context/docs
-legacy_processed_data/
-0_inputs/bds2023_st_fa.csv
-0_inputs/bfs_county_apps_annual.xlsx
-0_inputs/CORI
-0_inputs/census_apikey.md
-0_inputs/data_charlie/
-0_inputs/data_charlie_downloads/
-0_inputs/naics_2digit_sectors_2007_2012_2017.csv
-0_inputs/PE-Risk-Index-DataSheet(1).xlsx
-0_inputs/Pitchbook
-0_inputs/state_fips.md
-0_inputs/state_fips.csv
-0_inputs/SBA
-0_inputs/upstream
-0_inputs/Ruralurbancontinuumcodes2023.xlsx
-1_code/.DS_Store
-1_processed_data/.
+.RData
+
+# Project data directories
+0_inputs/
 2_processed_data/
+legacy_processed_data/
+
+# Local temp review artifacts
+agent-docs/tmp/
+
+# Rendered workbook outputs
+1_code/workbooks/*.html
+1_code/workbooks/*_files/
+
+# Duplicate local reference copies
+agent-docs/agent_context/docs/*.pdf

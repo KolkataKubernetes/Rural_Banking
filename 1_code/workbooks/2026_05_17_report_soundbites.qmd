@@ -1,0 +1,249 @@
+---
+title: "2026-05-17 Report Sound-Bite Statistics"
+author: "Codex"
+format:
+  html:
+    embed-resources: true
+date: 2026-05-17
+---
+
+# Purpose
+
+This workbook computes a short list of high-signal baseline statistics that can be inserted into the Wisconsin small business finance report as reader-friendly "sound bites." The goal is to front-load a small number of concrete scale statistics in the opening paragraphs of the banking, lending, credit union, and equity sections.
+
+```{r setup, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(readxl)
+library(glue)
+library(scales)
+
+project_root <- normalizePath(file.path("..", ".."), winslash = "/")
+knitr::opts_knit$set(root.dir = project_root)
+source(file.path(project_root, "1_code", "1_2_visualize", "figs_charlie", "_charlie_helpers.R"))
+
+safe_divide <- function(num, den) {
+  ifelse(is.na(den) | den == 0, NA_real_, num / den)
+}
+```
+
+# Banking Structure
+
+```{r banking-structure}
+bank_2000 <- load_fdic_sod(2000) |>
+  filter(STALPBR == "WI")
+
+bank_2024 <- load_fdic_sod(2024) |>
+  filter(STALPBR == "WI")
+
+banking_stats <- tibble(
+  institutions_2000 = n_distinct(bank_2000$CERT),
+  branches_2000 = nrow(bank_2000),
+  institutions_2024 = n_distinct(bank_2024$CERT),
+  branches_2024 = nrow(bank_2024),
+  top5_branch_share_2024 = bank_2024 |>
+    count(CERT, sort = TRUE, name = "branches") |>
+    slice_head(n = 5) |>
+    summarise(share = sum(branches) / nrow(bank_2024)) |>
+    pull(share)
+)
+
+banking_stats
+```
+
+# Small Business Lending Snapshot
+
+```{r cra-figure7}
+cra_2023 <- readr::read_fwf(
+  file.path(charlie_cra_dir, "23exp_aggr", "cra2023_Aggr_A11.dat"),
+  col_positions = readr::fwf_widths(cra_fixed_widths, cra_fixed_names),
+  show_col_types = FALSE,
+  progress = FALSE
+) |>
+  filter(State_FIPS == "55", Report_Level == "200") |>
+  mutate(
+    Loans_U100k_Num = as.numeric(replace_na(Loans_U100k_Num, "0")),
+    Loans_U100k_Amt = as.numeric(replace_na(Loans_U100k_Amt, "0")) * 1000,
+    Loans_100_250_Num = as.numeric(replace_na(Loans_100_250_Num, "0")),
+    Loans_100_250_Amt = as.numeric(replace_na(Loans_100_250_Amt, "0")) * 1000,
+    Loans_250_1M_Num = as.numeric(replace_na(Loans_250_1M_Num, "0")),
+    Loans_250_1M_Amt = as.numeric(replace_na(Loans_250_1M_Amt, "0")) * 1000
+  )
+
+cra_stats <- tibble(
+  total_loans_2023 = sum(
+    cra_2023$Loans_U100k_Num +
+      cra_2023$Loans_100_250_Num +
+      cra_2023$Loans_250_1M_Num,
+    na.rm = TRUE
+  ),
+  total_volume_2023 = sum(
+    cra_2023$Loans_U100k_Amt +
+      cra_2023$Loans_100_250_Amt +
+      cra_2023$Loans_250_1M_Amt,
+    na.rm = TRUE
+  ),
+  avg_loan_size_2023 = safe_divide(
+    sum(
+      cra_2023$Loans_U100k_Amt +
+        cra_2023$Loans_100_250_Amt +
+        cra_2023$Loans_250_1M_Amt,
+      na.rm = TRUE
+    ),
+    sum(
+      cra_2023$Loans_U100k_Num +
+        cra_2023$Loans_100_250_Num +
+        cra_2023$Loans_250_1M_Num,
+      na.rm = TRUE
+    )
+  ),
+  u100k_num_share = safe_divide(sum(cra_2023$Loans_U100k_Num, na.rm = TRUE),
+                                sum(cra_2023$Loans_U100k_Num + cra_2023$Loans_100_250_Num + cra_2023$Loans_250_1M_Num, na.rm = TRUE)),
+  u100k_amt_share = safe_divide(sum(cra_2023$Loans_U100k_Amt, na.rm = TRUE),
+                                sum(cra_2023$Loans_U100k_Amt + cra_2023$Loans_100_250_Amt + cra_2023$Loans_250_1M_Amt, na.rm = TRUE)),
+  hi_num_share = safe_divide(sum(cra_2023$Loans_250_1M_Num, na.rm = TRUE),
+                             sum(cra_2023$Loans_U100k_Num + cra_2023$Loans_100_250_Num + cra_2023$Loans_250_1M_Num, na.rm = TRUE)),
+  hi_amt_share = safe_divide(sum(cra_2023$Loans_250_1M_Amt, na.rm = TRUE),
+                             sum(cra_2023$Loans_U100k_Amt + cra_2023$Loans_100_250_Amt + cra_2023$Loans_250_1M_Amt, na.rm = TRUE))
+)
+
+cra_stats
+```
+
+# Credit Union Snapshot
+
+```{r credit-union-snapshot}
+cu_branches_2024 <- load_ncua_branch(2024) |>
+  filter(PhysicalAddressStateCode == "WI")
+
+cu_hq_2023 <- load_ncua_branch(2023) |>
+  filter(
+    PhysicalAddressStateCode == "WI",
+    MainOffice == "Yes"
+  )
+
+cu_stats <- tibble(
+  institutions_2024 = n_distinct(cu_branches_2024$CU_NUMBER),
+  branches_2024 = nrow(cu_branches_2024),
+  hq_rows_2023 = nrow(cu_hq_2023),
+  hq_counties_2023 = cu_hq_2023 |>
+    distinct(PhysicalAddressCountyName) |>
+    nrow(),
+  no_hq_counties_2023 = 72 - (cu_hq_2023 |>
+    distinct(PhysicalAddressCountyName) |>
+    nrow())
+)
+
+cu_stats
+```
+
+# Venture Capital Snapshot
+
+```{r vc-snapshot}
+year_min <- 2015
+year_max <- 2024
+wi_fips <- "55"
+
+count_raw <- readxl::read_xlsx(file.path("0_inputs", "Pitchbook", "Pitchbook_dealcount.xlsx"))
+vol_raw <- readxl::read_xlsx(file.path("0_inputs", "Pitchbook", "Pitchbook_dealvol.xlsx"))
+
+participation <- readr::read_csv(
+  file.path("0_inputs", "CORI", "fips_participation.csv"),
+  show_col_types = FALSE
+) |>
+  mutate(
+    FIPS = stringr::str_pad(as.character(FIPS), width = 2, pad = "0"),
+    Participation = readr::parse_number(as.character(Participation)),
+    Force = readr::parse_number(as.character(Force)),
+    year = as.integer(year),
+    population = safe_divide(Force, Participation / 100)
+  ) |>
+  select(FIPS, year, population)
+
+state_fips <- readr::read_csv(
+  file.path("0_inputs", "state_fips.csv"),
+  show_col_types = FALSE
+) |>
+  mutate(
+    FIPS = stringr::str_pad(as.character(FIPS_CODE), width = 2, pad = "0"),
+    state_name_key = tolower(STATE_NAME)
+  ) |>
+  select(FIPS, state_name_key)
+
+count_long <- count_raw |>
+  pivot_longer(-State, names_to = "year", values_to = "dealcount") |>
+  mutate(year = as.integer(year)) |>
+  filter(year >= year_min, year <= year_max)
+
+vol_long <- vol_raw |>
+  pivot_longer(-State, names_to = "year", values_to = "capital_committed") |>
+  mutate(year = as.integer(year)) |>
+  filter(year >= year_min, year <= year_max)
+
+state_year <- count_long |>
+  left_join(vol_long, by = c("State", "year")) |>
+  mutate(state_name = State, state_name_key = tolower(state_name)) |>
+  left_join(state_fips, by = "state_name_key") |>
+  left_join(participation, by = c("FIPS", "year")) |>
+  filter(!is.na(FIPS), FIPS != "11")
+
+state_period <- state_year |>
+  group_by(state_name, FIPS) |>
+  summarise(
+    sum_dealcount = sum(dealcount, na.rm = TRUE),
+    sum_capital = sum(capital_committed, na.rm = TRUE),
+    sum_population = sum(population, na.rm = TRUE),
+    committed_per_million = safe_divide(sum_capital, sum_population / 1000000),
+    .groups = "drop"
+  )
+
+wi_period <- state_period |>
+  filter(FIPS == wi_fips)
+
+vc_stats <- tibble(
+  total_vc_2015_2024 = wi_period$sum_capital,
+  avg_annual_vc = wi_period$sum_capital / 10,
+  share_us_total = wi_period$sum_capital / sum(state_period$sum_capital, na.rm = TRUE),
+  committed_per_million = wi_period$committed_per_million,
+  rank_contig45 = state_period |>
+    filter(!state_name %in% c("California", "New York", "Massachusetts", "Delaware")) |>
+    arrange(desc(committed_per_million)) |>
+    mutate(rank = row_number()) |>
+    filter(FIPS == wi_fips) |>
+    pull(rank)
+)
+
+vc_stats
+```
+
+# Approved Stat List and Draft Insertions
+
+```{r approved-list}
+approved_stats <- tibble(
+  section = c(
+    "Banking structure opener",
+    "Small business lending opener",
+    "Credit union market snapshot",
+    "Equity / venture capital opener"
+  ),
+  place_in_draft = c(
+    "Insert as the second sentence of paragraph 19, immediately after `Wisconsin’s banking sector has undergone consolidation over the past two decades...`",
+    "Insert as the second sentence of paragraph 38, immediately after `Since accessibility to banking services has changed considerably since 2000...`",
+    "Insert after paragraph 74, following the sentence ending `...whether that activity aligns with areas where access to traditional banking services has declined.`",
+    "Insert after paragraph 86, immediately after `We now turn our focus to equity financing.`"
+  ),
+  suggested_text = c(
+    glue("As of 2024, Wisconsin had {comma(banking_stats$institutions_2024)} banking institutions operating {comma(banking_stats$branches_2024)} branches statewide, down from {comma(banking_stats$institutions_2000)} institutions and {comma(banking_stats$branches_2000)} branches in 2000."),
+    glue("In 2023, Wisconsin lenders originated {comma(cra_stats$total_loans_2023)} CRA-reported small business loans totaling {dollar(cra_stats$total_volume_2023 / 1e9, accuracy = 0.1, suffix = 'B')}, with an average loan size of about {dollar(cra_stats$avg_loan_size_2023, accuracy = 1)}."),
+    glue("As of 2024, Wisconsin had {comma(cu_stats$institutions_2024)} credit unions operating {comma(cu_stats$branches_2024)} branches statewide. Yet in 2023, credit union main offices were present in only {comma(cu_stats$hq_counties_2023)} of Wisconsin’s 72 counties, leaving {comma(cu_stats$no_hq_counties_2023)} counties without a local credit union headquarters."),
+    glue("Between 2015 and 2024, Wisconsin firms raised about {dollar(vc_stats$total_vc_2015_2024, accuracy = 0.01, scale = 1000, suffix = ' billion')} in venture capital, an average of {dollar(vc_stats$avg_annual_vc, accuracy = 1, suffix = ' million')} per year, accounting for roughly {percent(vc_stats$share_us_total, accuracy = 0.01)} of U.S. venture funding over the period.")
+  )
+)
+
+approved_stats
+```
+
+# Notes
+
+- The banking and CRA calculations are built directly from the same local FDIC and CRA inputs already used in the figure scripts.
+- The credit union snapshot uses the same NCUA branch files as the CU figures, with headquarters proxied by `MainOffice == "Yes"`.
+- The venture capital snapshot follows the same PitchBook plus participation-data logic already used in `1_code/workbooks/2026_02_08_pitchbook.qmd`.

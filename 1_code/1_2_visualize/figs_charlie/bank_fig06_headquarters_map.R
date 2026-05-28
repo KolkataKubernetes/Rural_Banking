@@ -25,6 +25,9 @@ output_file <- file.path(
   "bank_fig06_headquarters_map.jpeg"
 )
 
+cb_county_dir <- file.path("0_inputs", "WI_CensusCB_Counties_2023")
+cb_county_layer <- "cb_2023_us_county_500k"
+
 
 # -----------------------------
 # 1) Load inputs
@@ -35,7 +38,19 @@ hq_counts <- load_fdic_sod(2024) |>
   count(CNTYNAMB, name = "n_hq") |>
   mutate(county_upper = stringr::str_to_upper(CNTYNAMB))
 
-wi_counties <- load_wi_counties() |>
+wi_counties <- st_read(
+  dsn = cb_county_dir,
+  layer = cb_county_layer,
+  quiet = TRUE
+) |>
+  filter(STATEFP == "55") |>
+  transmute(
+    county = clean_county_name(NAME),
+    county_upper = stringr::str_to_upper(county),
+    county_fips = GEOID,
+    geometry
+  ) |>
+  st_transform(3071) |>
   left_join(hq_counts, by = "county_upper") |>
   mutate(n_hq = replace_na(n_hq, 0))
 
