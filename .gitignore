@@ -20,3 +20,4 @@ agent-docs/tmp/
 # Duplicate local reference copies
 agent-docs/agent_context/docs/*.pdf
 agent-docs/agent_context/docs/*.docx
+.positai

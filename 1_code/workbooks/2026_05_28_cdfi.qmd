@@ -1,0 +1,595 @@
+---
+title: "05/28/2026 Update: CDFI Candidate Figures"
+author: "Inder Majumdar"
+format:
+  html:
+    embed-resources: true
+date: 2026-05-28
+---
+
+# Motivation
+
+This workbook assembles a broad first-pass set of CDFI candidate visuals for the Wisconsin small business finance report. It is meant to over-generate ideas rather than lock in a final figure set.
+
+The notebook starts with Wisconsin-only descriptives, then moves to peer-state and benchmark comparisons. The main design choice is to use `analysis_year` as the default time axis from the harmonized ingest, while carrying forward clear warnings about the unstable parts of the series: no `2016`, an anomalously small `2017` under the current year rule, and heavier report-year fallback in `2021-2022`.
+
+```{r config, echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(scales)
+library(sf)
+
+theme_im <- function(base_size = 12) {
+  theme_minimal(base_size = base_size) +
+    theme(
+      plot.title.position = "plot",
+      plot.caption.position = "plot",
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_line(linewidth = 0.3),
+      panel.grid.major.y = element_line(linewidth = 0.3),
+      legend.position = "top",
+      legend.title = element_text(face = "bold"),
+      plot.title = element_text(face = "bold"),
+      axis.title = element_text(face = "bold")
+    )
+}
+
+safe_divide <- function(num, den) {
+  out <- num / den
+  invalid <- is.na(den) | den == 0
+
+  if (length(invalid) == 1) {
+    if (invalid) {
+      out[] <- NA_real_
+    }
+  } else {
+    out[invalid] <- NA_real_
+  }
+
+  out
+}
+
+fmt_millions <- label_dollar(scale = 1 / 1e6, suffix = "M", accuracy = 0.1)
+fmt_thousands <- label_number(scale = 1 / 1e3, suffix = "K", accuracy = 1)
+
+wi_fips <- "55"
+midwest_excl_wi <- c("19", "17", "18", "26", "27")
+big3 <- c("06", "25", "36")
+peer_fips <- c("55", "27", "19", "17", "18", "26")
+
+label_nat <- "National"
+label_nat_excl <- "National (excl. CA, MA, NY)"
+label_midwest <- "Midwest (excl. WI)"
+label_wi <- "Wisconsin"
+
+series_colors <- c(
+  "Wisconsin" = "#c5050c",
+  "Minnesota" = "#1b9e77",
+  "Iowa" = "#7570b3",
+  "Illinois" = "#e7298a",
+  "Indiana" = "#66a61e",
+  "Michigan" = "#e6ab02",
+  "Midwest (excl. WI)" = "grey60",
+  "National (excl. CA, MA, NY)" = "#6baed6",
+  "National" = "black"
+)
+
+state_fips <- readr::read_csv(
+  file.path("..", "..", "0_inputs", "state_fips.csv"),
+  show_col_types = FALSE
+) |>
+  transmute(
+    state_fips = stringr::str_pad(as.character(FIPS_CODE), width = 2, pad = "0"),
+    state_name = stringr::str_to_title(STATE_NAME)
+  )
+
+participation <- readr::read_csv(
+  file.path("..", "..", "0_inputs", "CORI", "fips_participation.csv"),
+  show_col_types = FALSE
+) |>
+  mutate(
+    FIPS = stringr::str_pad(as.character(FIPS), width = 2, pad = "0"),
+    Participation = readr::parse_number(as.character(Participation)),
+    Force = readr::parse_number(as.character(Force)),
+    year = as.integer(year),
+    population = dplyr::if_else(Participation > 0, Force / (Participation / 100), NA_real_)
+  ) |>
+  group_by(FIPS, year) |>
+  summarise(population = mean(population, na.rm = TRUE), .groups = "drop")
+
+county_population <- readRDS(file.path("..", "..", "2_processed_data", "labor_force_county.rds")) |>
+  transmute(
+    analysis_year = as.integer(year),
+    county_fips = stringr::str_pad(county_fips, width = 5, pad = "0"),
+    county_name = county_name,
+    county_population = population
+  )
+
+coverage_audit <- readr::read_csv(
+  file.path("..", "..", "2_processed_data", "cdfi_field_coverage_by_year.csv"),
+  show_col_types = FALSE
+)
+
+cdfi <- readRDS(file.path("..", "..", "2_processed_data", "cdfi_tlr_harmonized.rds"))
+
+wi_counties <- st_read(
+  file.path("..", "..", "0_inputs", "WI_CensusTL_Counties_2019", "WI_CensusTL_Counties_2019.shp"),
+  quiet = TRUE
+) |>
+  transmute(
+    county_fips = GEOID,
+    county_label = NAME,
+    geometry = geometry
+  )
+
+naics_lookup <- readr::read_csv(
+  file.path("..", "..", "0_inputs", "naics_2digit_sectors_2007_2012_2017.csv"),
+  show_col_types = FALSE
+) |>
+  mutate(naics_2digit = stringr::str_pad(as.character(naics_2digit), width = 2, pad = "0")) |>
+  arrange(desc(year)) |>
+  distinct(naics_2digit, .keep_all = TRUE) |>
+  select(naics_2digit, description)
+
+wi_business <- cdfi |>
+  filter(is_business, state_fips == wi_fips)
+
+wi_year <- wi_business |>
+  group_by(analysis_year) |>
+  summarise(
+    events = n_distinct(event_key),
+    loan_count = sum(allocated_loan_count_state, na.rm = TRUE),
+    volume = sum(allocated_amount_state, na.rm = TRUE),
+    avg_loan_size = safe_divide(volume, loan_count),
+    active_orgs = n_distinct(org_id),
+    fallback_share = mean(analysis_year_source == "report_year_fallback", na.rm = TRUE),
+    industry_share = mean(is_usable_industry, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  left_join(
+    participation |>
+      filter(FIPS == wi_fips) |>
+      transmute(analysis_year = year, population),
+    by = "analysis_year"
+  ) |>
+  mutate(
+    loans_per_million = safe_divide(loan_count, population / 1e6),
+    dollars_per_resident = safe_divide(volume, population)
+  )
+
+wi_year_long <- wi_year |>
+  select(analysis_year, loan_count, volume) |>
+  pivot_longer(
+    cols = c(loan_count, volume),
+    names_to = "metric",
+    values_to = "value"
+  ) |>
+  mutate(
+    metric = factor(
+      metric,
+      levels = c("loan_count", "volume"),
+      labels = c("Loan count", "Lending volume")
+    )
+  )
+
+state_year <- cdfi |>
+  filter(is_business, is_usable_state_fips, analysis_year >= 2005) |>
+  group_by(analysis_year, state_fips) |>
+  summarise(
+    loan_count = sum(allocated_loan_count_state, na.rm = TRUE),
+    volume = sum(allocated_amount_state, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  left_join(participation, by = c("state_fips" = "FIPS", "analysis_year" = "year")) |>
+  left_join(state_fips, by = "state_fips") |>
+  mutate(
+    loans_per_million = safe_divide(loan_count, population / 1e6),
+    dollars_per_resident = safe_divide(volume, population)
+  )
+
+peer_year <- state_year |>
+  filter(state_fips %in% peer_fips) |>
+  mutate(state_name = factor(state_name, levels = c("Wisconsin", "Minnesota", "Iowa", "Illinois", "Indiana", "Michigan")))
+
+benchmark_year <- bind_rows(
+  state_year |>
+    group_by(analysis_year) |>
+    summarise(
+      loans_per_million = mean(loans_per_million, na.rm = TRUE),
+      dollars_per_resident = mean(dollars_per_resident, na.rm = TRUE),
+      category = label_nat,
+      .groups = "drop"
+    ),
+  state_year |>
+    filter(!state_fips %in% big3) |>
+    group_by(analysis_year) |>
+    summarise(
+      loans_per_million = mean(loans_per_million, na.rm = TRUE),
+      dollars_per_resident = mean(dollars_per_resident, na.rm = TRUE),
+      category = label_nat_excl,
+      .groups = "drop"
+    ),
+  state_year |>
+    filter(state_fips %in% midwest_excl_wi) |>
+    group_by(analysis_year) |>
+    summarise(
+      loans_per_million = mean(loans_per_million, na.rm = TRUE),
+      dollars_per_resident = mean(dollars_per_resident, na.rm = TRUE),
+      category = label_midwest,
+      .groups = "drop"
+    ),
+  state_year |>
+    filter(state_fips == wi_fips) |>
+    transmute(
+      analysis_year,
+      loans_per_million,
+      dollars_per_resident,
+      category = label_wi
+    )
+) |>
+  mutate(category = factor(category, levels = c(label_nat, label_nat_excl, label_midwest, label_wi)))
+
+county_year <- wi_business |>
+  filter(is_usable_county_fips, !is.na(county_fips), nchar(county_fips) == 5) |>
+  group_by(analysis_year, county_fips) |>
+  summarise(
+    loan_count = sum(allocated_loan_count_county, na.rm = TRUE),
+    volume = sum(allocated_amount_county, na.rm = TRUE),
+    active_orgs = n_distinct(org_id),
+    .groups = "drop"
+  ) |>
+  left_join(
+    county_population,
+    by = c("analysis_year", "county_fips")
+  ) |>
+  mutate(
+    loans_per_100k = safe_divide(loan_count, county_population / 1e5),
+    dollars_per_resident = safe_divide(volume, county_population)
+  )
+
+county_pooled_2018_2020 <- county_year |>
+  filter(analysis_year %in% 2018:2020) |>
+  group_by(county_fips) |>
+  summarise(
+    county_name = first(na.omit(county_name)),
+    avg_annual_loan_count = mean(loan_count, na.rm = TRUE),
+    avg_annual_volume = mean(volume, na.rm = TRUE),
+    avg_population = mean(county_population, na.rm = TRUE),
+    avg_active_orgs = mean(active_orgs, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(
+    loans_per_100k = safe_divide(avg_annual_loan_count, avg_population / 1e5),
+    dollars_per_resident = safe_divide(avg_annual_volume, avg_population)
+  )
+
+county_latest_2022 <- county_year |>
+  filter(analysis_year == 2022) |>
+  select(county_fips, county_name, loan_count, volume, loans_per_100k, dollars_per_resident)
+
+wi_counties_pooled <- wi_counties |>
+  left_join(county_pooled_2018_2020, by = "county_fips")
+
+wi_counties_latest <- wi_counties |>
+  left_join(county_latest_2022, by = "county_fips")
+
+county_top_pooled <- county_pooled_2018_2020 |>
+  filter(!is.na(dollars_per_resident)) |>
+  arrange(desc(dollars_per_resident)) |>
+  slice_head(n = 15) |>
+  mutate(county_name = forcats::fct_reorder(county_name, dollars_per_resident))
+
+wi_sector_2018_2020 <- wi_business |>
+  filter(analysis_year %in% 2018:2020, is_usable_industry) |>
+  mutate(naics_2digit = stringr::str_extract(industry_raw, "^[0-9]{2}")) |>
+  filter(!is.na(naics_2digit)) |>
+  left_join(naics_lookup, by = "naics_2digit") |>
+  mutate(description = coalesce(description, paste("NAICS", naics_2digit))) |>
+  group_by(naics_2digit, description) |>
+  summarise(
+    volume = sum(allocated_amount_state, na.rm = TRUE),
+    loan_count = sum(allocated_loan_count_state, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(volume_share = safe_divide(volume, sum(volume, na.rm = TRUE))) |>
+  arrange(desc(volume_share)) |>
+  slice_head(n = 10) |>
+  mutate(description = forcats::fct_reorder(description, volume_share))
+
+coverage_watchlist <- coverage_audit |>
+  filter(analysis_year >= 2017) |>
+  select(
+    analysis_year,
+    business_event_count,
+    share_usable_industry,
+    share_transaction_year_observed,
+    share_analysis_year_from_report_fallback
+  )
+```
+
+## Data Quality Watchlist
+
+The cleaned backbone is usable, but the yearly series is not equally strong throughout. The table below shows why the notebook leans on pooled county windows and treats the late tail cautiously.
+
+```{r quality_table, echo=FALSE}
+coverage_watchlist |>
+  mutate(
+    share_usable_industry = percent(share_usable_industry, accuracy = 1),
+    share_transaction_year_observed = percent(share_transaction_year_observed, accuracy = 1),
+    share_analysis_year_from_report_fallback = percent(share_analysis_year_from_report_fallback, accuracy = 1)
+  )
+```
+
+The main reading rules for the figures below are:
+
+1. `2016` is absent from the first-pass harmonized series.
+2. `2017` is visibly implausible for Wisconsin under the current `analysis_year` rule and should be read as a year-assignment warning, not a substantive collapse in CDFI activity.
+3. `2021-2022` remain useful for broad tail context, but they depend more heavily on report-year fallback and have weaker industry coverage.
+
+## Figure 1: Wisconsin Annual Business CDFI Lending
+
+This figure is the best starting point for the section because it shows both counts and dollars directly from the Wisconsin business sample.
+
+```{r fig1, echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(wi_year_long, aes(x = analysis_year, y = value)) +
+  geom_line(color = "#c5050c", linewidth = 0.8) +
+  geom_point(color = "#c5050c", size = 1.8) +
+  facet_wrap(~ metric, scales = "free_y", ncol = 1) +
+  scale_x_continuous(breaks = seq(2003, 2022, by = 2)) +
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale())) +
+  labs(
+    title = "Figure 1. Wisconsin Business CDFI Lending by Year",
+    subtitle = "Uses the harmonized business-only sample and the default analysis-year assignment",
+    x = "Analysis year",
+    y = NULL,
+    caption = "Source: Harmonized CDFI TLR intermediate. Note the missing 2016 year and the anomalous 2017 under the current year rule."
+  ) +
+  theme_im()
+```
+
+Figure read: the early and middle years look usable, `2018-2020` form a strong recent run-up, and the `2017` hole makes the crosswalk problem visible instead of hiding it. This is a strong report candidate if the final draft either omits `2017` or explicitly annotates the break.
+
+## Figure 2: Wisconsin Average Loan Size
+
+Average loan size helps separate whether changes are mostly about transaction volume, transaction count, or both.
+
+```{r fig2, echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(wi_year, aes(x = analysis_year, y = avg_loan_size)) +
+  geom_line(color = "#08519c", linewidth = 0.8) +
+  geom_point(color = "#08519c", size = 1.8) +
+  scale_x_continuous(breaks = seq(2003, 2022, by = 2)) +
+  scale_y_continuous(labels = fmt_millions) +
+  labs(
+    title = "Figure 2. Wisconsin Average Business CDFI Loan Size",
+    subtitle = "Annual lending volume divided by annual business loan count",
+    x = "Analysis year",
+    y = "Average loan size",
+    caption = "Source: Harmonized CDFI TLR intermediate."
+  ) +
+  theme_im()
+```
+
+Figure read: this is a useful supporting figure, but it is probably secondary to the count and volume series. It helps explain whether the `2021-2022` rise is broad-based or concentrated in larger loans.
+
+## Figure 3: Wisconsin Active CDFIs in the Business Lending Sample
+
+This is a TLR-based active-lender count rather than the memo's cleaner ILR-style institution count, so it should be pitched as a transaction-backed participation measure.
+
+```{r fig3, echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(wi_year, aes(x = analysis_year, y = active_orgs)) +
+  geom_line(color = "#1b9e77", linewidth = 0.8) +
+  geom_point(color = "#1b9e77", size = 1.8) +
+  scale_x_continuous(breaks = seq(2003, 2022, by = 2)) +
+  scale_y_continuous(labels = comma) +
+  labs(
+    title = "Figure 3. Active CDFI Organizations Lending to Wisconsin Businesses",
+    subtitle = "Unique reporting organizations with at least one Wisconsin business transaction in the year",
+    x = "Analysis year",
+    y = "Active organizations",
+    caption = "Source: Harmonized CDFI TLR intermediate. This is a TLR activity measure, not an ILR reporting count."
+  ) +
+  theme_im()
+```
+
+Figure read: useful as a context panel, but probably not one of the top 3-5 final report figures unless we later reconcile it directly against ILR.
+
+## Figure 4: Peer-State Comparison, Loan Count per Million Residents
+
+The peer-state lens is the clearest way to show whether Wisconsin is high, low, or middle-of-pack once state size is normalized.
+
+```{r fig4, echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(peer_year, aes(x = analysis_year, y = loans_per_million, color = state_name)) +
+  geom_line(linewidth = 0.8) +
+  geom_point(size = 1.3) +
+  scale_color_manual(values = series_colors[names(series_colors) %in% levels(peer_year$state_name)]) +
+  scale_x_continuous(breaks = seq(2005, 2022, by = 2)) +
+  scale_y_continuous(labels = comma) +
+  labs(
+    title = "Figure 4. Business CDFI Loan Count per Million Residents",
+    subtitle = "Wisconsin versus Midwest peers",
+    x = "Analysis year",
+    y = "Loans per 1M residents",
+    color = NULL,
+    caption = "Source: Harmonized CDFI TLR intermediate and participation-based state population estimates."
+  ) +
+  theme_im()
+```
+
+Figure read: this is one of the strongest candidate visuals. It shows Wisconsin's relative position without the scale distortions that come from raw totals.
+
+## Figure 5: Peer-State Comparison, Lending Dollars per Resident
+
+This companion view asks whether Wisconsin's relative standing changes once lending volume is normalized by population instead of counting events.
+
+```{r fig5, echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(peer_year, aes(x = analysis_year, y = dollars_per_resident, color = state_name)) +
+  geom_line(linewidth = 0.8) +
+  geom_point(size = 1.3) +
+  scale_color_manual(values = series_colors[names(series_colors) %in% levels(peer_year$state_name)]) +
+  scale_x_continuous(breaks = seq(2005, 2022, by = 2)) +
+  scale_y_continuous(labels = label_dollar()) +
+  labs(
+    title = "Figure 5. Business CDFI Lending Dollars per Resident",
+    subtitle = "Wisconsin versus Midwest peers",
+    x = "Analysis year",
+    y = "Dollars per resident",
+    color = NULL,
+    caption = "Source: Harmonized CDFI TLR intermediate and participation-based state population estimates."
+  ) +
+  theme_im()
+```
+
+Figure read: also strong. Between Figures 4 and 5, one could plausibly survive into the final report even if the other is dropped for redundancy.
+
+## Figure 6: Wisconsin Versus Benchmark Groups, Loan Count per Million
+
+This view reuses the same benchmark language already used elsewhere in the repository.
+
+```{r fig6, echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(benchmark_year, aes(x = analysis_year, y = loans_per_million, color = category)) +
+  geom_line(linewidth = 0.85) +
+  geom_point(size = 1.3) +
+  scale_color_manual(values = series_colors[c(label_wi, label_midwest, label_nat_excl, label_nat)]) +
+  scale_x_continuous(breaks = seq(2005, 2022, by = 2)) +
+  scale_y_continuous(labels = comma) +
+  labs(
+    title = "Figure 6. Wisconsin Versus Benchmark Groups on Business Loan Count",
+    subtitle = "Average state values, except Wisconsin which is plotted directly",
+    x = "Analysis year",
+    y = "Loans per 1M residents",
+    color = NULL,
+    caption = "Source: Harmonized CDFI TLR intermediate and participation-based state population estimates."
+  ) +
+  theme_im()
+```
+
+Figure read: this is a clean benchmark figure, though it overlaps conceptually with the peer-state line chart. It is probably more useful for slide or memo framing than for a dense report section.
+
+## Figure 7: Wisconsin Versus Benchmark Groups, Lending Dollars per Resident
+
+The dollars-per-resident benchmark view is the natural volume-side counterpart to Figure 6.
+
+```{r fig7, echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(benchmark_year, aes(x = analysis_year, y = dollars_per_resident, color = category)) +
+  geom_line(linewidth = 0.85) +
+  geom_point(size = 1.3) +
+  scale_color_manual(values = series_colors[c(label_wi, label_midwest, label_nat_excl, label_nat)]) +
+  scale_x_continuous(breaks = seq(2005, 2022, by = 2)) +
+  scale_y_continuous(labels = label_dollar()) +
+  labs(
+    title = "Figure 7. Wisconsin Versus Benchmark Groups on Lending Volume",
+    subtitle = "Average state values, except Wisconsin which is plotted directly",
+    x = "Analysis year",
+    y = "Dollars per resident",
+    color = NULL,
+    caption = "Source: Harmonized CDFI TLR intermediate and participation-based state population estimates."
+  ) +
+  theme_im()
+```
+
+Figure read: good benchmark context, but likely a second-tier candidate if we already keep the peer-state comparison.
+
+## Figure 8: Wisconsin County Map, Pooled 2018-2020 Dollars per Resident
+
+Because the tail years are noisier, the most defensible county geography is a pooled recent window rather than a single-year snapshot.
+
+```{r fig8, echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(wi_counties_pooled) +
+  geom_sf(aes(fill = dollars_per_resident), color = "white", linewidth = 0.2) +
+  scale_fill_viridis_c(option = "C", na.value = "grey92", labels = label_dollar()) +
+  labs(
+    title = "Figure 8. Wisconsin CDFI Lending per Resident",
+    subtitle = "Average annual business lending dollars per resident, pooled across 2018-2020",
+    fill = "Dollars per resident",
+    caption = "Source: Harmonized CDFI TLR intermediate and county population estimates from labor_force_county.rds."
+  ) +
+  theme_void(base_size = 11) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    plot.subtitle = element_text(size = 10),
+    legend.position = "right"
+  )
+```
+
+Figure read: this is a strong county candidate. The pooled window is much easier to defend than a literal latest-year map.
+
+## Figure 9: Wisconsin County Map, Pooled 2018-2020 Loan Count per 100,000 Residents
+
+The count-based map checks whether the volume geography is being driven by a few large loans or by broader deal flow.
+
+```{r fig9, echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(wi_counties_pooled) +
+  geom_sf(aes(fill = loans_per_100k), color = "white", linewidth = 0.2) +
+  scale_fill_viridis_c(option = "D", na.value = "grey92", labels = comma) +
+  labs(
+    title = "Figure 9. Wisconsin CDFI Loan Count per 100,000 Residents",
+    subtitle = "Average annual business loan count, pooled across 2018-2020",
+    fill = "Loans per 100k",
+    caption = "Source: Harmonized CDFI TLR intermediate and county population estimates from labor_force_county.rds."
+  ) +
+  theme_void(base_size = 11) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    plot.subtitle = element_text(size = 10),
+    legend.position = "right"
+  )
+```
+
+Figure read: also strong. Between Figures 8 and 9, I would expect at least one county map to survive into the final report.
+
+## Figure 10: Top Wisconsin Counties by Pooled Dollars per Resident
+
+The lollipop view makes the county ranking easier to read than the map alone and can be useful if the report needs a single county-focused figure.
+
+```{r fig10, echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(county_top_pooled, aes(x = dollars_per_resident, y = county_name)) +
+  geom_segment(aes(x = 0, xend = dollars_per_resident, y = county_name, yend = county_name), color = "grey70") +
+  geom_point(color = "#c5050c", size = 2.5) +
+  scale_x_continuous(labels = label_dollar()) +
+  labs(
+    title = "Figure 10. Top Wisconsin Counties by CDFI Lending per Resident",
+    subtitle = "Average annual business lending dollars per resident, pooled across 2018-2020",
+    x = "Dollars per resident",
+    y = NULL,
+    caption = "Source: Harmonized CDFI TLR intermediate and county population estimates from labor_force_county.rds."
+  ) +
+  theme_im()
+```
+
+Figure read: useful companion to the county maps. It may be especially helpful if the final section needs concrete named-county examples.
+
+## Figure 11: Wisconsin Industry Composition Candidate
+
+Industry coverage is good enough in `2018-2020` to support an exploratory sector view, but not strong enough in the later tail to make this a top-tier default figure.
+
+```{r fig11, echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(wi_sector_2018_2020, aes(x = volume_share, y = description)) +
+  geom_col(fill = "#08519c") +
+  scale_x_continuous(labels = percent) +
+  labs(
+    title = "Figure 11. Wisconsin CDFI Lending by Broad Industry",
+    subtitle = "Share of pooled 2018-2020 business lending volume among records with usable industry codes",
+    x = "Share of lending volume",
+    y = NULL,
+    caption = "Source: Harmonized CDFI TLR intermediate. Industry coverage is incomplete and deteriorates after 2020."
+  ) +
+  theme_im()
+```
+
+Figure read: viable as a workshop figure, but probably not one of the strongest final-report candidates unless the narrative specifically needs sector concentration.
+
+## Recommendation
+
+The strongest 3-5 figures from this first pass are:
+
+1. Figure 1, Wisconsin annual business lending volume and count.
+2. Figure 4 or Figure 5, depending on whether the section wants count intensity or dollar intensity.
+3. Figure 8, pooled county dollars per resident.
+4. Figure 9 or Figure 10, depending on whether the county section should prioritize statewide spatial coverage or named-county rankings.
+5. Figure 6 if the final section needs a compact benchmark framing figure instead of full peer-state lines.
+
+The weaker or more conditional figures are:
+
+1. Figure 3, because the institution-count concept is better validated through ILR than TLR.
+2. Figure 7, because it is informative but partly redundant with the peer-state dollar comparison.
+3. Figure 11, because industry coverage is only strong enough for an exploratory pooled view, not a clean tail-year series.

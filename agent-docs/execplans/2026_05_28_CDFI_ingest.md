@@ -21,9 +21,11 @@ The visible outcome is a validated transaction-level artifact at `2_processed_da
 - [x] (2026-05-28 16:26Z) Read `agent-docs/agent_context/docs/draft_es_cdfi.docx` and extracted the implied sample and output expectations that the ingest step needs to support.
 - [x] (2026-05-28 16:26Z) Split the original combined CDFI plan into this ingest plan and the downstream descriptive plan at `agent-docs/execplans/2026_05_28_CDFI.md`.
 - [x] (2026-05-28 16:26Z) Confirmed that the historical `ILR` extract carries explicit `fiscalyear` values from `2003` through `2015`, while the historical `TLR` extract is pooled across years and does not expose a clean `fiscalyear` header field.
-- [ ] Implement the harmonization step and write `2_processed_data/cdfi_tlr_harmonized.rds`.
-- [ ] Write `2_processed_data/cdfi_field_coverage_by_year.csv`.
-- [ ] Write `2_processed_data/cdfi_tlr_harmonization_notes.txt`.
+- [x] (2026-05-28 18:06Z) Implemented `1_code/1_1_transform/1_1_1_cdfi_tlr_harmonize.R` to read the historical and annual TLR releases, harmonize core fields, derive geography, and construct the first-pass comparable series.
+- [x] (2026-05-28 18:06Z) Wrote `2_processed_data/cdfi_tlr_harmonized.rds` with 2,438,107 harmonized rows and 2,434,209 distinct event keys spanning `2003-2022`.
+- [x] (2026-05-28 18:06Z) Wrote `2_processed_data/cdfi_field_coverage_by_year.csv`.
+- [x] (2026-05-28 18:06Z) Wrote `2_processed_data/cdfi_tlr_harmonization_notes.txt`.
+- [x] (2026-05-28 18:06Z) Validated that the first-pass output excludes the staged `2023` NMTC workbook and that the harmonization notes sidecar documents the implemented rules.
 
 ## Surprises & Discoveries
 
@@ -41,6 +43,18 @@ The visible outcome is a validated transaction-level artifact at `2_processed_da
 
 - Observation: The default `Rscript` is not reliable in this environment.
   Evidence: direct `Rscript -e ...` calls failed with a missing `libreadline.6.2.dylib`, while `/usr/local/bin/Rscript -e ...` worked.
+
+- Observation: Many raw project FIPS values were exported without a leading zero, so geography cannot be derived safely without padding.
+  Evidence: in `releaseTLR_fy18.csv`, 32,657 non-missing `projectfipscode_2010` values had length `10` rather than `11`; the harmonization script restores those tract-like codes by left-padding to width `11`.
+
+- Observation: `org_id + trans_id` alone is not a stable cross-file transaction key.
+  Evidence: inspection across the annual TLR releases showed repeated `org_id + trans_id` pairs that differ by report year, amount, and geography; the implemented event key therefore uses `report_year + org_id + trans_id` when report year is available.
+
+- Observation: The cleaned first-pass series has no `2016` rows after the documented year-construction and filtering rules.
+  Evidence: `2_processed_data/cdfi_field_coverage_by_year.csv` runs from `2003` through `2015`, then resumes at `2017`; no `2016` row appears in the coverage audit.
+
+- Observation: The `2021` and `2022`-era rows rely heavily on report-year fallback because transaction dates are frequently missing in the later releases.
+  Evidence: `share_analysis_year_from_report_fallback` is `0.7294` for `analysis_year = 2021` and `0.7997` for `analysis_year = 2022` in `2_processed_data/cdfi_field_coverage_by_year.csv`.
 
 ## Decision Log
 
@@ -64,6 +78,22 @@ The visible outcome is a validated transaction-level artifact at `2_processed_da
   Rationale: the user explicitly requested a separate reproducibility note that documents the harmonization steps outside the code and binary RDS output.
   Date/Author: 2026-05-28 / User + Codex
 
+- Decision: Construct `analysis_year` from transaction date when observed and fall back to report year when transaction date is missing.
+  Rationale: the historical TLR files do not expose a clean report-year field, while the later annual releases contain many missing transaction dates. Keeping both fields and using a documented fallback rule preserves the widest comparable series without pretending one raw field is universally complete.
+  Date/Author: 2026-05-28 / Codex
+
+- Decision: Normalize 10-digit tract-like geography codes to 11 digits by left-padding before deriving state and county FIPS.
+  Rationale: the raw project FIPS exports drop leading zeros for some states, and geography parsing would otherwise assign incorrect state and county identifiers.
+  Date/Author: 2026-05-28 / Codex
+
+- Decision: Define transaction events with `report_year + org_id + trans_id` when report year exists, and use `analysis_year + org_id + trans_id` only for historical rows that lack report year.
+  Rationale: `org_id + trans_id` pairs are reused across report years in the annual releases, so a report-year-aware key is required to avoid conflating distinct events.
+  Date/Author: 2026-05-28 / Codex
+
+- Decision: Preserve multi-geography rows and add equal-split allocation weights for state and county aggregation instead of collapsing them away during ingest.
+  Rationale: some event keys appear on multiple geography rows within the same event; retaining those rows plus transparent allocation weights is safer than hard-coding one geography choice at ingest time.
+  Date/Author: 2026-05-28 / Codex
+
 - Decision: Assume `/usr/local/bin/Rscript` for any scripted validation described in this plan.
   Rationale: the environment-default `Rscript` is broken here and would make the plan fail for a novice.
   Date/Author: 2026-05-28 / Codex
@@ -72,7 +102,9 @@ The visible outcome is a validated transaction-level artifact at `2_processed_da
 
 The planning outcome is now cleaner. This plan isolates the raw harmonization problem and makes the descriptive workbook depend on a documented cleaned-data contract rather than informal notebook-side parsing.
 
-The remaining substantive choice is narrower now: whether the first-pass cleaned sample is explicitly business-only. The `2023` NMTC question has been removed from first-pass scope by user instruction.
+Implementation is now complete for the first-pass ingest. The script `1_code/1_1_transform/1_1_1_cdfi_tlr_harmonize.R` writes three outputs under `2_processed_data`: `cdfi_tlr_harmonized.rds`, `cdfi_field_coverage_by_year.csv`, and `cdfi_tlr_harmonization_notes.txt`. The harmonized RDS contains 2,438,107 rows and 41 columns, spans `2003-2022`, and carries explicit business, amount, geography, and allocation flags for downstream descriptive work.
+
+The remaining substantive choice is narrower now: whether the downstream workbook should use the business-only flag as its default sample without any further audit. The `2023` NMTC question has been removed from first-pass scope by user instruction, and the first-pass outputs clearly document that exclusion.
 
 ## Context and Orientation
 
