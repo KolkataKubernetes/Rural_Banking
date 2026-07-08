@@ -215,15 +215,27 @@ read_2022_tlr <- function(path) {
     )
 }
 
-historical_ilr_years <- readr::read_csv(
+# The historical ILR extract is useful for auditing the published reporting
+# window, but the public file does not preserve the reportYearEnd field that the
+# CIIS documentation references for exact fiscal-year conversion. We therefore
+# use ILR to confirm the historical fiscal-year span and document that the
+# historical TLR fiscal-year assignment remains a proxy based on transaction
+# dates rather than a full organization-specific fiscal-year-end reconstruction.
+historical_ilr_audit <- readr::read_csv(
   paths$historical_ilr,
-  col_select = c(fiscalyear),
+  col_select = c(org_id, fiscalyear),
   col_types = readr::cols(.default = readr::col_character()),
   show_col_types = FALSE,
   progress = FALSE
 ) |>
-  mutate(fiscalyear = suppressWarnings(as.integer(normalize_missing(fiscalyear)))) |>
+  transmute(
+    org_id = normalize_missing(org_id),
+    fiscalyear = suppressWarnings(as.integer(normalize_missing(fiscalyear)))
+  ) |>
   filter(!is.na(fiscalyear)) |>
+  distinct() 
+
+historical_ilr_years <- historical_ilr_audit |>
   distinct(fiscalyear) |>
   arrange(fiscalyear) |>
   pull(fiscalyear)
@@ -252,6 +264,23 @@ tlr_raw <- bind_rows(historical_tlr, annual_tlr) |>
       !is.na(report_year) ~ "report_year_fallback",
       TRUE ~ "missing"
     ),
+    # cdfi_fiscal_year is the revised downstream timing field. For annual
+    # releases, prefer the reported fiscal year directly. For the historical
+    # pooled extract, the public TLR file lacks the fiscalyear field and the
+    # paired public ILR file lacks reportYearEnd, so the best feasible proxy is
+    # still the observed transaction year from dateclosed.
+    cdfi_fiscal_year = dplyr::case_when(
+      !is.na(report_year) ~ report_year,
+      source_family == "historical_tlr_2003_2015" ~ transaction_year,
+      TRUE ~ transaction_year
+    ),
+    cdfi_fiscal_year_source = dplyr::case_when(
+      !is.na(report_year) ~ "report_year",
+      source_family == "historical_tlr_2003_2015" & !is.na(transaction_year) ~
+        "historical_transaction_year_proxy",
+      !is.na(transaction_year) ~ "transaction_year_fallback",
+      TRUE ~ "missing"
+    ),
     project_fips_2000 = normalize_geo_digits(raw_project_fips_2000),
     project_fips_2010 = normalize_geo_digits(raw_project_fips_2010),
     # Prefer the 2010 geography when it exists because that is the only tract
@@ -271,8 +300,11 @@ excluded_summary <- tlr_raw |>
   summarise(
     total_rows = n(),
     rows_missing_analysis_year = sum(is.na(analysis_year)),
+    rows_missing_cdfi_fiscal_year = sum(is.na(cdfi_fiscal_year)),
     rows_before_2003 = sum(!is.na(analysis_year) & analysis_year < 2003),
     rows_after_2022 = sum(!is.na(analysis_year) & analysis_year > 2022),
+    fiscal_rows_before_2003 = sum(!is.na(cdfi_fiscal_year) & cdfi_fiscal_year < 2003),
+    fiscal_rows_after_2022 = sum(!is.na(cdfi_fiscal_year) & cdfi_fiscal_year > 2022),
     historical_rows_before_2003 = sum(
       source_family == "historical_tlr_2003_2015" &
         !is.na(analysis_year) &
@@ -281,12 +313,12 @@ excluded_summary <- tlr_raw |>
   )
 
 cdfi_tlr_harmonized <- tlr_raw |>
-  filter(!is.na(analysis_year), analysis_year >= 2003, analysis_year <= 2022) |>
+  filter(!is.na(cdfi_fiscal_year), cdfi_fiscal_year >= 2003, cdfi_fiscal_year <= 2022) |>
   mutate(
     # org_id + trans_id is not stable across annual releases. Include a year
     # component in the event key so reused identifiers from later submissions
     # do not collapse into a single faux transaction.
-    event_year_for_key = dplyr::coalesce(report_year, analysis_year),
+    event_year_for_key = cdfi_fiscal_year,
     event_key = paste(event_year_for_key, org_id, trans_id, sep = "__")
   ) |>
   group_by(event_key) |>
@@ -327,6 +359,7 @@ cdfi_tlr_harmonized <- tlr_raw |>
     report_year, report_year_raw,
     transaction_date_raw, transaction_date, transaction_year,
     analysis_year, analysis_year_source,
+    cdfi_fiscal_year, cdfi_fiscal_year_source,
     event_year_for_key, event_key, event_row_count, state_geo_row_count,
     county_geo_row_count, is_multi_geo_event,
     org_id, trans_id, original_amount,
@@ -342,7 +375,7 @@ cdfi_tlr_harmonized <- tlr_raw |>
   )
 
 cdfi_field_coverage_by_year <- cdfi_tlr_harmonized |>
-  group_by(analysis_year) |>
+  group_by(cdfi_fiscal_year) |>
   summarise(
     row_count = n(),
     event_count = n_distinct(event_key),
@@ -355,6 +388,10 @@ cdfi_field_coverage_by_year <- cdfi_tlr_harmonized |>
     share_business_investee = mean(is_business, na.rm = TRUE),
     share_usable_industry = mean(is_usable_industry, na.rm = TRUE),
     share_transaction_year_observed = mean(!is.na(transaction_year), na.rm = TRUE),
+    share_cdfi_fiscal_year_from_report_year = mean(
+      cdfi_fiscal_year_source == "report_year",
+      na.rm = TRUE
+    ),
     share_analysis_year_from_report_fallback = mean(
       analysis_year_source == "report_year_fallback",
       na.rm = TRUE
@@ -362,7 +399,7 @@ cdfi_field_coverage_by_year <- cdfi_tlr_harmonized |>
     multi_geo_event_share = mean(is_multi_geo_event, na.rm = TRUE),
     .groups = "drop"
   ) |>
-  arrange(analysis_year)
+  arrange(cdfi_fiscal_year)
 
 multi_geo_summary <- cdfi_tlr_harmonized |>
   summarise(
@@ -402,12 +439,16 @@ harmonization_note_lines <- c(
   "Year construction rules",
   "- report_year comes from fiscalyear in 2018-2021 and tlr_submission_year__c in 2022.",
   "- Historical TLR files do not expose a clean fiscalyear header field, so transaction_date is parsed from dateclosed and transaction_year is derived from that date.",
+  "- Revised preferred downstream year field: cdfi_fiscal_year.",
+  "- cdfi_fiscal_year = report_year when report_year is observed in annual releases.",
+  "- For the historical 2003-2015 pooled TLR extract, cdfi_fiscal_year falls back to transaction_year because the public historical TLR file lacks fiscalyear and the paired public ILR extract does not preserve reportYearEnd for an exact organization-specific fiscal-year-end conversion.",
   "- analysis_year = transaction_year when transaction_date is observed; otherwise analysis_year = report_year.",
-  "- Rows with analysis_year outside 2003-2022 were excluded from the first-pass comparable series.",
+  "- Rows with cdfi_fiscal_year outside 2003-2022 were excluded from the revised comparable series.",
   paste0(
     "- Historical ILR fiscalyear audit confirmed explicit values from ",
     min(historical_ilr_years), " through ", max(historical_ilr_years), "."
   ),
+  "- The CIIS documentation implies a richer fiscal-year conversion based on each CDFI's fiscal year end, but that exact field is not present in the public ILR extract staged in this repo.",
   "",
   "Geography rules",
   "- projectfips fields were normalized by removing non-digits and treating blank / NONE / NULL style values as missing.",
@@ -428,8 +469,11 @@ harmonization_note_lines <- c(
   "Exclusion summary",
   paste0("- Total raw rows inspected: ", format(excluded_summary$total_rows, big.mark = ",")),
   paste0("- Rows missing analysis_year: ", format(excluded_summary$rows_missing_analysis_year, big.mark = ",")),
+  paste0("- Rows missing cdfi_fiscal_year: ", format(excluded_summary$rows_missing_cdfi_fiscal_year, big.mark = ",")),
   paste0("- Rows with analysis_year before 2003: ", format(excluded_summary$rows_before_2003, big.mark = ",")),
   paste0("- Rows with analysis_year after 2022: ", format(excluded_summary$rows_after_2022, big.mark = ",")),
+  paste0("- Rows with cdfi_fiscal_year before 2003: ", format(excluded_summary$fiscal_rows_before_2003, big.mark = ",")),
+  paste0("- Rows with cdfi_fiscal_year after 2022: ", format(excluded_summary$fiscal_rows_after_2022, big.mark = ",")),
   paste0(
     "- Historical rows excluded for pre-2003 transaction dates: ",
     format(excluded_summary$historical_rows_before_2003, big.mark = ",")
@@ -442,6 +486,10 @@ harmonization_note_lines <- c(
   paste0(
     "- Rows using report-year fallback for analysis_year: ",
     format(multi_geo_summary$rows_from_report_year_fallback, big.mark = ",")
+  ),
+  paste0(
+    "- Rows whose cdfi_fiscal_year comes directly from report_year: ",
+    format(sum(cdfi_tlr_harmonized$cdfi_fiscal_year_source == "report_year", na.rm = TRUE), big.mark = ",")
   )
 )
 

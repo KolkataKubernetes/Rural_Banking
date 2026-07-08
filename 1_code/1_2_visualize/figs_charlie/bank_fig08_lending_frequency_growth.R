@@ -58,6 +58,11 @@ fig08_plot <- ggplot(cra_frequency, aes(x = year)) +
       "Under $100K" = "#2E75B6",
       "$100K-$250K" = "#BF4D28",
       "$250K-$1M" = "#4CAF50"
+    ),
+    breaks = c(
+      "Under $100K",
+      "$100K-$250K",
+      "$250K-$1M"
     )
   ) +
   labs(
@@ -65,14 +70,14 @@ fig08_plot <- ggplot(cra_frequency, aes(x = year)) +
     subtitle = "Growth Index (2000 = 100)",
     x = "Year",
     y = "Growth Index (2000 = 100)",
-    color = NULL,
-    caption = paste(
-      "Data: CRA aggregate files.",
-      "Deviation from Charlie's original script: annual Wisconsin population is",
-      "derived from CORI fips_participation.csv because WIPOP.csv was not staged locally.",
-      "The 2000-2004 $250K-$1M series reads staged num_1mil values, which Charlie's",
-      "Python script misses because it references num_1M."
-    )
+    color = NULL
+#    caption = paste(
+#      "Data: CRA aggregate files.",
+#      "Deviation from Charlie's original script: annual Wisconsin population is",
+#      "derived from CORI fips_participation.csv because WIPOP.csv was not staged locally.",
+#      "The 2000-2004 $250K-$1M series reads staged num_1mil values, which Charlie's",
+#      "Python script misses because it references num_1M."
+#    )
   ) +
   charlie_theme() +
   theme(legend.position = "top")

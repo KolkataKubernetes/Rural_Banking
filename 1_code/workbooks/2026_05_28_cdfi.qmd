@@ -369,7 +369,7 @@ ggplot(wi_year, aes(x = analysis_year, y = avg_loan_size)) +
   theme_im()
 ```
 
-Figure read: this is a useful supporting figure, but it is probably secondary to the count and volume series. It helps explain whether the `2021-2022` rise is broad-based or concentrated in larger loans.
+Figure read: this is a useful supporting figure, but it is probably secondary to the count and volume series.
 
 ## Figure 3: Wisconsin Active CDFIs in the Business Lending Sample
 
@@ -415,7 +415,7 @@ ggplot(peer_year, aes(x = analysis_year, y = loans_per_million, color = state_na
   theme_im()
 ```
 
-Figure read: this is one of the strongest candidate visuals. It shows Wisconsin's relative position without the scale distortions that come from raw totals.
+Figure read: this is one of the strongest candidate visuals. It shows Wisconsin's relative position without the scale distortions that come from raw totals (we also did this for some of the venture capital figures).
 
 ## Figure 5: Peer-State Comparison, Lending Dollars per Resident
 
@@ -439,7 +439,7 @@ ggplot(peer_year, aes(x = analysis_year, y = dollars_per_resident, color = state
   theme_im()
 ```
 
-Figure read: also strong. Between Figures 4 and 5, one could plausibly survive into the final report even if the other is dropped for redundancy.
+Figure read: also strong. Should keep one of Figures 4 and 5.
 
 ## Figure 6: Wisconsin Versus Benchmark Groups, Loan Count per Million
 
@@ -463,7 +463,7 @@ ggplot(benchmark_year, aes(x = analysis_year, y = loans_per_million, color = cat
   theme_im()
 ```
 
-Figure read: this is a clean benchmark figure, though it overlaps conceptually with the peer-state line chart. It is probably more useful for slide or memo framing than for a dense report section.
+Figure read: this is a clean benchmark figure, though it overlaps conceptually with the peer-state line chart. It more cleanly shows the trend in prior figures, and should be worth keeping (again - if I can fix the 2016/2017 issue)
 
 ## Figure 7: Wisconsin Versus Benchmark Groups, Lending Dollars per Resident
 
@@ -511,7 +511,7 @@ ggplot(wi_counties_pooled) +
   )
 ```
 
-Figure read: this is a strong county candidate. The pooled window is much easier to defend than a literal latest-year map.
+Figure read: this is a strong county candidate. Though I'll need to check what's going on in Langlade county.
 
 ## Figure 9: Wisconsin County Map, Pooled 2018-2020 Loan Count per 100,000 Residents
 
@@ -576,9 +576,9 @@ ggplot(wi_sector_2018_2020, aes(x = volume_share, y = description)) +
   theme_im()
 ```
 
-Figure read: viable as a workshop figure, but probably not one of the strongest final-report candidates unless the narrative specifically needs sector concentration.
+Figure read: viable as a workshop figure, but probably not one of the strongest final-report candidates unless the narrative specifically needs sector concentration. Also I need to further decompose NAICS 99.
 
-## Recommendation
+## Initial thoughts on strong figures
 
 The strongest 3-5 figures from this first pass are:
 

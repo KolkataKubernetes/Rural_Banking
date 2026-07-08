@@ -65,6 +65,14 @@ Inder A Majumdar: "We don't really analyze personal loans in this report. We mig
 `Working note:`  
 This likely needs a short qualifier so the intro does not overpromise analysis of personal borrowing that the report does not actually cover.
 
+`Proposed resolution:`  
+Replace the current paragraph beginning "Evidence from the Kauffman Firm Survey..." with:
+
+> Evidence from the Kauffman Firm Survey, which tracked a nationally representative group of approximately 5,000 small businesses formed in 2004, shows that debt is the largest single source of financing for new firms. Debt is generally lower cost and well suited for firms with predictable cash flows. Small business owners use a mix of formal business loans and borrowing secured personally by the owner, which underscores how central debt is to small business formation and growth. In the analysis that follows, however, we focus on institution-based lending markets, especially bank and credit union lending, because those sources can be tracked more consistently over time and across places in Wisconsin (Robb and Robinson, 2014).
+
+`Why this should close the thread:`  
+This keeps the personal-loan point as background context, but it explicitly narrows the report's analysis to the debt markets the report actually measures.
+
 ## Thread 4
 
 `Comment ID:` `133`  
@@ -78,6 +86,14 @@ Tessa Conroy: "Somewhere early in this section, I think we need to make the case
 
 `Working note:`  
 The section likely still needs an early framing sentence or short paragraph explaining why branch geography still matters despite online banking.
+
+`Proposed resolution:`  
+Replace the first paragraph under `Lending` with:
+
+> We use call report data to identify trends in institution and branch presence and lending activity across Wisconsin counties. Here, institutions refer to individually licensed banks, while branches refer to individual office locations. One bank can operate many branches, so the two measures capture different components of the banking landscape. Even in an era of online and mobile banking, physical branch locations still matter for many small businesses because relationship-based lending, in-person problem solving, cash handling, and repeated contact with lenders remain tied to place.
+
+`Why this should close the thread:`  
+This inserts the justification Tessa asked for at the start of the section without changing the section's structure or adding a new analytical claim.
 
 ## Thread 5
 
