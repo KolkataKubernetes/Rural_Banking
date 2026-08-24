@@ -1,6 +1,6 @@
 #///////////////////////////////////////////////////////////////////////////////
 #----                    WI Descriptives Intermediates                     ----
-# File name:  bank_fig02_branch_institution_ratio.R
+# File name:  bank_fig02c_branch_institution_ratio.R
 # Author:     Codex (based on Inder Majumdar's workflow)
 # Created:    2026-05-11
 # Purpose:    Replicate Charlie's banking figure 2. Reference file:
@@ -21,7 +21,7 @@ source(file.path("1_code", "1_2_visualize", "figs_charlie", "_charlie_helpers.R"
 
 output_file <- file.path(
   charlie_bank_output_dir,
-  "bank_fig02_branch_institution_ratio.jpeg"
+  "bank_fig02c_branch_institution_ratio.jpeg"
 )
 
 
@@ -49,7 +49,7 @@ fig02_data <- map_dfr(fdic_available_years(), function(year) {
 # 2) Construct Figure
 # -----------------------------
 
-fig02_plot <- ggplot(fig02_data, aes(x = year)) +
+fig02c_plot <- ggplot(fig02_data, aes(x = year)) +
   geom_line(aes(y = median, color = "Median"), linewidth = 1.1) +
   geom_point(aes(y = median, color = "Median"), size = 2) +
   geom_line(
@@ -65,7 +65,7 @@ fig02_plot <- ggplot(fig02_data, aes(x = year)) +
     breaks = seq(min(fig02_data$year), max(fig02_data$year), by = 2)
   ) +
   labs(
-    title = "Figure 2: Median and Mean Branches per Banking Institution (2000-2024)",
+    title = "Figure 2c: Median and Mean Branches per Banking Institution (2000-2024)",
     x = "Year",
     y = "Branches per Institution",
     color = NULL,
@@ -82,4 +82,4 @@ fig02_plot <- ggplot(fig02_data, aes(x = year)) +
 # 3) Save Outputs
 # -----------------------------
 
-save_charlie_fig(fig02_plot, output_file, width = 10, height = 5)
+save_charlie_fig(fig02c_plot, output_file, width = 10, height = 5)

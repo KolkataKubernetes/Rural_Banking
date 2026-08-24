@@ -1,6 +1,6 @@
 #///////////////////////////////////////////////////////////////////////////////
 #----                    WI Descriptives Intermediates                     ----
-# File name:  bank_fig02c_top5_banks_assets.R
+# File name:  bank_fig02d_top5_banks_assets.R
 # Author:     Codex (based on Inder Majumdar's workflow)
 # Created:    2026-05-11
 # Purpose:    Replicate Charlie's banking figure 2c. Reference file:
@@ -21,7 +21,7 @@ source(file.path("1_code", "1_2_visualize", "figs_charlie", "_charlie_helpers.R"
 
 output_file <- file.path(
   charlie_bank_output_dir,
-  "bank_fig02c_top5_banks_assets.jpeg"
+  "bank_fig02d_top5_banks_assets.jpeg"
 )
 
 
@@ -53,7 +53,7 @@ top5_assets <- sod_2024 |>
 # 2) Construct Figure
 # -----------------------------
 
-fig02c_plot <- ggplot(top5_assets, aes(x = asset_b, y = label)) +
+fig02d_plot <- ggplot(top5_assets, aes(x = asset_b, y = label)) +
   geom_col(fill = "#2E75B6", width = 0.6) +
   geom_text(
     aes(label = paste0("$", round(asset_b, 1), "B  (", CITY, ")")),
@@ -62,7 +62,7 @@ fig02c_plot <- ggplot(top5_assets, aes(x = asset_b, y = label)) +
   ) +
   scale_x_continuous(expand = expansion(mult = c(0, 0.2))) +
   labs(
-    title = "Figure 2c: Top 5 Wisconsin-Headquartered Banks by Total Assets (2024)",
+    title = "Figure 2d: Top 5 Wisconsin-Headquartered Banks by Total Assets (2024)",
     x = "Total Assets ($ Billions)",
     y = NULL,
     caption = "Data: FDIC Summary of Deposits"
@@ -74,4 +74,4 @@ fig02c_plot <- ggplot(top5_assets, aes(x = asset_b, y = label)) +
 # 3) Save Outputs
 # -----------------------------
 
-save_charlie_fig(fig02c_plot, output_file, width = 9, height = 4.2)
+save_charlie_fig(fig02d_plot, output_file, width = 9, height = 4.2)

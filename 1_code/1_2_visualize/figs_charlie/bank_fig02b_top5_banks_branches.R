@@ -1,6 +1,6 @@
 #///////////////////////////////////////////////////////////////////////////////
 #----                    WI Descriptives Intermediates                     ----
-# File name:  bank_fig02d_top5_banks_branches.R
+# File name:  bank_fig02b_top5_banks_branches.R
 # Author:     Codex (based on Inder Majumdar's workflow)
 # Created:    2026-05-11
 # Purpose:    Replicate Charlie's banking figure 2d. Reference file:
@@ -21,7 +21,7 @@ source(file.path("1_code", "1_2_visualize", "figs_charlie", "_charlie_helpers.R"
 
 output_file <- file.path(
   charlie_bank_output_dir,
-  "bank_fig02d_top5_banks_branches.jpeg"
+  "bank_fig02b_top5_banks_branches.jpeg"
 )
 
 
@@ -44,12 +44,12 @@ top5_branches <- load_fdic_sod(2024) |>
 # 2) Construct Figure
 # -----------------------------
 
-fig02d_plot <- ggplot(top5_branches, aes(x = branches, y = label)) +
+fig02b_plot <- ggplot(top5_branches, aes(x = branches, y = label)) +
   geom_col(fill = "#2E75B6", width = 0.6) +
   geom_text(aes(label = branches), hjust = -0.1, size = 3.2) +
   scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
   labs(
-    title = "Figure 2d: Top 5 Banks by Number of Wisconsin Branches (2024)",
+    title = "Figure 2b: Top 5 Banks by Number of Wisconsin Branches (2024)",
     x = "Number of Branches in Wisconsin",
     y = NULL,
     caption = "Data: FDIC Summary of Deposits"
@@ -61,4 +61,4 @@ fig02d_plot <- ggplot(top5_branches, aes(x = branches, y = label)) +
 # 3) Save Outputs
 # -----------------------------
 
-save_charlie_fig(fig02d_plot, output_file, width = 9, height = 4.2)
+save_charlie_fig(fig02b_plot, output_file, width = 9, height = 4.2)

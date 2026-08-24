@@ -1,6 +1,6 @@
 #///////////////////////////////////////////////////////////////////////////////
 #----                    WI Descriptives Intermediates                     ----
-# File name:  cu_fig_cu06_commercial_pct_assets.R
+# File name:  cu_fig_cu03_commercial_pct_assets.R
 # Author:     Codex (based on Inder Majumdar's workflow)
 # Created:    2026-05-11
 # Purpose:    Replicate Charlie's credit-union figure CU-6. Reference file:
@@ -21,7 +21,7 @@ source(file.path("1_code", "1_2_visualize", "figs_charlie", "_charlie_helpers.R"
 
 output_file <- file.path(
   charlie_cu_output_dir,
-  "cu_fig_cu06_commercial_pct_assets.jpeg"
+  "cu_fig_cu03_commercial_pct_assets.jpeg"
 )
 
 
@@ -55,7 +55,7 @@ load_ncua_csv_candidate <- function(year, candidates) {
   )
 }
 
-fig_cu06_data <- map_dfr(2010:2024, function(year) {
+fig_cu03_data <- map_dfr(2010:2024, function(year) {
   branch_path <- ncua_branch_file_for_year(year)
 
   if (!file.exists(branch_path)) {
@@ -119,7 +119,7 @@ fig_cu06_data <- map_dfr(2010:2024, function(year) {
 
 # Plot in long form so Wisconsin and national-excluding-Wisconsin appear as
 # directly comparable lines on the same axes.
-fig_cu06_long <- fig_cu06_data |>
+fig_cu03_long <- fig_cu03_data |>
   pivot_longer(
     cols = c(wi_pct_assets, us_ex_wi_pct_assets),
     names_to = "series",
@@ -138,13 +138,13 @@ fig_cu06_long <- fig_cu06_data |>
 # 2) Construct Figure
 # -----------------------------
 
-fig_cu06_plot <- ggplot(
-  fig_cu06_long,
+fig_cu03_plot <- ggplot(
+  fig_cu03_long,
   aes(x = year, y = pct_assets, color = series)
 ) +
   geom_line(linewidth = 1.1) +
   geom_point(size = 2) +
-  scale_x_continuous(breaks = fig_cu06_data$year) +
+  scale_x_continuous(breaks = fig_cu03_data$year) +
   scale_y_continuous(
     limits = c(0, 15),
     breaks = seq(0, 15, by = 2.5),
@@ -157,7 +157,7 @@ fig_cu06_plot <- ggplot(
     )
   ) +
   labs(
-    title = "Figure CU-6: Commercial Lending as % of Total Assets",
+    title = "Figure CU-3: Commercial Lending as % of Total Assets",
     subtitle = "Wisconsin Credit Unions, 2010-2024",
     x = "Year",
     y = "Commercial Loans as % of Total Assets",
@@ -179,4 +179,4 @@ fig_cu06_plot <- ggplot(
 # 3) Save Outputs
 # -----------------------------
 
-save_charlie_fig(fig_cu06_plot, output_file, width = 9, height = 5)
+save_charlie_fig(fig_cu03_plot, output_file, width = 9, height = 5)

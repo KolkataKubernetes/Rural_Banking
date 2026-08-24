@@ -1,0 +1,224 @@
+{"kind":"deck","id":"pr/bygwjx","name":"Deck"}
+{"kind":"layout","layoutId":"/ppt/slideMasters/slideMaster1.xml","name":"","type":"master","placeholders":[{"name":"title","type":"title","textPreview":"Click to edit Master title style"},{"name":"body","type":"body","textPreview":"Click to edit Master text styles | Second level | Third level | Fourth level | Fifth level"},{"name":"dateTime","type":"dateTime","textPreview":"8/5/26"},{"name":"footer","type":"footer"},{"name":"slideNumber","type":"slideNumber","textPreview":"‹#›"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout1.xml","name":"Title with headline blocking","placeholders":[{"name":"body","type":"body","textPreview":"Title using"},{"name":"body","type":"body","textPreview":"Headline blocking"},{"name":"body","type":"body","textPreview":"subtitle"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout2.xml","name":"Title without headline blocking","placeholders":[{"name":"body","type":"body","textPreview":"subtitle"},{"name":"title","type":"title","textPreview":"Title of Presentation Goes Here"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout3.xml","name":"Slide with bullets","placeholders":[{"name":"body","type":"body","textPreview":"Click to edit Master text styles | Second level | Third level | Fourth level | Fifth level"},{"name":"body","type":"body","textPreview":"Slide with bullets"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout4.xml","name":"Slide with photo and bullets - 1","placeholders":[{"name":"picture","type":"picture","textPreview":"Click icon to add picture"},{"name":"body","type":"body","textPreview":"Click to edit Master text styles | Second level | Third level | Fourth level | Fifth level"},{"name":"body","type":"body","textPreview":"Slide with photo and a few bullets"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout5.xml","name":"Slide with photo and bullets - 2","placeholders":[{"name":"picture","type":"picture","textPreview":"Click icon to add picture"},{"name":"body","type":"body","textPreview":"Click to edit Master text styles | Second level | Third level | Fourth level | Fifth level"},{"name":"body","type":"body","textPreview":"Slide with photo and a few bullets"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout6.xml","name":"Slide with chart and bullets - 1","placeholders":[{"name":"body","type":"body","textPreview":"Click to edit Master text styles | Second level | Third level | Fourth level | Fifth level"},{"name":"body","type":"body","textPreview":"Slide with chart and a few bullets"},{"name":"chart","type":"chart","textPreview":"Click icon to add chart"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout7.xml","name":"Slide with larger chart and bullets","placeholders":[{"name":"body","type":"body","textPreview":"Click to edit Master text styles | Second level | Third level | Fourth level | Fifth level"},{"name":"body","type":"body","textPreview":"Slide with larger chart and a few bullets"},{"name":"chart","type":"chart","textPreview":"Click icon to add chart"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout8.xml","name":"Basic text-only slide with footer","placeholders":[{"name":"title","type":"title","textPreview":"Click to edit Master title style"},{"name":"text placeholder 2","textPreview":"Click to edit Master text styles | Second level | Third level | Fourth level | Fifth level"},{"name":"dateTime","type":"dateTime","textPreview":"8/5/26"},{"name":"footer","type":"footer"},{"name":"slideNumber","type":"slideNumber","textPreview":"‹#›"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout9.xml","name":"Blank"}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout10.xml","name":"Title Slide","placeholders":[{"name":"subtitle","type":"subtitle","textPreview":"Click to edit Master subtitle style"},{"name":"dateTime","type":"dateTime","textPreview":"8/5/26"},{"name":"footer","type":"footer"},{"name":"slideNumber","type":"slideNumber","textPreview":"‹#›"}]}
+{"kind":"slide","id":"sl/y90nupkv","slide":1,"title":"August 2026","textShapes":2}
+{"kind":"shape","id":"sh/547294r6","slide":1,"name":"Rectangle 1","bbox":[0,708,1280,12]}
+{"kind":"shape","id":"sh/7qp4be9c","slide":1,"name":"Straight Connector 3","bbox":[966.4,394.4,500.8,216]}
+{"kind":"shape","id":"sh/65g3298r","slide":1,"name":"Straight Connector 4","bbox":[376,650.4,500.8,216]}
+{"kind":"shape","id":"sh/ts7md4r2","slide":1,"name":"Straight Connector 5","bbox":[957.6,388,500.8,216]}
+{"kind":"shape","id":"sh/fu94fe98","slide":1,"name":"Straight Connector 7","bbox":[380,637.6,500.8,216]}
+{"kind":"textbox","id":"sh/utg3698n","slide":1,"name":"TextBox 8","text":"August 2026","textPreview":"August 2026","textChars":11,"textLines":1,"bbox":[194.36,488,498.4,48.47]}
+{"kind":"shape","id":"sh/wn6dc7eh","slide":1,"name":"Straight Connector 9","bbox":[208.8,464.76,164,0]}
+{"kind":"shape","id":"sh/sfqdkrep","slide":1,"name":"Straight Connector 17","bbox":[-91.87,-22.98,720.52,310.71]}
+{"kind":"shape","id":"sh/3qxwn2x8","slide":1,"name":"Straight Connector 16","bbox":[-91.87,-12.14,720.52,310.71]}
+{"kind":"textbox","id":"sh/sryl4zqx","slide":1,"name":"TextBox 6","text":"Six Things to Know\nAbout Wisconsin\nSmall-Business Finance","textPreview":"Six Things to Know | About Wisconsin | Small-Business Finance","textChars":57,"textLines":3,"bbox":[194.36,264.39,817.15,355.2]}
+{"kind":"image","id":"im/mh4v6dwr","slide":1,"name":"Picture 2","bbox":[892.56,597.79,356.8,98.01]}
+{"kind":"image","id":"im/qt4fitgz","slide":1,"name":"Picture 18","bbox":[-11.02,-18.88,627.43,272.18]}
+{"kind":"notes","id":"nt/y90nupkv","slide":1,"text":"[Sources]\nContent: 2026 Small Business Finance Report (final report supplied by the author).\nEditorial wording: Wisc_smallbiz_finance_soundbites.pptx.\nVisual template: extension_example.pptx, source slide 1."}
+{"kind":"slide","id":"sl/hwbqtkby","slide":2,"title":"1.  Wisconsin has nearly half as many banking institutions as it did in 2000.","textShapes":1}
+{"kind":"shape","id":"sh/9072xkry","slide":2,"name":"Rectangle 1","bbox":[0,708,1280,12]}
+{"kind":"shape","id":"sh/b29kza94","slide":2,"name":"Straight Connector 3","bbox":[966.4,394.4,500.8,216]}
+{"kind":"shape","id":"sh/a10jqpsj","slide":2,"name":"Straight Connector 4","bbox":[376,650.4,500.8,216]}
+{"kind":"shape","id":"sh/x4r21kru","slide":2,"name":"Straight Connector 5","bbox":[957.6,388,500.8,216]}
+{"kind":"shape","id":"sh/r65knqtk","slide":2,"name":"Straight Connector 7","bbox":[380,637.6,500.8,216]}
+{"kind":"shape","id":"sh/wjy9sry9","slide":2,"name":"Straight Connector 13","bbox":[-369.64,-31.64,720.52,310.71]}
+{"kind":"shape","id":"sh/xk7qlczu","slide":2,"name":"Straight Connector 14","bbox":[-369.64,-20.8,720.52,310.71]}
+{"kind":"textbox","id":"sh/fadgzu58","slide":2,"name":"TextBox 25","text":"1.  Wisconsin has nearly half as many banking institutions as it did in 2000.","textPreview":"1.  Wisconsin has nearly half as many banking institutions as it did in 2000.","textChars":77,"textLines":1,"bbox":[233.96,126.42,952.67,319.89]}
+{"kind":"image","id":"im/ls3yt036","slide":2,"name":"Picture 12","bbox":[-11.36,-4.72,296.45,128.6]}
+{"kind":"image","id":"im/mtwfm5kr","slide":2,"name":"Picture 2","bbox":[892.56,597.79,356.8,98.01]}
+{"kind":"notes","id":"nt/hwbqtkby","slide":2,"text":"[Sources]\n2026 Small Business Finance Report, p. 6: institutions fell from 365 in 2000 to 193 in 2024 (−47.1%).\nEditorial wording: Wisc_smallbiz_finance_soundbites.pptx, Fact 1.\nVisual template: extension_example.pptx, source slide 2."}
+{"kind":"slide","id":"sl/ofy9wn61","slide":3,"title":"Nearly","textShapes":1}
+{"kind":"shape","id":"sh/cza94vmx","slide":3,"name":"Rectangle 1","bbox":[0,708,1280,12]}
+{"kind":"shape","id":"sh/298ryl4v","slide":3,"name":"Straight Connector 3","bbox":[966.4,394.4,500.8,216]}
+{"kind":"shape","id":"sh/3ah8rqlg","slide":3,"name":"Straight Connector 4","bbox":[376,650.4,500.8,216]}
+{"kind":"shape","id":"sh/obq90bml","slide":3,"name":"Straight Connector 5","bbox":[957.6,388,500.8,216]}
+{"kind":"shape","id":"sh/m5cra54z","slide":3,"name":"Straight Connector 7","bbox":[380,637.6,500.8,216]}
+{"kind":"shape","id":"sh/v6l4jq94","slide":3,"name":"Straight Connector 13","bbox":[-369.64,-31.64,720.52,310.71]}
+{"kind":"shape","id":"sh/a5c3ql8z","slide":3,"name":"Straight Connector 14","bbox":[-369.64,-20.8,720.52,310.71]}
+{"kind":"shape","id":"sh/byd032h8","slide":3,"name":"Straight Connector 35","bbox":[807.97,228.96,0,225.73]}
+{"kind":"shape","id":"sh/ax4zax0n","slide":3,"name":"Oval 36","bbox":[613.35,308.21,78.82,67.23]}
+{"kind":"shape","id":"sh/hwzihwzi","slide":3,"name":"Oval 37","bbox":[923.67,308.21,78.82,67.23]}
+{"kind":"shape","id":"sh/wv61obyx","slide":3,"name":"Straight Connector 38","bbox":[806.73,230.52,0,225.73]}
+{"kind":"shape","id":"sh/4nuhs7uh","slide":3,"name":"Oval 39","bbox":[880.22,214.05,78.82,67.23]}
+{"kind":"shape","id":"sh/po3ilcvm","slide":3,"name":"Oval 40","bbox":[656.8,402.37,78.82,67.23]}
+{"kind":"shape","id":"sh/21szqxcb","slide":3,"name":"Straight Connector 41","bbox":[807.92,227.92,0,225.73]}
+{"kind":"shape","id":"sh/32l0j2dw","slide":3,"name":"Oval 42","bbox":[768.51,437.27,78.82,67.23]}
+{"kind":"shape","id":"sh/cruhwrud","slide":3,"name":"Oval 43","bbox":[768.51,179.16,78.82,67.23]}
+{"kind":"shape","id":"sh/ds3ipcvy","slide":3,"name":"Straight Connector 44","bbox":[807.19,230.14,0,225.73]}
+{"kind":"shape","id":"sh/qpczuhc7","slide":3,"name":"Oval 45","bbox":[877.77,401.76,78.82,67.23]}
+{"kind":"shape","id":"sh/rql0nmds","slide":3,"name":"Oval 46","bbox":[659.26,214.66,78.82,67.23]}
+{"kind":"shape","id":"sh/0ve10ru9","slide":3,"name":"Oval 47","bbox":[768.51,309.39,78.82,67.23]}
+{"kind":"textbox","id":"sh/czmhc7id","slide":3,"name":"TextBox 34","text":"Nearly\nHALF \nas many banking institutions operate in Wisconsin as in 2000","textPreview":"Nearly | HALF  | as many banking institutions operate in Wisconsin as in 2000","textChars":73,"textLines":3,"bbox":[291.96,145.91,319.38,371.59]}
+{"kind":"image","id":"im/ut07a54n","slide":3,"name":"Picture 12","bbox":[-11.36,-4.72,296.45,128.6]}
+{"kind":"image","id":"im/sfal4n25","slide":3,"name":"Picture 2","bbox":[892.56,597.79,356.8,98.01]}
+{"kind":"image","id":"im/tgjmxsjq","slide":3,"name":"Graphic 57","bbox":[629.09,291.97,59.54,64.81]}
+{"kind":"image","id":"im/6ds32xkz","slide":3,"name":"Graphic 58","bbox":[673.96,199.81,59.54,64.81]}
+{"kind":"image","id":"im/re14vi1k","slide":3,"name":"Graphic 59","bbox":[779.8,165.9,59.54,64.81]}
+{"kind":"image","id":"im/g3ul8721","slide":3,"name":"Graphic 60","bbox":[890.9,198.35,59.54,64.81]}
+{"kind":"image","id":"im/143m1cjm","slide":3,"name":"Graphic 61","bbox":[938.1,295.28,59.54,64.81]}
+{"kind":"image","id":"im/ehc36xkv","slide":3,"name":"Graphic 62","bbox":[658.83,392.03,59.54,64.81]}
+{"kind":"image","id":"im/f2l4z21g","slide":3,"name":"Graphic 63","bbox":[886.52,392.03,59.54,64.81]}
+{"kind":"image","id":"im/o7ulw72d","slide":3,"name":"Graphic 64","bbox":[770.05,426.61,59.54,64.81]}
+{"kind":"notes","id":"nt/ofy9wn61","slide":3,"text":"[Sources]\n2026 Small Business Finance Report, p. 6: 365 institutions in 2000 versus 193 in 2024; branches fell from 2,116 to 1,661.\nVisual template: extension_example.pptx, source slide 16."}
+{"kind":"slide","id":"sl/jyx0ra1s","slide":4,"title":"2.  A branch count can hide a long drive.","textShapes":1}
+{"kind":"shape","id":"sh/1cj2d8b6","slide":4,"name":"Rectangle 1","bbox":[0,708,1280,12]}
+{"kind":"shape","id":"sh/rm1k7yt4","slide":4,"name":"Straight Connector 3","bbox":[966.4,394.4,500.8,216]}
+{"kind":"shape","id":"sh/ql8jytsj","slide":4,"name":"Straight Connector 4","bbox":[376,650.4,500.8,216]}
+{"kind":"shape","id":"sh/doj29oba","slide":4,"name":"Straight Connector 5","bbox":[957.6,388,500.8,216]}
+{"kind":"shape","id":"sh/3ihk3et8","slide":4,"name":"Straight Connector 7","bbox":[380,637.6,500.8,216]}
+{"kind":"shape","id":"sh/w72947yt","slide":4,"name":"Straight Connector 13","bbox":[-369.64,-31.64,720.52,310.71]}
+{"kind":"shape","id":"sh/x8vaxsfe","slide":4,"name":"Straight Connector 14","bbox":[-369.64,-20.8,720.52,310.71]}
+{"kind":"textbox","id":"sh/fu9sn2p0","slide":4,"name":"TextBox 25","text":"2.  A branch count can hide a long drive.","textPreview":"2.  A branch count can hide a long drive.","textChars":41,"textLines":1,"bbox":[233.96,126.42,952.67,319.89]}
+{"kind":"image","id":"im/x83qdojq","slide":4,"name":"Picture 12","bbox":[-11.36,-4.72,296.45,128.6]}
+{"kind":"image","id":"im/q9876pkv","slide":4,"name":"Picture 2","bbox":[892.56,597.79,356.8,98.01]}
+{"kind":"notes","id":"nt/jyx0ra1s","slide":4,"text":"[Sources]\n2026 Small Business Finance Report, p. 10: five- and ten-mile lending deserts persist, especially in northern Wisconsin.\nVisual template: extension_example.pptx, source slide 2."}
+{"kind":"slide","id":"sl/i107q5of","slide":5,"title":"5","textShapes":4}
+{"kind":"shape","id":"sh/dgbulwnm","slide":5,"name":"Rectangle 1","bbox":[0,708,1280,12]}
+{"kind":"shape","id":"sh/z2tcnm5s","slide":5,"name":"Straight Connector 3","bbox":[966.4,394.4,500.8,216]}
+{"kind":"shape","id":"sh/yhkbe1o7","slide":5,"name":"Straight Connector 4","bbox":[376,650.4,500.8,216]}
+{"kind":"shape","id":"sh/l4bupwny","slide":5,"name":"Straight Connector 5","bbox":[957.6,388,500.8,216]}
+{"kind":"shape","id":"sh/n6dcr65o","slide":5,"name":"Straight Connector 7","bbox":[380,637.6,500.8,216]}
+{"kind":"shape","id":"sh/k7mxovud","slide":5,"name":"Straight Connector 13","bbox":[-369.64,-31.64,720.52,310.71]}
+{"kind":"shape","id":"sh/58vehgvy","slide":5,"name":"Straight Connector 14","bbox":[-369.64,-20.8,720.52,310.71]}
+{"kind":"textbox","id":"sh/sb6xsvu9","slide":5,"name":"TextBox 17","text":"5  ","textPreview":"5","textChars":3,"textLines":1,"bbox":[669.49,216.87,144.7,138.94]}
+{"kind":"textbox","id":"sh/tcfel0vu","slide":5,"name":"TextBox 18","text":"10  ","textPreview":"10","textChars":4,"textLines":1,"bbox":[880.67,215.95,181.43,138.94]}
+{"kind":"textbox","id":"sh/hgrmpwj2","slide":5,"name":"TextBox 19","text":"AND ","textPreview":"AND","textChars":4,"textLines":1,"bbox":[791.34,216.87,131.92,126.02]}
+{"kind":"textbox","id":"sh/j6dwfqds","slide":5,"name":"TextBox 16","text":"MILE LENDING DESERTS span northern Wisconsin","textPreview":"MILE LENDING DESERTS span northern Wisconsin","textChars":44,"textLines":1,"bbox":[669.49,356.54,444.78,153.6]}
+{"kind":"image","id":"im/zu9wb6pc","slide":5,"name":"Picture 12","bbox":[-11.36,-4.72,296.45,128.6]}
+{"kind":"image","id":"im/kf2x4b6x","slide":5,"name":"Picture 6","alt":"University of Wisconsin–Madison Extension logo","bbox":[885.63,604.8,225.46,91.2]}
+{"kind":"image","id":"im/lgbydg7i","slide":5,"name":"Picture 21","alt":"Wisconsin five-mile and ten-mile bank lending deserts","bbox":[107.68,166.56,553.01,347.47]}
+{"kind":"notes","id":"nt/i107q5of","slide":5,"text":"[Sources]\nMap and metric: 2026 Small Business Finance Report, p. 10, Figure 4. The report notes that some residents may travel more than 20 miles round trip to reach a branch.\nVisual template: extension_example.pptx, source slide 11; UW Extension logo inherited from the reference deck."}
+{"kind":"slide","id":"sl/x8f69ofe","slide":6,"title":"3.  Small-business lending contracted—and small loans dominate what remains.","textShapes":1}
+{"kind":"shape","id":"sh/yhg7epsj","slide":6,"name":"Rectangle 1","bbox":[0,708,1280,12]}
+{"kind":"shape","id":"sh/87ipkzal","slide":6,"name":"Straight Connector 3","bbox":[966.4,394.4,500.8,216]}
+{"kind":"shape","id":"sh/98rqt4r6","slide":6,"name":"Straight Connector 4","bbox":[376,650.4,500.8,216]}
+{"kind":"shape","id":"sh/ml07i9sv","slide":6,"name":"Straight Connector 5","bbox":[957.6,388,500.8,216]}
+{"kind":"shape","id":"sh/oryp8fah","slide":6,"name":"Straight Connector 7","bbox":[380,637.6,500.8,216]}
+{"kind":"shape","id":"sh/5svutgni","slide":6,"name":"Straight Connector 13","bbox":[-369.64,-31.64,720.52,310.71]}
+{"kind":"shape","id":"sh/47mt0b6x","slide":6,"name":"Straight Connector 14","bbox":[-369.64,-20.8,720.52,310.71]}
+{"kind":"textbox","id":"sh/ydgnit07","slide":6,"name":"TextBox 25","text":"3.  Small-business lending contracted—and small loans dominate what remains.","textPreview":"3.  Small-business lending contracted—and small loans dominate what remains.","textChars":76,"textLines":1,"bbox":[233.96,126.42,952.67,319.89]}
+{"kind":"image","id":"im/ofq9wfal","slide":6,"name":"Picture 12","bbox":[-11.36,-4.72,296.45,128.6]}
+{"kind":"image","id":"im/3id8b69w","slide":6,"name":"Picture 2","bbox":[892.56,597.79,356.8,98.01]}
+{"kind":"notes","id":"nt/x8f69ofe","slide":6,"text":"[Sources]\n2026 Small Business Finance Report, p. 12: Wisconsin small-business lending remained below pre-crisis levels in 2023.\nEditorial wording: Wisc_smallbiz_finance_soundbites.pptx, Fact 2, limited to the CRA loan-size range supported by the final report.\nVisual template: extension_example.pptx, source slide 2."}
+{"kind":"slide","id":"sl/gnmp4jqx","slide":7,"title":"91.5%","textShapes":3}
+{"kind":"textbox","id":"sh/s3ml0v61","slide":7,"name":"TextBox 25","text":"91.5% \nof loans ","textPreview":"91.5%  | of loans","textChars":16,"textLines":2,"bbox":[391.53,343.61,224.43,74.32]}
+{"kind":"textbox","id":"sh/f6xkvq5c","slide":7,"name":"TextBox 28","text":"30.6% \nof dollars","textPreview":"30.6%  | of dollars","textChars":17,"textLines":2,"bbox":[691.13,345.48,248.89,74.32]}
+{"kind":"shape","id":"sh/cb2tkvap","slide":7,"name":"Rectangle 1","bbox":[0,708,1280,12]}
+{"kind":"shape","id":"sh/n6x0fqlo","slide":7,"name":"Straight Connector 13","bbox":[-369.64,-31.64,720.52,310.71]}
+{"kind":"shape","id":"sh/25ojml43","slide":7,"name":"Straight Connector 14","bbox":[-369.64,-20.8,720.52,310.71]}
+{"kind":"textbox","id":"sh/4fm1wb6p","slide":7,"name":"TextBox 21","text":"Loans under $100,000 dominate by count—not by dollars.","textPreview":"Loans under $100,000 dominate by count—not by dollars.","textChars":54,"textLines":1,"bbox":[315.84,123.88,720.52,99.2]}
+{"kind":"shape","id":"sh/zedcfa9g","slide":7,"name":"Straight Connector 4","bbox":[966.4,394.4,500.8,216]}
+{"kind":"shape","id":"sh/kzmdova1","slide":7,"name":"Straight Connector 5","bbox":[376,650.4,500.8,216]}
+{"kind":"shape","id":"sh/l0vuh0rm","slide":7,"name":"Straight Connector 6","bbox":[957.6,388,500.8,216]}
+{"kind":"shape","id":"sh/eh0ba1sr","slide":7,"name":"Straight Connector 7","bbox":[380,637.6,500.8,216]}
+{"kind":"chart","id":"ch/d0je98je","slide":7,"name":"Chart 24","chartType":"doughnut","bbox":[315.84,240.96,381.66,310.71]}
+{"kind":"chart","id":"ch/czqx03i9","slide":7,"name":"Chart 27","chartType":"doughnut","bbox":[624.75,240.96,381.66,310.71]}
+{"kind":"image","id":"im/wbylkfmp","slide":7,"name":"Picture 12","bbox":[-11.36,-4.72,296.45,128.6]}
+{"kind":"image","id":"im/ydg3m54v","slide":7,"name":"Picture 3","bbox":[892.56,597.79,356.8,98.01]}
+{"kind":"notes","id":"nt/gnmp4jqx","slide":7,"text":"[Sources]\n2026 Small Business Finance Report, p. 12: in 2023, loans under $100,000 were 91.5% of CRA loan count but 30.6% of dollar volume.\nVisual template: extension_example.pptx, source slide 15."}
+{"kind":"slide","id":"sl/fu1gfa1s","slide":8,"title":"4.  Credit unions consolidated while expanding their branch networks.","textShapes":1}
+{"kind":"shape","id":"sh/18byd4zy","slide":8,"name":"Rectangle 1","bbox":[0,708,1280,12]}
+{"kind":"shape","id":"sh/ri9g7uhw","slide":8,"name":"Straight Connector 3","bbox":[966.4,394.4,500.8,216]}
+{"kind":"shape","id":"sh/6h0fypgb","slide":8,"name":"Straight Connector 4","bbox":[376,650.4,500.8,216]}
+{"kind":"shape","id":"sh/tkby9kzm","slide":8,"name":"Straight Connector 5","bbox":[957.6,388,500.8,216]}
+{"kind":"shape","id":"sh/je9g3ahk","slide":8,"name":"Straight Connector 7","bbox":[380,637.6,500.8,216]}
+{"kind":"shape","id":"sh/0jydkreh","slide":8,"name":"Straight Connector 13","bbox":[-369.64,-31.64,720.52,310.71]}
+{"kind":"shape","id":"sh/1k7edwv2","slide":8,"name":"Straight Connector 14","bbox":[-369.64,-20.8,720.52,310.71]}
+{"kind":"textbox","id":"sh/jq5w365o","slide":8,"name":"TextBox 25","text":"4.  Credit unions consolidated while expanding their branch networks.","textPreview":"4.  Credit unions consolidated while expanding their branch networks.","textChars":69,"textLines":1,"bbox":[233.96,126.42,952.67,319.89]}
+{"kind":"image","id":"im/xoza9s3m","slide":8,"name":"Picture 12","bbox":[-11.36,-4.72,296.45,128.6]}
+{"kind":"image","id":"im/uhsbqhkf","slide":8,"name":"Picture 2","bbox":[892.56,597.79,356.8,98.01]}
+{"kind":"notes","id":"nt/fu1gfa1s","slide":8,"text":"[Sources]\n2026 Small Business Finance Report, pp. 15–16: Wisconsin credit unions declined from 191 institutions in 2010 to 140 in 2024, while branches rose from 546 to 696.\nEditorial wording: Wisc_smallbiz_finance_soundbites.pptx, Fact 3.\nVisual template: extension_example.pptx, source slide 2."}
+{"kind":"slide","id":"sl/udsvah03","slide":9,"title":"6.5:1","textShapes":2}
+{"kind":"shape","id":"sh/1cfmhgne","slide":9,"name":"Rectangle 1","bbox":[0,708,1280,12]}
+{"kind":"shape","id":"sh/nex4jq5k","slide":9,"name":"Straight Connector 3","bbox":[966.4,394.4,500.8,216]}
+{"kind":"shape","id":"sh/mdonql4z","slide":9,"name":"Straight Connector 4","bbox":[376,650.4,500.8,216]}
+{"kind":"shape","id":"sh/9gzml0nq","slide":9,"name":"Straight Connector 5","bbox":[957.6,388,500.8,216]}
+{"kind":"shape","id":"sh/bih4na5w","slide":9,"name":"Straight Connector 7","bbox":[380,637.6,500.8,216]}
+{"kind":"shape","id":"sh/cnu1kzyd","slide":9,"name":"Straight Connector 13","bbox":[-369.64,-31.64,720.52,310.71]}
+{"kind":"shape","id":"sh/do3id4fy","slide":9,"name":"Straight Connector 14","bbox":[-369.64,-20.8,720.52,310.71]}
+{"kind":"textbox","id":"sh/98ji147e","slide":9,"name":"TextBox 19","text":"6.5:1","textPreview":"6.5:1","textChars":5,"textLines":1,"bbox":[285.08,216.81,413.99,195.49]}
+{"kind":"textbox","id":"sh/87a18zqt","slide":9,"name":"TextBox 20","text":"branches per credit union\nin 2024\nup from 2.8:1 in 2010","textPreview":"branches per credit union | in 2024 | up from 2.8:1 in 2010","textChars":55,"textLines":3,"bbox":[285,375,315,137.6]}
+{"kind":"image","id":"im/ofmpgve5","slide":9,"name":"Picture 12","bbox":[-11.36,-4.72,296.45,128.6]}
+{"kind":"image","id":"im/9gvq9gfq","slide":9,"name":"Picture 2","bbox":[892.56,597.79,356.8,98.01]}
+{"kind":"image","id":"im/bix8bqxw","slide":9,"name":"Graphic 23","bbox":[614.8,119.99,375.74,375.74]}
+{"kind":"notes","id":"nt/udsvah03","slide":9,"text":"[Sources]\n2026 Small Business Finance Report, p. 16, Figure CU-2: 696 branches and 140 institutions in 2024; approximately 6.5 branches per institution, versus 2.8 in 2010.\nVisual template: extension_example.pptx, source slide 18."}
+{"kind":"slide","id":"sl/m90b6t0r","slide":10,"title":"5.  Credit unions are lending more—but not more often.","textShapes":1}
+{"kind":"shape","id":"sh/xc3mho32","slide":10,"name":"Rectangle 1","bbox":[0,708,1280,12]}
+{"kind":"shape","id":"sh/zelojyl8","slide":10,"name":"Straight Connector 3","bbox":[966.4,394.4,500.8,216]}
+{"kind":"shape","id":"sh/ydcnatkn","slide":10,"name":"Straight Connector 4","bbox":[376,650.4,500.8,216]}
+{"kind":"shape","id":"sh/l036l83y","slide":10,"name":"Straight Connector 5","bbox":[957.6,388,500.8,216]}
+{"kind":"shape","id":"sh/725onyl4","slide":10,"name":"Straight Connector 7","bbox":[380,637.6,500.8,216]}
+{"kind":"shape","id":"sh/0bit8b2d","slide":10,"name":"Straight Connector 13","bbox":[-369.64,-31.64,720.52,310.71]}
+{"kind":"shape","id":"sh/1cru1g3y","slide":10,"name":"Straight Connector 14","bbox":[-369.64,-20.8,720.52,310.71]}
+{"kind":"textbox","id":"sh/jypcrqd4","slide":10,"name":"TextBox 25","text":"5.  Credit unions are lending more—but not more often.","textPreview":"5.  Credit unions are lending more—but not more often.","textChars":54,"textLines":1,"bbox":[233.96,126.42,952.67,319.89]}
+{"kind":"image","id":"im/h8fu1g7q","slide":10,"name":"Picture 12","bbox":[-11.36,-4.72,296.45,128.6]}
+{"kind":"image","id":"im/q9kbeh8v","slide":10,"name":"Picture 2","bbox":[892.56,597.79,356.8,98.01]}
+{"kind":"notes","id":"nt/m90b6t0r","slide":10,"text":"[Sources]\n2026 Small Business Finance Report, p. 18: per-capita credit-union commercial lending rose while originations stayed near 9–11 per 10,000 residents.\nEditorial wording: Wisc_smallbiz_finance_soundbites.pptx, Fact 4.\nVisual template: extension_example.pptx, source slide 2."}
+{"kind":"slide","id":"sl/jetc3ut0","slide":11,"title":"2017","textShapes":5}
+{"kind":"shape","id":"sh/xcryxg7y","slide":11,"name":"Rectangle 1","bbox":[0,708,1280,12]}
+{"kind":"shape","id":"sh/n69grmpw","slide":11,"name":"Straight Connector 3","bbox":[966.4,394.4,500.8,216]}
+{"kind":"shape","id":"sh/250zy18b","slide":11,"name":"Straight Connector 4","bbox":[376,650.4,500.8,216]}
+{"kind":"shape","id":"sh/98rytw72","slide":11,"name":"Straight Connector 5","bbox":[957.6,388,500.8,216]}
+{"kind":"shape","id":"sh/72t03qp0","slide":11,"name":"Straight Connector 7","bbox":[380,637.6,500.8,216]}
+{"kind":"shape","id":"sh/0b6tc3yx","slide":11,"name":"Straight Connector 13","bbox":[-369.64,-31.64,720.52,310.71]}
+{"kind":"shape","id":"sh/1cfa58zi","slide":11,"name":"Straight Connector 14","bbox":[-369.64,-20.8,720.52,310.71]}
+{"kind":"textbox","id":"sh/epobatgr","slide":11,"name":"TextBox 15","text":"2017","textPreview":"2017","textChars":4,"textLines":1,"bbox":[422.34,161.02,109,54.93]}
+{"kind":"textbox","id":"sh/zaxs3yhc","slide":11,"name":"TextBox 16","text":"2024","textPreview":"2024","textChars":4,"textLines":1,"bbox":[684.19,157.24,109,54.93]}
+{"kind":"shape","id":"sh/cn6t83y1","slide":11,"name":"Straight Connector 17","bbox":[668.43,184.75,0,327.04]}
+{"kind":"textbox","id":"sh/87ehgv6d","slide":11,"name":"TextBox 20","text":"$185K average commercial loan","textPreview":"$185K average commercial loan","textChars":29,"textLines":1,"bbox":[407.51,435.05,260.92,74.32]}
+{"kind":"textbox","id":"sh/7650nq5s","slide":11,"name":"TextBox 21","text":"$485K average commercial loan","textPreview":"$485K average commercial loan","textChars":29,"textLines":1,"bbox":[683.55,435.05,264.54,74.32]}
+{"kind":"textbox","id":"sh/65wzelo7","slide":11,"name":"TextBox 22","text":"Larger loans—not more loans—drove growth.","textPreview":"Larger loans—not more loans—drove growth.","textChars":41,"textLines":1,"bbox":[303.75,86.66,847.43,54.93]}
+{"kind":"shape","id":"sh/4zyhofml","slide":11,"name":"Straight Connector 28","bbox":[447.29,420,454.21,0]}
+{"kind":"chart","id":"ch/qt47ad4b","slide":11,"name":"Chart 26","chartType":"bar","bbox":[407.51,174.48,523.32,245]}
+{"kind":"image","id":"im/orqlgnad","slide":11,"name":"Picture 12","bbox":[-11.36,-4.72,296.45,128.6]}
+{"kind":"image","id":"im/3qhk7its","slide":11,"name":"Picture 2","bbox":[892.56,597.79,356.8,98.01]}
+{"kind":"notes","id":"nt/jetc3ut0","slide":11,"text":"[Sources]\n2026 Small Business Finance Report, p. 18: average commercial loan size increased from approximately $185,000 in 2017 to $485,000 in 2024; origination frequency remained relatively flat.\nVisual template: extension_example.pptx, source slide 14."}
+{"kind":"slide","id":"sl/8f2psfyx","slide":12,"title":"6.  Wisconsin attracts venture capital—but remains in the lower third nationa...","textShapes":1}
+{"kind":"shape","id":"sh/1gbm9s3a","slide":12,"name":"Rectangle 1","bbox":[0,708,1280,12]}
+{"kind":"shape","id":"sh/ra943il8","slide":12,"name":"Straight Connector 3","bbox":[966.4,394.4,500.8,216]}
+{"kind":"shape","id":"sh/q903ad4n","slide":12,"name":"Straight Connector 4","bbox":[376,650.4,500.8,216]}
+{"kind":"shape","id":"sh/dcbm583y","slide":12,"name":"Straight Connector 5","bbox":[957.6,388,500.8,216]}
+{"kind":"shape","id":"sh/b6d4f2lc","slide":12,"name":"Straight Connector 7","bbox":[380,637.6,500.8,216]}
+{"kind":"shape","id":"sh/orapcf6h","slide":12,"name":"Straight Connector 13","bbox":[-369.64,-31.64,720.52,310.71]}
+{"kind":"shape","id":"sh/9sj65kn2","slide":12,"name":"Straight Connector 14","bbox":[-369.64,-20.8,720.52,310.71]}
+{"kind":"textbox","id":"sh/7u94zmhs","slide":12,"name":"TextBox 25","text":"6.  Wisconsin attracts venture capital—but remains in the lower third nationally.","textPreview":"6.  Wisconsin attracts venture capital—but remains in the lower third nationally.","textChars":81,"textLines":1,"bbox":[233.96,126.42,952.67,319.89]}
+{"kind":"image","id":"im/xsza54n2","slide":12,"name":"Picture 12","bbox":[-11.36,-4.72,296.45,128.6]}
+{"kind":"image","id":"im/2lorqpof","slide":12,"name":"Picture 2","bbox":[892.56,597.79,356.8,98.01]}
+{"kind":"notes","id":"nt/8f2psfyx","slide":12,"text":"[Sources]\n2026 Small Business Finance Report, pp. 22 and 24: Wisconsin firms raised approximately $3.8 billion from 2015–2024; Wisconsin ranked 35th among 45 contiguous states shown on a per-capita basis.\nEditorial wording: Wisc_smallbiz_finance_soundbites.pptx, Fact 5, with the final-report total of $3.8 billion.\nVisual template: extension_example.pptx, source slide 2."}
+{"kind":"slide","id":"sl/hgzapcr6","slide":13,"title":"35th of 45 states","textShapes":1}
+{"kind":"shape","id":"sh/q50nydsj","slide":13,"name":"Rectangle 1","bbox":[0,708,1280,12]}
+{"kind":"shape","id":"sh/o3i5w3ad","slide":13,"name":"Straight Connector 3","bbox":[966.4,394.4,500.8,216]}
+{"kind":"shape","id":"sh/p4r6p8by","slide":13,"name":"Straight Connector 4","bbox":[376,650.4,500.8,216]}
+{"kind":"shape","id":"sh/21gnuts7","slide":13,"name":"Straight Connector 5","bbox":[957.6,388,500.8,216]}
+{"kind":"shape","id":"sh/gzy5s3a1","slide":13,"name":"Straight Connector 7","bbox":[380,637.6,500.8,216]}
+{"kind":"shape","id":"sh/t8fy5k3i","slide":13,"name":"Straight Connector 13","bbox":[-369.64,-31.64,720.52,310.71]}
+{"kind":"shape","id":"sh/876xwfmx","slide":13,"name":"Straight Connector 14","bbox":[-369.64,-20.8,720.52,310.71]}
+{"kind":"shape","id":"sh/vupkvylo","slide":13,"name":"Rectangle 48","bbox":[243.22,438.4,422.79,49.59]}
+{"kind":"shape","id":"sh/90nypkzi","slide":13,"name":"Arc 64","bbox":[249.43,79.7,598.01,388.85]}
+{"kind":"shape","id":"sh/lc3ylkz6","slide":13,"name":"Oval 60","bbox":[-996.45,364.89,691.6,53]}
+{"kind":"shape","id":"sh/y9cfa50v","slide":13,"name":"Rectangle 61","bbox":[-992.14,393.04,691.6,64.79]}
+{"kind":"textbox","id":"sh/t4velwry","slide":13,"name":"TextBox 53","text":"35th of 45 states\nin per-capita VC.\n≈$3.8B raised\n2015–2024.","textPreview":"35th of 45 states | in per-capita VC. | ≈$3.8B raised | 2015–2024.","textChars":60,"textLines":4,"bbox":[588.1,328.57,385.92,216.49]}
+{"kind":"image","id":"im/pwze1cfu","slide":13,"name":"Picture 12","bbox":[-11.36,-4.72,296.45,128.6]}
+{"kind":"image","id":"im/4vqxs7e9","slide":13,"name":"Picture 2","bbox":[892.56,597.79,356.8,98.01]}
+{"kind":"notes","id":"nt/hgzapcr6","slide":13,"text":"[Sources]\n2026 Small Business Finance Report, p. 24: Wisconsin ranked 35th among the 45 contiguous states shown in per-capita venture-capital investment.\n2026 Small Business Finance Report, p. 22: Wisconsin firms raised approximately $3.8 billion from 2015–2024.\nVisual template: extension_example.pptx, source slide 3."}
+{"kind":"slide","id":"sl/6lsnupw7","slide":14,"title":"The takeaway: Wisconsin has capital—but access, scale, and local control rema...","textShapes":1}
+{"kind":"shape","id":"sh/xc7eds76","slide":14,"name":"Rectangle 1","bbox":[0,708,1280,12]}
+{"kind":"shape","id":"sh/jepwf2pc","slide":14,"name":"Straight Connector 3","bbox":[966.4,394.4,500.8,216]}
+{"kind":"shape","id":"sh/idgvmx8r","slide":14,"name":"Straight Connector 4","bbox":[376,650.4,500.8,216]}
+{"kind":"shape","id":"sh/5grehs7i","slide":14,"name":"Straight Connector 5","bbox":[957.6,388,500.8,216]}
+{"kind":"shape","id":"sh/zi5c3y98","slide":14,"name":"Straight Connector 7","bbox":[380,637.6,500.8,216]}
+{"kind":"shape","id":"sh/kre1k3y9","slide":14,"name":"Straight Connector 13","bbox":[-369.64,-31.64,720.52,310.71]}
+{"kind":"shape","id":"sh/ls7idofu","slide":14,"name":"Straight Connector 14","bbox":[-369.64,-20.8,720.52,310.71]}
+{"kind":"textbox","id":"sh/3udg7q9k","slide":14,"name":"TextBox 25","text":"The takeaway: Wisconsin has capital—but access, scale, and local control remain uneven.","textPreview":"The takeaway: Wisconsin has capital—but access, scale, and local control remain uneven.","textChars":87,"textLines":1,"bbox":[233.96,126.42,952.67,319.89]}
+{"kind":"image","id":"im/hory583a","slide":14,"name":"Picture 12","bbox":[-11.36,-4.72,296.45,128.6]}
+{"kind":"image","id":"im/apwfy94f","slide":14,"name":"Picture 2","bbox":[892.56,597.79,356.8,98.01]}
+{"kind":"notes","id":"nt/6lsnupw7","slide":14,"text":"[Sources]\nSynthesis of the six findings presented in the 2026 Small Business Finance Report.\nVisual template: extension_example.pptx, source slide 2."}

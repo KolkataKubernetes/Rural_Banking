@@ -3,7 +3,7 @@
 # File name:  bank_fig02b_institution_size_distribution.R
 # Author:     Codex (based on Inder Majumdar's workflow)
 # Created:    2026-05-11
-# Purpose:    Replicate Charlie's banking figure 2b. Reference file:
+# Purpose:    Replicate Charlie's banking figure 2. Reference file:
 #             agent-docs/agent_context/docs/code_charlie/fig02b_institution_size_distribution.py
 #///////////////////////////////////////////////////////////////////////////////
 
@@ -21,7 +21,7 @@ source(file.path("1_code", "1_2_visualize", "figs_charlie", "_charlie_helpers.R"
 
 output_file <- file.path(
   charlie_bank_output_dir,
-  "bank_fig02b_institution_size_distribution.jpeg"
+  "bank_fig02_institution_size_distribution.jpeg"
 )
 
 
@@ -59,7 +59,7 @@ stats_text <- glue::glue(
 # 2) Construct Figure
 # -----------------------------
 
-fig02b_plot <- ggplot(fig02b_data, aes(x = bucket, y = n_institutions)) +
+fig02_plot <- ggplot(fig02b_data, aes(x = bucket, y = n_institutions)) +
   geom_col(fill = "#2E75B6", width = 0.7) +
   geom_text(aes(label = n_institutions), vjust = -0.35, size = 3.2) +
   annotate(
@@ -73,7 +73,7 @@ fig02b_plot <- ggplot(fig02b_data, aes(x = bucket, y = n_institutions)) +
     color = "black"
   ) +
   labs(
-    title = "Figure 2b: Wisconsin Banking Institutions by Number of Branches (2024)",
+    title = "Figure 2: Wisconsin Banking Institutions by Number of Branches (2024)",
     x = "Number of Branches",
     y = "Number of Institutions",
     caption = "Data: FDIC Summary of Deposits"
@@ -85,4 +85,4 @@ fig02b_plot <- ggplot(fig02b_data, aes(x = bucket, y = n_institutions)) +
 # 3) Save Outputs
 # -----------------------------
 
-save_charlie_fig(fig02b_plot, output_file, width = 9, height = 5)
+save_charlie_fig(fig02_plot, output_file, width = 9, height = 5)

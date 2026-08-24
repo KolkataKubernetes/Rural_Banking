@@ -256,7 +256,7 @@ ggplot(fig1_index, aes(x = year, y = index_2019, color = series, group = series)
   scale_x_continuous(breaks = analysis_years) +
   scale_y_continuous(labels = label_number(accuracy = 1)) +
   labs(
-    title = "Figure 0. Indexed Private Equity Activity Since 2019",
+    title = "Figure 2. Indexed Private Equity Activity Since 2019",
     subtitle = "2019 = 100; Great Lakes compared with total US activity",
     x = "Year",
     y = "Index (2019 = 100)",
@@ -302,7 +302,7 @@ ggplot(gl_share, aes(x = year, y = share, color = series, group = series)) +
   scale_x_continuous(breaks = analysis_years) +
   scale_y_continuous(labels = label_percent(accuracy = 0.1)) +
   labs(
-    title = "Figure 2. Great Lakes Share of US Private Equity Activity",
+    title = "Figure 1. Great Lakes Share of US Private Equity Activity",
     subtitle = "Overall PE versus middle-market PE, 2019-2025",
     x = "Year",
     y = "Share of US activity",

@@ -50,6 +50,70 @@ banking_stats <- tibble(
 banking_stats
 ```
 
+# Wisconsin-Headquartered Banks
+
+This section identifies Wisconsin-headquartered banks using FDIC main-office
+records (`BRNUM == 0` and `STALP == "WI"`). The corresponding branch count is
+restricted to Wisconsin branch offices operated by those institutions
+(`STALPBR == "WI"`).
+
+```{r wi-headquartered-banks}
+wi_hq_by_year <- map_dfr(c(2000L, 2024L), function(target_year) {
+  sod <- load_fdic_sod(target_year)
+
+  wi_hq_certs <- sod |>
+    filter(
+      as.character(BRNUM) == "0",
+      STALP == "WI"
+    ) |>
+    distinct(CERT)
+
+  tibble(
+    year = target_year,
+    hq_banks = nrow(wi_hq_certs),
+    wi_branches_of_hq_banks = sod |>
+      filter(
+        STALPBR == "WI",
+        CERT %in% wi_hq_certs$CERT
+      ) |>
+      nrow()
+  )
+})
+
+wi_hq_stats <- wi_hq_by_year |>
+  summarise(
+    hq_banks_2000 = hq_banks[year == 2000][1],
+    hq_banks_2024 = hq_banks[year == 2024][1],
+    hq_banks_decline = hq_banks_2000 - hq_banks_2024,
+    hq_banks_decline_share = safe_divide(
+      hq_banks_decline,
+      hq_banks_2000
+    ),
+    wi_branches_2000 = wi_branches_of_hq_banks[year == 2000][1],
+    wi_branches_2024 = wi_branches_of_hq_banks[year == 2024][1],
+    wi_branches_decline = wi_branches_2000 - wi_branches_2024,
+    wi_branches_decline_share = safe_divide(
+      wi_branches_decline,
+      wi_branches_2000
+    )
+  )
+
+wi_hq_soundbite <- glue(
+  "Between 2000 and 2024, the number of banks headquartered in Wisconsin ",
+  "fell from {comma(wi_hq_stats$hq_banks_2000)} to ",
+  "{comma(wi_hq_stats$hq_banks_2024)}, a decline of ",
+  "{percent(wi_hq_stats$hq_banks_decline_share, accuracy = 0.1)}. ",
+  "Over the same period, the number of Wisconsin branches operated by these ",
+  "banks fell from {comma(wi_hq_stats$wi_branches_2000)} to ",
+  "{comma(wi_hq_stats$wi_branches_2024)}, a decline of ",
+  "{percent(wi_hq_stats$wi_branches_decline_share, accuracy = 0.1)}."
+)
+
+wi_hq_by_year
+wi_hq_stats
+wi_hq_soundbite
+```
+
 # Small Business Lending Snapshot
 
 ```{r cra-figure7}
@@ -134,6 +198,155 @@ cu_stats <- tibble(
 )
 
 cu_stats
+```
+
+# Credit Union Share of Branch Locations
+
+This section compares Wisconsin bank and credit union branch records for 2024.
+The denominator is the combined number of FDIC-reported bank branches and
+NCUA-reported credit union branches located in Wisconsin.
+
+```{r credit-union-branch-share}
+branch_location_mix <- tibble(
+  bank_branches_2024 = nrow(bank_2024),
+  cu_branches_2024 = nrow(cu_branches_2024)
+) |>
+  mutate(
+    combined_branches_2024 = bank_branches_2024 + cu_branches_2024,
+    cu_branch_share_2024 = safe_divide(
+      cu_branches_2024,
+      combined_branches_2024
+    )
+  )
+
+cu_branch_share_soundbite <- glue(
+  "In 2024, credit unions operated ",
+  "{comma(branch_location_mix$cu_branches_2024)} of Wisconsin's ",
+  "{comma(branch_location_mix$combined_branches_2024)} combined bank and ",
+  "credit union branch locations, accounting for ",
+  "{percent(branch_location_mix$cu_branch_share_2024, accuracy = 0.1)} ",
+  "of the total."
+)
+
+branch_location_mix
+cu_branch_share_soundbite
+```
+
+# Credit Union Commercial Lending Growth Versus Bank Lending Decline
+
+This section compares nominal annual lending volumes beginning in 2001, the
+first year available in the staged NCUA archive. For credit unions, the 2001
+measure is total member business loans granted year to date (`ACCT_475`) and
+the 2024 measure is total member commercial loans granted or purchased year to
+date (`ACCT_475A1`). Both totals are restricted to Wisconsin-headquartered
+credit unions. The bank comparison uses CRA-reported originations of loans of
+$1 million or less and ends in 2023, the latest staged CRA year. These series
+are directionally informative but not directly equivalent because their
+reporting definitions and end years differ.
+
+```{r credit-union-commercial-lending-growth}
+cu_2001_dir <- file.path(charlie_ncua_dir, "QCR200112")
+
+cu_2001_institutions <- readr::read_csv(
+  file.path(cu_2001_dir, "FOICU.txt"),
+  show_col_types = FALSE,
+  progress = FALSE,
+  locale = readr::locale(encoding = "cp1252")
+) |>
+  filter(STATE == "WI") |>
+  distinct(CU_NUMBER)
+
+cu_commercial_lending <- bind_rows(
+  readr::read_csv(
+    file.path(cu_2001_dir, "fs220A.txt"),
+    show_col_types = FALSE,
+    progress = FALSE,
+    locale = readr::locale(encoding = "cp1252"),
+    guess_max = 50000
+  ) |>
+    filter(CU_NUMBER %in% cu_2001_institutions$CU_NUMBER) |>
+    summarise(
+      year = 2001L,
+      annual_commercial_lending = sum(as.numeric(ACCT_475), na.rm = TRUE)
+    ),
+  load_ncua_fs(2024) |>
+    filter(CU_NUMBER %in% wi_cu_main_offices(2024)$CU_NUMBER) |>
+    summarise(
+      year = 2024L,
+      annual_commercial_lending = sum(
+        as.numeric(ACCT_475A1),
+        na.rm = TRUE
+      )
+    )
+) |>
+  arrange(year)
+
+bank_small_business_lending <- load_cra_wi_volume_series() |>
+  transmute(
+    year,
+    annual_small_business_lending =
+      loans_u100k_amt + loans_100_250_amt + loans_250_1m_amt
+  ) |>
+  filter(year %in% c(2001L, 2023L))
+
+cu_bank_lending_stats <- tibble(
+  cu_volume_2001 = cu_commercial_lending |>
+    filter(year == 2001L) |>
+    pull(annual_commercial_lending),
+  cu_volume_2024 = cu_commercial_lending |>
+    filter(year == 2024L) |>
+    pull(annual_commercial_lending),
+  bank_volume_2001 = bank_small_business_lending |>
+    filter(year == 2001L) |>
+    pull(annual_small_business_lending),
+  bank_volume_2023 = bank_small_business_lending |>
+    filter(year == 2023L) |>
+    pull(annual_small_business_lending)
+) |>
+  mutate(
+    cu_volume_increase = cu_volume_2024 - cu_volume_2001,
+    cu_volume_increase_share = safe_divide(
+      cu_volume_increase,
+      cu_volume_2001
+    ),
+    bank_volume_decline = bank_volume_2001 - bank_volume_2023,
+    bank_volume_decline_share = safe_divide(
+      bank_volume_decline,
+      bank_volume_2001
+    ),
+    cu_increase_as_share_of_bank_decline = safe_divide(
+      cu_volume_increase,
+      bank_volume_decline
+    )
+  )
+
+cu_bank_lending_soundbite <- glue(
+  "Reported annual commercial lending by Wisconsin-headquartered credit ",
+  "unions rose from {dollar(cu_bank_lending_stats$cu_volume_2001, ",
+  "accuracy = 0.1, scale = 1e-6, suffix = ' million')} in 2001 to ",
+  "{dollar(cu_bank_lending_stats$cu_volume_2024, accuracy = 0.01, ",
+  "scale = 1e-9, suffix = ' billion')} in 2024, an increase of ",
+  "{dollar(cu_bank_lending_stats$cu_volume_increase, accuracy = 0.01, ",
+  "scale = 1e-9, suffix = ' billion')}, or ",
+  "{percent(cu_bank_lending_stats$cu_volume_increase_share, accuracy = 0.1)}. ",
+  "Over the closest available CRA comparison, Wisconsin bank originations ",
+  "of loans of $1 million or less fell from ",
+  "{dollar(cu_bank_lending_stats$bank_volume_2001, accuracy = 0.01, ",
+  "scale = 1e-9, suffix = ' billion')} in 2001 to ",
+  "{dollar(cu_bank_lending_stats$bank_volume_2023, accuracy = 0.01, ",
+  "scale = 1e-9, suffix = ' billion')} in 2023, a decline of ",
+  "{dollar(cu_bank_lending_stats$bank_volume_decline, accuracy = 0.01, ",
+  "scale = 1e-9, suffix = ' billion')}, or ",
+  "{percent(cu_bank_lending_stats$bank_volume_decline_share, accuracy = 0.1)}. ",
+  "The credit union increase was equal to ",
+  "{percent(cu_bank_lending_stats$cu_increase_as_share_of_bank_decline, ",
+  "accuracy = 0.1)} of the bank decline in nominal dollar terms."
+)
+
+cu_commercial_lending
+bank_small_business_lending
+cu_bank_lending_stats
+cu_bank_lending_soundbite
 ```
 
 # Venture Capital Snapshot
@@ -245,5 +458,7 @@ approved_stats
 # Notes
 
 - The banking and CRA calculations are built directly from the same local FDIC and CRA inputs already used in the figure scripts.
+- Wisconsin-headquartered banks are identified from FDIC main-office records using `BRNUM == 0` and `STALP == "WI"`; the associated branch counts include only their branch offices located in Wisconsin.
+- The bank-versus-credit-union branch share uses 2024 Wisconsin branch records from FDIC SOD and NCUA; it does not deduplicate locations shared by separate institutions.
 - The credit union snapshot uses the same NCUA branch files as the CU figures, with headquarters proxied by `MainOffice == "Yes"`.
 - The venture capital snapshot follows the same PitchBook plus participation-data logic already used in `1_code/workbooks/2026_02_08_pitchbook.qmd`.

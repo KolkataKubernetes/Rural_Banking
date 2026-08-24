@@ -1,6 +1,6 @@
 #///////////////////////////////////////////////////////////////////////////////
 #----                    WI Descriptives Intermediates                     ----
-# File name:  cu_fig_cu10_avg_loan_size.R
+# File name:  cu_fig_cu5_avg_loan_size.R
 # Author:     Codex (based on Inder Majumdar's workflow)
 # Created:    2026-05-11
 # Purpose:    Replicate Charlie's credit-union figure CU-10. Reference file:
@@ -21,7 +21,7 @@ source(file.path("1_code", "1_2_visualize", "figs_charlie", "_charlie_helpers.R"
 
 output_file <- file.path(
   charlie_cu_output_dir,
-  "cu_fig_cu10_avg_loan_size.jpeg"
+  "cu_fig_cu5_avg_loan_size.jpeg"
 )
 
 
@@ -29,7 +29,7 @@ output_file <- file.path(
 # 1) Load inputs
 # -----------------------------
 
-fig_cu10_data <- map_dfr(2017:2024, function(year) {
+fig_cu5_data <- map_dfr(2017:2024, function(year) {
   wi_cu <- wi_cu_main_offices(year)$CU_NUMBER
   wi_fs <- load_ncua_fs(year) |>
     filter(CU_NUMBER %in% wi_cu)
@@ -53,7 +53,7 @@ fig_cu10_data <- map_dfr(2017:2024, function(year) {
 # 2) Construct Figure
 # -----------------------------
 
-fig_cu10_plot <- ggplot(fig_cu10_data, aes(x = factor(year), y = avg_loan)) +
+fig_cu5_plot <- ggplot(fig_cu5_data, aes(x = factor(year), y = avg_loan)) +
   geom_col(fill = "#2E75B6", width = 0.7) +
   geom_text(
     aes(label = scales::dollar(avg_loan, accuracy = 1)),
@@ -65,7 +65,7 @@ fig_cu10_plot <- ggplot(fig_cu10_data, aes(x = factor(year), y = avg_loan)) +
     expand = expansion(mult = c(0, 0.12))
   ) +
   labs(
-    title = "Figure CU-10: Average Commercial Loan Size",
+    title = "Figure CU-5: Average Commercial Loan Size",
     subtitle = "Wisconsin Credit Unions, 2017-2024",
     x = "Year",
     y = "Average Loan Size ($)",
@@ -78,4 +78,4 @@ fig_cu10_plot <- ggplot(fig_cu10_data, aes(x = factor(year), y = avg_loan)) +
 # 3) Save Outputs
 # -----------------------------
 
-save_charlie_fig(fig_cu10_plot, output_file, width = 9, height = 5)
+save_charlie_fig(fig_cu5_plot, output_file, width = 9, height = 5)

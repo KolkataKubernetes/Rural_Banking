@@ -1,6 +1,6 @@
 #///////////////////////////////////////////////////////////////////////////////
 #----                    WI Descriptives Intermediates                     ----
-# File name:  cu_fig_cu11_per_capita_lending.R
+# File name:  cu_fig_cu4_per_capita_lending.R
 # Author:     Codex (based on Inder Majumdar's workflow)
 # Created:    2026-05-11
 # Purpose:    Replicate Charlie's credit-union figure CU-11. Reference file:
@@ -23,7 +23,7 @@ source(file.path("1_code", "1_2_visualize", "figs_charlie", "_charlie_helpers.R"
 
 output_file <- file.path(
   charlie_cu_output_dir,
-  "cu_fig_cu11_per_capita_lending.jpeg"
+  "cu_fig_cu4_per_capita_lending.jpeg"
 )
 
 
@@ -42,7 +42,7 @@ wi_population <- c(
   `2024` = 5960975
 )
 
-fig_cu11_data <- map_dfr(2017:2024, function(year) {
+fig_cu4_data <- map_dfr(2017:2024, function(year) {
   wi_cu <- wi_cu_main_offices(year)$CU_NUMBER
   wi_fs <- load_ncua_fs(year) |>
     filter(CU_NUMBER %in% wi_cu)
@@ -64,7 +64,7 @@ fig_cu11_data <- map_dfr(2017:2024, function(year) {
 # 2) Construct Figure
 # -----------------------------
 
-fig_cu11_plot <- ggplot(fig_cu11_data, aes(x = factor(year))) +
+fig_cu4_plot <- ggplot(fig_cu4_data, aes(x = factor(year))) +
   geom_col(aes(y = per_cap_amt), fill = "#2E75B6", alpha = 0.7) +
   geom_line(
     aes(y = per_10k_num * max(per_cap_amt) / max(per_10k_num), group = 1),
@@ -80,12 +80,12 @@ fig_cu11_plot <- ggplot(fig_cu11_data, aes(x = factor(year))) +
     name = "Loan Amount per Capita ($)",
     labels = scales::label_dollar(),
     sec.axis = sec_axis(
-      ~ . * max(fig_cu11_data$per_10k_num) / max(fig_cu11_data$per_cap_amt),
+      ~ . * max(fig_cu4_data$per_10k_num) / max(fig_cu4_data$per_cap_amt),
       name = "Originations per 10,000 Residents"
     )
   ) +
   labs(
-    title = "Figure CU-11: Per Capita Commercial Lending by Wisconsin Credit Unions",
+    title = "Figure CU-4: Per Capita Commercial Lending by Wisconsin Credit Unions",
     x = "Year",
     caption = "Data: NCUA Call Reports and Charlie's hard-coded Wisconsin population values"
   ) +
@@ -96,4 +96,4 @@ fig_cu11_plot <- ggplot(fig_cu11_data, aes(x = factor(year))) +
 # 3) Save Outputs
 # -----------------------------
 
-save_charlie_fig(fig_cu11_plot, output_file, width = 9, height = 5)
+save_charlie_fig(fig_cu4_plot, output_file, width = 9, height = 5)

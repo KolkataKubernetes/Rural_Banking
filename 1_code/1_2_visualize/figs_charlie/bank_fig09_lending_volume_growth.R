@@ -42,6 +42,99 @@ cra_volume <- load_cra_wi_volume_series() |>
 
 
 # -----------------------------
+# 1b) Check the decline in total dollars
+# -----------------------------
+
+# This diagnostic uses nominal statewide CRA lending dollars rather than the
+# population-adjusted index plotted below. It reports the change from 2000 to
+# 2023 for each loan-size bucket.
+figure9_total_dollar_decline <- cra_volume |>
+  select(
+    year,
+    loans_u100k_amt,
+    loans_100_250_amt,
+    loans_250_1m_amt
+  ) |>
+  pivot_longer(
+    cols = -year,
+    names_to = "bucket",
+    values_to = "total_dollars"
+  ) |>
+  mutate(
+    bucket = recode(
+      bucket,
+      loans_u100k_amt = "Under $100K",
+      loans_100_250_amt = "$100K-$250K",
+      loans_250_1m_amt = "$250K-$1M"
+    )
+  ) |>
+  group_by(bucket) |>
+  summarise(
+    dollars_2000 = total_dollars[year == 2000][1],
+    dollars_2023 = total_dollars[year == 2023][1],
+    .groups = "drop"
+  ) |>
+  mutate(
+    nominal_decline_dollars = dollars_2000 - dollars_2023,
+    nominal_decline_percent = nominal_decline_dollars / dollars_2000 * 100
+  ) |>
+  arrange(match(bucket, c("Under $100K", "$100K-$250K", "$250K-$1M")))
+
+message(
+  "Figure 9 nominal-dollar decline from 2000 to 2023 by loan-size bucket ",
+  "(positive values indicate a decline):"
+)
+print(figure9_total_dollar_decline, n = Inf, width = Inf)
+
+
+# -----------------------------
+# 1c) Check the decline in nominal dollars per 10K residents
+# -----------------------------
+
+figure9_per_10k_dollar_decline <- cra_volume |>
+  select(
+    year,
+    population,
+    loans_u100k_amt,
+    loans_100_250_amt,
+    loans_250_1m_amt
+  ) |>
+  pivot_longer(
+    cols = ends_with("_amt"),
+    names_to = "bucket",
+    values_to = "total_dollars"
+  ) |>
+  mutate(
+    bucket = recode(
+      bucket,
+      loans_u100k_amt = "Under $100K",
+      loans_100_250_amt = "$100K-$250K",
+      loans_250_1m_amt = "$250K-$1M"
+    ),
+    dollars_per_10k = total_dollars / population * 10000
+  ) |>
+  group_by(bucket) |>
+  summarise(
+    dollars_per_10k_2000 = dollars_per_10k[year == 2000][1],
+    dollars_per_10k_2023 = dollars_per_10k[year == 2023][1],
+    .groups = "drop"
+  ) |>
+  mutate(
+    nominal_decline_dollars_per_10k =
+      dollars_per_10k_2000 - dollars_per_10k_2023,
+    nominal_decline_percent =
+      nominal_decline_dollars_per_10k / dollars_per_10k_2000 * 100
+  ) |>
+  arrange(match(bucket, c("Under $100K", "$100K-$250K", "$250K-$1M")))
+
+message(
+  "Figure 9 nominal-dollar-per-10K decline from 2000 to 2023 ",
+  "by loan-size bucket (positive values indicate a decline):"
+)
+print(figure9_per_10k_dollar_decline, n = Inf, width = Inf)
+
+
+# -----------------------------
 # 2) Construct Figure
 # -----------------------------
 

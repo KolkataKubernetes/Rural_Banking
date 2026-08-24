@@ -1,6 +1,6 @@
 #///////////////////////////////////////////////////////////////////////////////
 #----                    WI Descriptives Intermediates                     ----
-# File name:  cu_fig_cu03_institutions_branches_time.R
+# File name:  cu_fig_cu02_institutions_branches_time.R
 # Author:     Codex (based on Inder Majumdar's workflow)
 # Created:    2026-05-11
 # Purpose:    Replicate Charlie's credit-union figure CU-3. Reference file:
@@ -25,7 +25,7 @@ source(file.path("1_code", "1_2_visualize", "figs_charlie", "_charlie_helpers.R"
 
 output_file <- file.path(
   charlie_cu_output_dir,
-  "cu_fig_cu03_institutions_branches_time.jpeg"
+  "cu_fig_cu02_institutions_branches_time.jpeg"
 )
 
 
@@ -33,9 +33,9 @@ output_file <- file.path(
 # 1) Load inputs
 # -----------------------------
 
-fig_cu03_years <- c(2005:2014, 2015:2024)
+fig_cu02_years <- c(2005:2014, 2015:2024)
 
-fig_cu03_data <- map_dfr(fig_cu03_years, function(year) {
+fig_cu02_data <- map_dfr(fig_cu02_years, function(year) {
   branch_path <- ncua_branch_file_for_year(year)
 
   if (!file.exists(branch_path)) {
@@ -56,7 +56,7 @@ fig_cu03_data <- map_dfr(fig_cu03_years, function(year) {
 
 # Reshape to long form so ggplot can place the institution and branch bars
 # side by side for each observed year.
-fig_cu03_long <- fig_cu03_data |>
+fig_cu02_long <- fig_cu02_data |>
   pivot_longer(
     cols = c(institutions, branches),
     names_to = "series",
@@ -75,14 +75,15 @@ fig_cu03_long <- fig_cu03_data |>
 # 2) Construct Figure
 # -----------------------------
 
-fig_cu03_plot <- ggplot(
-  fig_cu03_long,
+fig_cu02_plot <- ggplot(
+  fig_cu02_long,
   aes(x = factor(year), y = count, fill = series)
 ) +
   geom_col(
     position = position_dodge(width = 0.8),
     width = 0.72
   ) +
+  geom_text(aes(label = count), position = position_dodge(width = 0.8), vjust = -0.5) +
   scale_fill_manual(
     values = c("Institutions" = "#BF4D28", "Branches" = "#2E75B6")
   ) +
@@ -92,7 +93,7 @@ fig_cu03_plot <- ggplot(
     name = "Count"
   ) +
   labs(
-    title = "Figure CU-3: Wisconsin Credit Union Institutions and Branches",
+    title = "Figure CU-2: Wisconsin Credit Union Institutions and Branches",
     x = "Year",
     fill = NULL,
     caption = paste(
@@ -111,4 +112,4 @@ fig_cu03_plot <- ggplot(
 # 3) Save Outputs
 # -----------------------------
 
-save_charlie_fig(fig_cu03_plot, output_file, width = 10, height = 5)
+save_charlie_fig(fig_cu02_plot, output_file, width = 10, height = 5)
