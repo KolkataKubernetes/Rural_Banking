@@ -1,0 +1,935 @@
+---
+title: "National CRA Lending and Bank-Headquarters Trends"
+author: "Codex"
+date: 2026-08-24
+format:
+  html:
+    embed-resources: true
+    toc: true
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+# Purpose
+
+This workbook provides national benchmarks for two Wisconsin Community
+Reinvestment Act (CRA) figures and for the decline in Wisconsin-headquartered
+banks. The national geography is the 50 states plus the District of Columbia;
+territories are excluded. All comparisons are descriptive.
+
+The first two figures preserve the definitions and visual structure of current
+banking Figures 8 and 9. They show CRA small-business lending frequency and
+nominal lending volume per 10,000 denominator units for three original-loan-size
+buckets, indexed so that 2000 equals 100. The third figure compares indexed
+counts of Wisconsin-headquartered and nationally headquartered banks. The
+fourth figure compares the mean number of branches per institution operating in
+Wisconsin with the corresponding national mean.
+
+```{r setup}
+library(tidyverse)
+library(scales)
+library(knitr)
+
+project_root <- normalizePath(file.path("..", ".."), winslash = "/")
+knitr::opts_knit$set(root.dir = project_root)
+
+source(file.path(
+  project_root,
+  "1_code", "1_2_visualize", "figs_charlie", "_charlie_helpers.R"
+))
+
+safe_divide <- function(num, den) {
+  ifelse(is.na(den) | den == 0, NA_real_, num / den)
+}
+
+us_state_fips <- c(
+  "01", "02", "04", "05", "06", "08", "09", "10", "11", "12", "13",
+  "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25",
+  "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36",
+  "37", "38", "39", "40", "41", "42", "44", "45", "46", "47", "48",
+  "49", "50", "51", "53", "54", "55", "56"
+)
+
+us_state_abbr <- sort(c(state.abb, "DC"))
+
+stopifnot(
+  length(us_state_fips) == 51L,
+  n_distinct(us_state_fips) == 51L,
+  "55" %in% us_state_fips,
+  length(us_state_abbr) == 51L,
+  n_distinct(us_state_abbr) == 51L,
+  "WI" %in% us_state_abbr
+)
+
+required_file <- function(path) {
+  if (!file.exists(path)) {
+    stop("Missing required input file: ", path, call. = FALSE)
+  }
+  path
+}
+
+sum_numeric <- function(x) {
+  sum(as.numeric(replace_na(x, 0)), na.rm = TRUE)
+}
+```
+
+# Data construction and audits
+
+The CRA source changes format twice during the analysis window. The loader below
+handles each source era explicitly and applies the same unit conversions used by
+the current Wisconsin figures. Amounts in 2000–2004 and 2019–2023 are reported
+in thousands of dollars and are multiplied by 1,000. Amounts in 2005–2018 are
+already denominated in dollars.
+
+```{r cra-loader}
+load_cra_series <- function(state_fips) {
+  if (length(state_fips) == 0L || !all(state_fips %in% us_state_fips)) {
+    stop("state_fips must contain eligible two-digit state/DC FIPS codes.")
+  }
+
+  records <- vector("list", length = 24L)
+
+  for (yr in 2000:2023) {
+    if (yr <= 2004) {
+      path <- required_file(file.path(
+        charlie_cra_dir, "aggr", sprintf("tract_%d.txt", yr)
+      ))
+
+      scoped <- readr::read_delim(
+        path,
+        delim = "|",
+        show_col_types = FALSE,
+        progress = FALSE
+      ) |>
+        mutate(
+          state_fips = stringr::str_pad(as.character(state), 2, pad = "0")
+        ) |>
+        filter(report_level == 200, state_fips %in% !!state_fips)
+
+      records[[yr - 1999L]] <- tibble(
+        year = yr,
+        loans_u100k_num = sum_numeric(scoped$num_100k),
+        loans_100_250_num = sum_numeric(scoped$num_250k),
+        loans_250_1m_num = sum_numeric(scoped$num_1mil),
+        loans_u100k_amt = sum_numeric(scoped$vol_100k) * 1000,
+        loans_100_250_amt = sum_numeric(scoped$vol_250k) * 1000,
+        loans_250_1m_amt = sum_numeric(scoped$vol_1mil) * 1000
+      )
+    } else if (yr <= 2018) {
+      path <- required_file(file.path(
+        charlie_cra_dir, "cra_old", sprintf("cra_%d.csv", yr)
+      ))
+
+      scoped <- readr::read_csv(
+        path,
+        show_col_types = FALSE,
+        progress = FALSE
+      ) |>
+        mutate(
+          county_fips = stringr::str_pad(as.character(fips), 5, pad = "0"),
+          state_fips = stringr::str_sub(county_fips, 1, 2)
+        ) |>
+        filter(state_fips %in% !!state_fips)
+
+      records[[yr - 1999L]] <- tibble(
+        year = yr,
+        loans_u100k_num = sum_numeric(scoped$loan_count_100k),
+        loans_100_250_num = sum_numeric(scoped$loan_count_250k),
+        loans_250_1m_num = sum_numeric(scoped$loan_count_1M),
+        loans_u100k_amt = sum_numeric(scoped$loan_vol_100k),
+        loans_100_250_amt = sum_numeric(scoped$loan_vol_250k),
+        loans_250_1m_amt = sum_numeric(scoped$loan_vol_1M)
+      )
+    } else {
+      path <- required_file(file.path(
+        charlie_cra_dir,
+        sprintf("%dexp_aggr", yr - 2000L),
+        sprintf("cra%d_Aggr_A11.dat", yr)
+      ))
+
+      scoped <- readr::read_fwf(
+        path,
+        col_positions = readr::fwf_widths(cra_fixed_widths, cra_fixed_names),
+        show_col_types = FALSE,
+        progress = FALSE
+      ) |>
+        mutate(
+          state_fips = stringr::str_pad(as.character(State_FIPS), 2, pad = "0")
+        ) |>
+        filter(Report_Level == "200", state_fips %in% !!state_fips)
+
+      records[[yr - 1999L]] <- tibble(
+        year = yr,
+        loans_u100k_num = sum_numeric(scoped$Loans_U100k_Num),
+        loans_100_250_num = sum_numeric(scoped$Loans_100_250_Num),
+        loans_250_1m_num = sum_numeric(scoped$Loans_250_1M_Num),
+        loans_u100k_amt = sum_numeric(scoped$Loans_U100k_Amt) * 1000,
+        loans_100_250_amt = sum_numeric(scoped$Loans_100_250_Amt) * 1000,
+        loans_250_1m_amt = sum_numeric(scoped$Loans_250_1M_Amt) * 1000
+      )
+    }
+  }
+
+  bind_rows(records) |>
+    arrange(year)
+}
+
+cra_national_raw <- load_cra_series(us_state_fips)
+cra_wi_generic <- load_cra_series("55")
+
+cra_value_cols <- setdiff(names(cra_national_raw), "year")
+
+stopifnot(
+  nrow(cra_national_raw) == 24L,
+  identical(cra_national_raw$year, 2000:2023),
+  !anyDuplicated(cra_national_raw$year),
+  all(is.finite(as.matrix(cra_national_raw[cra_value_cols]))),
+  all(as.matrix(cra_national_raw[cra_value_cols]) >= 0),
+  all(
+    as.matrix(cra_national_raw[cra_value_cols]) >=
+      as.matrix(cra_wi_generic[cra_value_cols])
+  )
+)
+```
+
+The national denominator uses the same proxy as the current Wisconsin figures:
+`Force / (Participation / 100)`. Geography membership is tested before any FIPS
+padding or truncation. This excludes malformed extra rows `037` and `51000`
+without turning them into duplicates of valid rows `37` and `51`.
+
+```{r denominator-audit}
+participation_raw <- readr::read_csv(
+  required_file(file.path("0_inputs", "CORI", "fips_participation.csv")),
+  col_types = readr::cols(
+    FIPS = readr::col_character(),
+    .default = readr::col_guess()
+  ),
+  progress = FALSE
+) |>
+  mutate(
+    year = as.integer(year),
+    Participation = readr::parse_number(as.character(Participation)),
+    Force = readr::parse_number(as.character(Force))
+  ) |>
+  filter(year %in% 2000:2023)
+
+eligible_population_rows <- participation_raw |>
+  filter(FIPS %in% us_state_fips) |>
+  mutate(population_proxy = safe_divide(Force, Participation / 100))
+
+duplicate_population_keys <- eligible_population_rows |>
+  count(year, FIPS) |>
+  filter(n != 1L)
+
+population_audit <- participation_raw |>
+  group_by(year) |>
+  summarise(
+    eligible_geographies = n_distinct(FIPS[FIPS %in% us_state_fips]),
+    eligible_rows = sum(FIPS %in% us_state_fips),
+    excluded_rows = sum(!(FIPS %in% us_state_fips)),
+    .groups = "drop"
+  )
+
+national_population <- eligible_population_rows |>
+  group_by(year) |>
+  summarise(
+    population = sum(population_proxy),
+    .groups = "drop"
+  )
+
+stopifnot(
+  nrow(duplicate_population_keys) == 0L,
+  nrow(population_audit) == 24L,
+  all(population_audit$eligible_geographies == 51L),
+  all(population_audit$eligible_rows == 51L),
+  all(c("037", "51000") %in% participation_raw$FIPS),
+  !any(c("037", "51000") %in% eligible_population_rows$FIPS),
+  nrow(national_population) == 24L,
+  all(national_population$population > 0)
+)
+
+knitr::kable(
+  population_audit |>
+    filter(year %in% c(2000L, 2023L)),
+  caption = "National denominator geography audit (endpoint years)"
+)
+```
+
+The generic Wisconsin CRA results are checked against the exact loaders used by
+the current Figures 8 and 9. This ensures the national generalization has not
+changed the existing bucket definitions or unit conversions.
+
+```{r cra-validation}
+wi_frequency_reference <- load_cra_wi_frequency_series()
+wi_volume_reference <- load_cra_wi_volume_series()
+
+frequency_matches <- isTRUE(all.equal(
+  cra_wi_generic |>
+    select(year, loans_u100k_num, loans_100_250_num, loans_250_1m_num),
+  wi_frequency_reference,
+  check.attributes = FALSE
+))
+
+volume_matches <- isTRUE(all.equal(
+  cra_wi_generic |>
+    select(year, loans_u100k_amt, loans_100_250_amt, loans_250_1m_amt),
+  wi_volume_reference,
+  check.attributes = FALSE
+))
+
+stopifnot(frequency_matches, volume_matches)
+
+validation_summary <- tibble(
+  check = c(
+    "Generic Wisconsin frequency equals current Figure 8 loader",
+    "Generic Wisconsin volume equals current Figure 9 loader",
+    "National raw values are at least Wisconsin raw values",
+    "National denominator has 51 eligible geographies each year"
+  ),
+  passed = c(
+    frequency_matches,
+    volume_matches,
+    TRUE,
+    all(population_audit$eligible_rows == 51L)
+  )
+)
+
+knitr::kable(validation_summary, caption = "Core construction checks")
+```
+
+```{r build-cra-indexes}
+cra_national <- cra_national_raw |>
+  left_join(national_population, by = "year") |>
+  arrange(year) |>
+  mutate(
+    loans_u100k_num_per_10k = loans_u100k_num / population * 10000,
+    loans_100_250_num_per_10k = loans_100_250_num / population * 10000,
+    loans_250_1m_num_per_10k = loans_250_1m_num / population * 10000,
+    loans_u100k_amt_per_10k = loans_u100k_amt / population * 10000,
+    loans_100_250_amt_per_10k = loans_100_250_amt / population * 10000,
+    loans_250_1m_amt_per_10k = loans_250_1m_amt / population * 10000,
+    loans_u100k_num_idx = loans_u100k_num_per_10k /
+      loans_u100k_num_per_10k[year == 2000] * 100,
+    loans_100_250_num_idx = loans_100_250_num_per_10k /
+      loans_100_250_num_per_10k[year == 2000] * 100,
+    loans_250_1m_num_idx = loans_250_1m_num_per_10k /
+      loans_250_1m_num_per_10k[year == 2000] * 100,
+    loans_u100k_amt_idx = loans_u100k_amt_per_10k /
+      loans_u100k_amt_per_10k[year == 2000] * 100,
+    loans_100_250_amt_idx = loans_100_250_amt_per_10k /
+      loans_100_250_amt_per_10k[year == 2000] * 100,
+    loans_250_1m_amt_idx = loans_250_1m_amt_per_10k /
+      loans_250_1m_amt_per_10k[year == 2000] * 100
+  )
+
+cra_index_cols <- names(cra_national)[stringr::str_detect(
+  names(cra_national), "_idx$"
+)]
+
+stopifnot(
+  !anyNA(cra_national[cra_index_cols]),
+  all(abs(as.numeric(cra_national[cra_national$year == 2000, cra_index_cols]) - 100) < 1e-10)
+)
+```
+
+# National counterpart to Figure 8
+
+```{r national-figure-8, fig.width=10, fig.height=5}
+national_fig08_plot <- ggplot(cra_national, aes(x = year)) +
+  geom_line(aes(y = loans_u100k_num_idx, color = "Under $100K"), linewidth = 1.1) +
+  geom_point(aes(y = loans_u100k_num_idx, color = "Under $100K"), size = 2) +
+  geom_line(aes(y = loans_100_250_num_idx, color = "$100K-$250K"), linewidth = 1.1) +
+  geom_point(
+    aes(y = loans_100_250_num_idx, color = "$100K-$250K"),
+    shape = 15,
+    size = 2
+  ) +
+  geom_line(aes(y = loans_250_1m_num_idx, color = "$250K-$1M"), linewidth = 1.1) +
+  geom_point(
+    aes(y = loans_250_1m_num_idx, color = "$250K-$1M"),
+    shape = 17,
+    size = 2
+  ) +
+  geom_hline(yintercept = 100, color = "gray50", linetype = "dashed") +
+  scale_color_manual(
+    values = c(
+      "Under $100K" = "#2E75B6",
+      "$100K-$250K" = "#BF4D28",
+      "$250K-$1M" = "#4CAF50"
+    ),
+    breaks = c("Under $100K", "$100K-$250K", "$250K-$1M")
+  ) +
+  labs(
+    title = "National Small Business Lending Frequency per 10K Residents",
+    subtitle = "Growth Index (2000 = 100)",
+    x = "Year",
+    y = "Growth Index (2000 = 100)",
+    color = NULL,
+    caption = "Geography: 50 states and District of Columbia. Data: CRA aggregate files."
+  ) +
+  charlie_theme() +
+  theme(legend.position = "top")
+
+national_fig08_plot
+```
+
+The table below separates changes in national loan counts from changes in loans
+per 10,000 denominator units. Percentage change is calculated as
+`(2023 value - 2000 value) / 2000 value`, so positive values indicate growth
+and negative values indicate decline. Figure 8 corresponds to the `Per-10K
+change` column, not the raw `Count change` column.
+
+```{r national-frequency-endpoints}
+national_frequency_endpoints <- cra_national |>
+  select(
+    year,
+    loans_u100k_num,
+    loans_100_250_num,
+    loans_250_1m_num,
+    loans_u100k_num_per_10k,
+    loans_100_250_num_per_10k,
+    loans_250_1m_num_per_10k
+  ) |>
+  pivot_longer(
+    cols = -year,
+    names_to = c("bucket_code", ".value"),
+    names_pattern = "(loans_u100k|loans_100_250|loans_250_1m)_(num_per_10k|num)$"
+  ) |>
+  mutate(
+    bucket = recode(
+      bucket_code,
+      loans_u100k = "Under $100K",
+      loans_100_250 = "$100K-$250K",
+      loans_250_1m = "$250K-$1M"
+    )
+  ) |>
+  filter(year %in% c(2000L, 2023L)) |>
+  select(year, bucket, total_loans = num, loans_per_10k = num_per_10k) |>
+  pivot_wider(
+    names_from = year,
+    values_from = c(total_loans, loans_per_10k),
+    names_glue = "{.value}_{year}"
+  ) |>
+  mutate(
+    total_loans_change = total_loans_2023 - total_loans_2000,
+    total_loans_change_pct = safe_divide(
+      total_loans_change,
+      total_loans_2000
+    ),
+    loans_per_10k_change = loans_per_10k_2023 - loans_per_10k_2000,
+    loans_per_10k_change_pct = safe_divide(
+      loans_per_10k_change,
+      loans_per_10k_2000
+    )
+  ) |>
+  arrange(match(bucket, c("Under $100K", "$100K-$250K", "$250K-$1M")))
+
+frequency_index_2023 <- cra_national |>
+  filter(year == 2023L) |>
+  transmute(
+    `Under $100K` = loans_u100k_num_idx,
+    `$100K-$250K` = loans_100_250_num_idx,
+    `$250K-$1M` = loans_250_1m_num_idx
+  ) |>
+  unlist(use.names = FALSE)
+
+stopifnot(all(abs(
+  100 * (1 + national_frequency_endpoints$loans_per_10k_change_pct) -
+    frequency_index_2023
+) < 1e-10))
+
+knitr::kable(
+  national_frequency_endpoints |>
+    transmute(
+      bucket,
+      `2000 loans` = scales::comma(total_loans_2000, accuracy = 1),
+      `2023 loans` = scales::comma(total_loans_2023, accuracy = 1),
+      `Count change` = scales::percent(
+        total_loans_change_pct,
+        accuracy = 0.1
+      ),
+      `2000 per 10K` = scales::number(loans_per_10k_2000, accuracy = 0.1),
+      `2023 per 10K` = scales::number(loans_per_10k_2023, accuracy = 0.1),
+      `Per-10K change` = scales::percent(
+        loans_per_10k_change_pct,
+        accuracy = 0.1
+      )
+    ),
+  caption = "National lending-frequency endpoints by loan-size bucket"
+)
+```
+
+# National counterpart to Figure 9
+
+```{r national-figure-9, fig.width=10, fig.height=5}
+national_fig09_plot <- ggplot(cra_national, aes(x = year)) +
+  geom_line(aes(y = loans_u100k_amt_idx, color = "Under $100K"), linewidth = 1.1) +
+  geom_point(aes(y = loans_u100k_amt_idx, color = "Under $100K"), size = 2) +
+  geom_line(aes(y = loans_100_250_amt_idx, color = "$100K-$250K"), linewidth = 1.1) +
+  geom_point(
+    aes(y = loans_100_250_amt_idx, color = "$100K-$250K"),
+    shape = 15,
+    size = 2
+  ) +
+  geom_line(aes(y = loans_250_1m_amt_idx, color = "$250K-$1M"), linewidth = 1.1) +
+  geom_point(
+    aes(y = loans_250_1m_amt_idx, color = "$250K-$1M"),
+    shape = 17,
+    size = 2
+  ) +
+  geom_hline(yintercept = 100, color = "gray50", linetype = "dashed") +
+  scale_color_manual(
+    values = c(
+      "Under $100K" = "#2E75B6",
+      "$100K-$250K" = "#BF4D28",
+      "$250K-$1M" = "#4CAF50"
+    ),
+    breaks = c("Under $100K", "$100K-$250K", "$250K-$1M")
+  ) +
+  labs(
+    title = "National Small Business Lending Volume per 10K Residents",
+    subtitle = "Growth Index (2000 = 100)",
+    x = "Year",
+    y = "Growth Index (2000 = 100)",
+    color = NULL,
+    caption = paste(
+      "Nominal dollars; not adjusted for inflation.",
+      "Geography: 50 states and District of Columbia. Data: CRA aggregate files."
+    )
+  ) +
+  charlie_theme() +
+  theme(legend.position = "top")
+
+national_fig09_plot
+```
+
+The table below separates changes in nominal national totals from changes in
+nominal dollars per 10,000 denominator units. Percentage change is calculated as
+`(2023 value - 2000 value) / 2000 value`, so positive values indicate growth
+and negative values indicate decline. Figure 9 corresponds to the `Per-10K
+change` column, not the raw `Total change` column.
+
+```{r national-volume-endpoints}
+national_volume_endpoints <- cra_national |>
+  select(
+    year,
+    loans_u100k_amt,
+    loans_100_250_amt,
+    loans_250_1m_amt,
+    loans_u100k_amt_per_10k,
+    loans_100_250_amt_per_10k,
+    loans_250_1m_amt_per_10k
+  ) |>
+  pivot_longer(
+    cols = -year,
+    names_to = c("bucket_code", ".value"),
+    names_pattern = "(loans_u100k|loans_100_250|loans_250_1m)_(amt_per_10k|amt)$"
+  ) |>
+  mutate(
+    bucket = recode(
+      bucket_code,
+      loans_u100k = "Under $100K",
+      loans_100_250 = "$100K-$250K",
+      loans_250_1m = "$250K-$1M"
+    )
+  ) |>
+  filter(year %in% c(2000L, 2023L)) |>
+  select(year, bucket, nominal_total = amt, nominal_per_10k = amt_per_10k) |>
+  pivot_wider(
+    names_from = year,
+    values_from = c(nominal_total, nominal_per_10k),
+    names_glue = "{.value}_{year}"
+  ) |>
+  mutate(
+    nominal_total_change = nominal_total_2023 - nominal_total_2000,
+    nominal_total_change_pct = safe_divide(
+      nominal_total_change,
+      nominal_total_2000
+    ),
+    nominal_per_10k_change = nominal_per_10k_2023 - nominal_per_10k_2000,
+    nominal_per_10k_change_pct = safe_divide(
+      nominal_per_10k_change,
+      nominal_per_10k_2000
+    )
+  ) |>
+  arrange(match(bucket, c("Under $100K", "$100K-$250K", "$250K-$1M")))
+
+volume_index_2023 <- cra_national |>
+  filter(year == 2023L) |>
+  transmute(
+    `Under $100K` = loans_u100k_amt_idx,
+    `$100K-$250K` = loans_100_250_amt_idx,
+    `$250K-$1M` = loans_250_1m_amt_idx
+  ) |>
+  unlist(use.names = FALSE)
+
+stopifnot(all(abs(
+  100 * (1 + national_volume_endpoints$nominal_per_10k_change_pct) -
+    volume_index_2023
+) < 1e-10))
+
+knitr::kable(
+  national_volume_endpoints |>
+    transmute(
+      bucket,
+      `2000 total` = scales::dollar(nominal_total_2000, accuracy = 1),
+      `2023 total` = scales::dollar(nominal_total_2023, accuracy = 1),
+      `Total change` = scales::percent(nominal_total_change_pct, accuracy = 0.1),
+      `2000 per 10K` = scales::dollar(nominal_per_10k_2000, accuracy = 1),
+      `2023 per 10K` = scales::dollar(nominal_per_10k_2023, accuracy = 1),
+      `Per-10K change` = scales::percent(
+        nominal_per_10k_change_pct,
+        accuracy = 0.1
+      )
+    ),
+  caption = "National nominal lending-volume endpoints by loan-size bucket"
+)
+```
+
+# Wisconsin and national bank-headquarters trends
+
+A bank is counted once by its FDIC certificate number when its Summary of
+Deposits main-office record has `BRNUM == 0`. Wisconsin counts retain main
+offices with `STALP == "WI"`; national counts retain main offices in the 50
+states plus District of Columbia.
+
+```{r headquarters-data}
+headquarters_by_year <- purrr::map_dfr(2000:2024, function(target_year) {
+  sod <- load_fdic_sod(target_year)
+
+  main_offices <- sod |>
+    filter(
+      as.character(BRNUM) == "0",
+      !is.na(CERT)
+    )
+
+  tibble(
+    year = target_year,
+    geography = c("Wisconsin", "United States"),
+    hq_banks = c(
+      main_offices |>
+        filter(STALP == "WI") |>
+        summarise(value = n_distinct(CERT)) |>
+        pull(value),
+      main_offices |>
+        filter(STALP %in% us_state_abbr) |>
+        summarise(value = n_distinct(CERT)) |>
+        pull(value)
+    )
+  )
+}) |>
+  group_by(geography) |>
+  arrange(year, .by_group = TRUE) |>
+  mutate(
+    hq_banks_idx = hq_banks / hq_banks[year == 2000] * 100
+  ) |>
+  ungroup()
+
+wi_endpoint_reference <- purrr::map_dfr(c(2000L, 2024L), function(target_year) {
+  tibble(
+    year = target_year,
+    hq_banks = load_fdic_sod(target_year) |>
+      filter(
+        as.character(BRNUM) == "0",
+        STALP == "WI"
+      ) |>
+      distinct(CERT) |>
+      nrow()
+  )
+})
+
+stopifnot(
+  nrow(headquarters_by_year) == 50L,
+  n_distinct(headquarters_by_year$year) == 25L,
+  all(headquarters_by_year$hq_banks > 0),
+  all(headquarters_by_year$hq_banks == as.integer(headquarters_by_year$hq_banks)),
+  all(
+    headquarters_by_year |>
+      filter(year == 2000L) |>
+      pull(hq_banks_idx) == 100
+  ),
+  all(
+    headquarters_by_year |>
+      select(year, geography, hq_banks) |>
+      pivot_wider(names_from = geography, values_from = hq_banks) |>
+      transmute(passed = `United States` >= Wisconsin) |>
+      pull(passed)
+  ),
+  isTRUE(all.equal(
+    headquarters_by_year |>
+      filter(geography == "Wisconsin", year %in% c(2000L, 2024L)) |>
+      select(year, hq_banks),
+    wi_endpoint_reference,
+    check.attributes = FALSE
+  ))
+)
+
+headquarters_endpoints <- headquarters_by_year |>
+  filter(year %in% c(2000L, 2024L)) |>
+  select(year, geography, hq_banks) |>
+  pivot_wider(names_from = year, values_from = hq_banks, names_prefix = "banks_") |>
+  mutate(
+    decline = banks_2000 - banks_2024,
+    decline_pct = safe_divide(decline, banks_2000)
+  )
+```
+
+```{r headquarters-figure, fig.width=10, fig.height=5}
+headquarters_plot <- ggplot(
+  headquarters_by_year,
+  aes(x = year, y = hq_banks_idx, color = geography, shape = geography)
+) +
+  geom_line(linewidth = 1.1) +
+  geom_point(size = 2) +
+  geom_hline(yintercept = 100, color = "gray50", linetype = "dashed") +
+  scale_color_manual(
+    values = c("Wisconsin" = "#C5050C", "United States" = "#2E75B6"),
+    breaks = c("Wisconsin", "United States")
+  ) +
+  scale_shape_manual(
+    values = c("Wisconsin" = 16, "United States" = 15),
+    breaks = c("Wisconsin", "United States")
+  ) +
+  labs(
+    title = "Bank Headquarters in Wisconsin and the United States",
+    subtitle = "Growth Index (2000 = 100)",
+    x = "Year",
+    y = "Growth Index (2000 = 100)",
+    color = NULL,
+    shape = NULL,
+    caption = paste(
+      "Institutions are distinct FDIC certificate numbers on main-office records.",
+      "National geography is the 50 states plus District of Columbia."
+    )
+  ) +
+  charlie_theme() +
+  theme(legend.position = "top")
+
+headquarters_plot
+```
+
+```{r headquarters-endpoint-table}
+knitr::kable(
+  headquarters_endpoints |>
+    transmute(
+      Geography = geography,
+      `Banks in 2000` = scales::comma(banks_2000),
+      `Banks in 2024` = scales::comma(banks_2024),
+      `Absolute decline` = scales::comma(decline),
+      `Percent decline` = scales::percent(decline_pct, accuracy = 0.1)
+    ),
+  caption = "Headquartered-bank endpoint comparison"
+)
+```
+
+# Wisconsin and national branches per institution
+
+This figure extends the mean series in the existing repository Figure 2c. For
+each year and geography, institutions are distinct FDIC certificate numbers
+with at least one branch located in that geography. The mean is total branch
+records divided by the number of those institutions. Wisconsin therefore
+includes all institutions operating branches in Wisconsin, regardless of
+headquarters location. The national series includes branch locations in the 50
+states plus District of Columbia.
+
+```{r branches-per-institution-data}
+branches_per_institution <- purrr::map_dfr(2000:2024, function(target_year) {
+  sod <- load_fdic_sod(target_year)
+
+  wi_branches <- sod |>
+    filter(STALPBR == "WI")
+
+  national_branches <- sod |>
+    filter(STALPBR %in% us_state_abbr)
+
+  wi_branch_counts <- wi_branches |>
+    count(CERT, name = "institution_branches")
+
+  tibble(
+    year = target_year,
+    geography = c("Wisconsin", "United States"),
+    branches = c(nrow(wi_branches), nrow(national_branches)),
+    institutions = c(
+      n_distinct(wi_branches$CERT),
+      n_distinct(national_branches$CERT)
+    ),
+    existing_figure_mean = c(
+      mean(wi_branch_counts$institution_branches, na.rm = TRUE),
+      NA_real_
+    )
+  ) |>
+    mutate(
+      branches_per_institution = safe_divide(branches, institutions)
+    )
+}) |>
+  arrange(geography, year)
+
+wi_mean_comparison <- branches_per_institution |>
+  filter(geography == "Wisconsin") |>
+  select(year, branches_per_institution, existing_figure_mean)
+
+stopifnot(
+  nrow(branches_per_institution) == 50L,
+  n_distinct(branches_per_institution$year) == 25L,
+  all(branches_per_institution$branches > 0),
+  all(branches_per_institution$institutions > 0),
+  !anyNA(branches_per_institution$branches_per_institution),
+  all(abs(
+    branches_per_institution$branches_per_institution -
+      branches_per_institution$branches /
+        branches_per_institution$institutions
+  ) < 1e-12),
+  all(abs(
+    wi_mean_comparison$branches_per_institution -
+      wi_mean_comparison$existing_figure_mean
+  ) < 1e-12)
+)
+
+branches_per_institution_endpoints <- branches_per_institution |>
+  filter(year %in% c(2000L, 2024L)) |>
+  select(year, geography, branches_per_institution) |>
+  pivot_wider(
+    names_from = year,
+    values_from = branches_per_institution,
+    names_prefix = "ratio_"
+  ) |>
+  mutate(
+    absolute_change = ratio_2024 - ratio_2000,
+    percent_change = safe_divide(absolute_change, ratio_2000)
+  )
+```
+
+```{r branches-per-institution-figure, fig.width=10, fig.height=5}
+branches_per_institution_plot <- ggplot(
+  branches_per_institution,
+  aes(
+    x = year,
+    y = branches_per_institution,
+    color = geography,
+    shape = geography
+  )
+) +
+  geom_line(linewidth = 1.1) +
+  geom_point(size = 2) +
+  scale_color_manual(
+    values = c("Wisconsin" = "#C5050C", "United States" = "#2E75B6"),
+    breaks = c("Wisconsin", "United States")
+  ) +
+  scale_shape_manual(
+    values = c("Wisconsin" = 16, "United States" = 15),
+    breaks = c("Wisconsin", "United States")
+  ) +
+  scale_x_continuous(breaks = seq(2000, 2024, by = 2)) +
+  labs(
+    title = "Mean Branches per Banking Institution (2000-2024)",
+    subtitle = "Institutions with branches operating in each geography",
+    x = "Year",
+    y = "Mean Branches per Institution",
+    color = NULL,
+    shape = NULL,
+    caption = paste(
+      "Data: FDIC Summary of Deposits.",
+      "National geography is the 50 states plus District of Columbia."
+    )
+  ) +
+  charlie_theme() +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+branches_per_institution_plot
+```
+
+```{r branches-per-institution-endpoint-table}
+knitr::kable(
+  branches_per_institution_endpoints |>
+    transmute(
+      Geography = geography,
+      `Branches per institution, 2000` = scales::number(
+        ratio_2000,
+        accuracy = 0.01
+      ),
+      `Branches per institution, 2024` = scales::number(
+        ratio_2024,
+        accuracy = 0.01
+      ),
+      `Absolute change` = scales::number(
+        absolute_change,
+        accuracy = 0.01
+      ),
+      `Percent change` = scales::percent(percent_change, accuracy = 0.1)
+    ),
+  caption = "Mean branches-per-institution endpoint comparison"
+)
+```
+
+# Descriptive findings and methods notes
+
+```{r findings-values, include=FALSE}
+wi_hq_result <- headquarters_endpoints |>
+  filter(geography == "Wisconsin")
+
+us_hq_result <- headquarters_endpoints |>
+  filter(geography == "United States")
+
+frequency_2023 <- cra_national |>
+  filter(year == 2023L) |>
+  select(
+    loans_u100k_num_idx,
+    loans_100_250_num_idx,
+    loans_250_1m_num_idx
+  )
+
+volume_2023 <- cra_national |>
+  filter(year == 2023L) |>
+  select(
+    loans_u100k_amt_idx,
+    loans_100_250_amt_idx,
+    loans_250_1m_amt_idx
+  )
+
+wi_branch_ratio_result <- branches_per_institution_endpoints |>
+  filter(geography == "Wisconsin")
+
+us_branch_ratio_result <- branches_per_institution_endpoints |>
+  filter(geography == "United States")
+```
+
+The number of Wisconsin-headquartered banks fell from
+`r scales::comma(wi_hq_result$banks_2000)` in 2000 to
+`r scales::comma(wi_hq_result$banks_2024)` in 2024, a decline of
+`r scales::percent(wi_hq_result$decline_pct, accuracy = 0.1)`. Nationally, the
+comparable count fell from `r scales::comma(us_hq_result$banks_2000)` to
+`r scales::comma(us_hq_result$banks_2024)`, a decline of
+`r scales::percent(us_hq_result$decline_pct, accuracy = 0.1)`. The common
+direction and the indexed paths in the third figure show whether the Wisconsin
+trend broadly mirrors the national consolidation pattern; the endpoint
+percentages quantify the difference in magnitude.
+
+Mean branches per institution changed from
+`r number(wi_branch_ratio_result$ratio_2000, accuracy = 0.01)` to
+`r number(wi_branch_ratio_result$ratio_2024, accuracy = 0.01)` in Wisconsin and
+from `r number(us_branch_ratio_result$ratio_2000, accuracy = 0.01)` to
+`r number(us_branch_ratio_result$ratio_2024, accuracy = 0.01)` nationally. These
+ratios describe the average branch footprint among institutions operating in
+each geography; they are not restricted to institutions headquartered there.
+
+In 2023, the national frequency indexes for the under-$100K, $100K–$250K, and
+$250K–$1M buckets were respectively
+`r number(frequency_2023$loans_u100k_num_idx, accuracy = 0.1)`,
+`r number(frequency_2023$loans_100_250_num_idx, accuracy = 0.1)`, and
+`r number(frequency_2023$loans_250_1m_num_idx, accuracy = 0.1)`. The corresponding
+nominal-volume indexes were
+`r number(volume_2023$loans_u100k_amt_idx, accuracy = 0.1)`,
+`r number(volume_2023$loans_100_250_amt_idx, accuracy = 0.1)`, and
+`r number(volume_2023$loans_250_1m_amt_idx, accuracy = 0.1)`. Values below 100
+indicate that the 2023 per-10,000 measure was below its 2000 level.
+
+These measures use the same denominator proxy as the current Wisconsin figures:
+annual labor-force level divided by the labor-force participation rate. The CRA
+volume series is nominal and is not adjusted for inflation. Results should
+therefore be read as definition-matched descriptive benchmarks, not as causal
+estimates.
