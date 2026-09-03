@@ -1,0 +1,1171 @@
+---
+title: "Urban/Rural and National Banking Lookbook"
+author: "Codex"
+date: 2026-09-01
+format:
+  html:
+    embed-resources: true
+    toc: true
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+# Purpose and definitions
+
+This descriptive lookbook extends selected figures from the 2026 Small Business
+Finance Report. It compares Wisconsin urban/metro and rural/nonmetro counties
+and adds national benchmarks for the 50 states plus the District of Columbia.
+
+“Urban” means USDA Rural-Urban Continuum Codes (RUCC) 1–3 (metropolitan), and
+“rural” means RUCC 4–9 (nonmetropolitan). Current county codes use the 2023
+classification; predecessor county codes absent from 2023 use the 2013 and then
+2003 vintages. This is a fixed current-definition analysis rather than a claim
+that a county's historical metropolitan status never changed.
+
+```{r setup}
+library(tidyverse)
+library(readxl)
+library(scales)
+library(knitr)
+library(glue)
+
+project_root <- normalizePath(file.path("..", ".."), winslash = "/")
+knitr::opts_knit$set(root.dir = project_root)
+
+source(file.path(
+  project_root,
+  "1_code", "1_2_visualize", "figs_charlie", "_charlie_helpers.R"
+))
+
+required_file <- function(path) {
+  if (!file.exists(path)) stop("Missing required input: ", path, call. = FALSE)
+  path
+}
+
+num0 <- function(x) {
+  replace_na(readr::parse_number(as.character(x)), 0)
+}
+
+safe_divide <- function(num, den) {
+  ifelse(is.na(den) | den == 0, NA_real_, num / den)
+}
+
+short_dollar <- function(x) {
+  case_when(
+    abs(x) >= 1e9 ~ paste0("$", number(x / 1e9, accuracy = 0.1), "B"),
+    abs(x) >= 1e6 ~ paste0("$", number(x / 1e6, accuracy = 0.01), "M"),
+    TRUE ~ paste0("$", number(x / 1e3, accuracy = 1), "K")
+  )
+}
+
+us_state_fips <- c(
+  "01", "02", "04", "05", "06", "08", "09", "10", "11", "12", "13",
+  "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25",
+  "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36",
+  "37", "38", "39", "40", "41", "42", "44", "45", "46", "47", "48",
+  "49", "50", "51", "53", "54", "55", "56"
+)
+us_state_abbr <- sort(c(state.abb, "DC"))
+
+rurality_levels <- c("Urban/metro", "Rural/nonmetro")
+rurality_colors <- c(
+  "Urban/metro" = "#2E75B6",
+  "Rural/nonmetro" = "#BF4D28"
+)
+comparison_levels <- c(
+  "Wisconsin urban", "Wisconsin rural", "U.S. urban", "U.S. rural"
+)
+comparison_colors <- c(
+  "Wisconsin urban" = "#2E75B6",
+  "Wisconsin rural" = "#BF4D28",
+  "U.S. urban" = "#4C956C",
+  "U.S. rural" = "#7B5EA7"
+)
+bucket_levels <- c("Under $100K", "$100K–$250K", "$250K–$1M")
+
+stopifnot(
+  length(us_state_fips) == 51L,
+  n_distinct(us_state_fips) == 51L,
+  length(us_state_abbr) == 51L,
+  "55" %in% us_state_fips,
+  "WI" %in% us_state_abbr
+)
+```
+
+# Classification and population audits
+
+## RUCC precedence lookup
+
+```{r rucc-lookup}
+rucc_2023 <- read_excel(required_file(
+  file.path("0_inputs", "Ruralurbancontinuumcodes2023.xlsx")
+)) |>
+  transmute(
+    county_fips = str_pad(as.character(FIPS), 5, pad = "0"),
+    rucc_2023 = as.integer(RUCC_2023)
+  ) |>
+  filter(str_sub(county_fips, 1, 2) %in% us_state_fips)
+
+rucc_2013 <- read_excel(required_file(
+  file.path("0_inputs", "Ruralurbancontinuumcodes2013.xls")
+)) |>
+  transmute(
+    county_fips = str_pad(as.character(FIPS), 5, pad = "0"),
+    rucc_2013 = as.integer(RUCC_2013)
+  ) |>
+  filter(str_sub(county_fips, 1, 2) %in% us_state_fips)
+
+rucc_2003 <- read_excel(required_file(
+  file.path("0_inputs", "Ruralurbancontinuumcodes2003.xls")
+)) |>
+  transmute(
+    county_fips = str_pad(as.character(`FIPS Code`), 5, pad = "0"),
+    rucc_2003 = as.integer(`2003 Rural-urban Continuum Code`)
+  ) |>
+  filter(str_sub(county_fips, 1, 2) %in% us_state_fips)
+
+stopifnot(
+  !anyDuplicated(rucc_2023$county_fips),
+  !anyDuplicated(rucc_2013$county_fips),
+  !anyDuplicated(rucc_2003$county_fips),
+  all(rucc_2023$rucc_2023 %in% 1:9),
+  all(rucc_2013$rucc_2013 %in% 1:9),
+  all(rucc_2003$rucc_2003 %in% 1:9)
+)
+
+rucc_lookup <- full_join(rucc_2023, rucc_2013, by = "county_fips") |>
+  full_join(rucc_2003, by = "county_fips") |>
+  mutate(
+    rucc = coalesce(rucc_2023, rucc_2013, rucc_2003),
+    rucc_source_vintage = case_when(
+      !is.na(rucc_2023) ~ "2023",
+      !is.na(rucc_2013) ~ "2013 fallback",
+      !is.na(rucc_2003) ~ "2003 fallback",
+      TRUE ~ NA_character_
+    ),
+    rurality = factor(
+      if_else(rucc <= 3L, "Urban/metro", "Rural/nonmetro"),
+      levels = rurality_levels
+    )
+  ) |>
+  select(county_fips, rucc, rucc_source_vintage, rurality)
+
+stopifnot(
+  !anyDuplicated(rucc_lookup$county_fips),
+  !anyNA(rucc_lookup$rucc),
+  all(rucc_lookup$rucc %in% 1:9)
+)
+
+rucc_audit <- rucc_lookup |>
+  count(rucc_source_vintage, name = "county_keys") |>
+  arrange(factor(rucc_source_vintage,
+                 levels = c("2023", "2013 fallback", "2003 fallback")))
+
+kable(rucc_audit, caption = "County keys by RUCC source vintage")
+```
+
+South Boston independent city (`51780`) appears in the 2000–2002 CRA files
+despite its 1995 merger into Halifax County. Those numerator records are mapped
+to Halifax County (`51083`) before classification.
+
+## Annual subgroup populations
+
+The denominator is resident population living in the same RUCC subgroup as the
+loan numerator. It uses final intercensal county estimates for 2000–2019 and
+Census Vintage 2025 county estimates for 2020–2023.
+
+```{r population-panel}
+pep_dir <- file.path(
+  "0_inputs", "data_charlie", "Census", "PEP_county_population"
+)
+
+pep_2000_raw <- read_csv(
+  required_file(file.path(pep_dir, "co-est00int-tot.csv")),
+  show_col_types = FALSE,
+  progress = FALSE
+)
+
+pep_2000 <- pep_2000_raw |>
+  filter(SUMLEV == 50, str_pad(as.character(STATE), 2, pad = "0") %in% us_state_fips) |>
+  transmute(
+    state_fips = str_pad(as.character(STATE), 2, pad = "0"),
+    county_fips = str_c(
+      state_fips,
+      str_pad(as.character(COUNTY), 3, pad = "0")
+    ),
+    across(POPESTIMATE2000:POPESTIMATE2009)
+  ) |>
+  pivot_longer(
+    starts_with("POPESTIMATE"),
+    names_pattern = "POPESTIMATE(\\d{4})",
+    names_to = "year",
+    values_to = "population"
+  ) |>
+  mutate(year = as.integer(year), source_period = "2000–2010 intercensal")
+
+pep_2010 <- read_csv(
+  required_file(file.path(pep_dir, "cc-est2020int-agesex-all.csv")),
+  show_col_types = FALSE,
+  progress = FALSE
+) |>
+  filter(
+    SUMLEV == 50,
+    YEAR %in% 2:11,
+    str_pad(as.character(STATE), 2, pad = "0") %in% us_state_fips
+  ) |>
+  transmute(
+    year = as.integer(YEAR) + 2008L,
+    state_fips = str_pad(as.character(STATE), 2, pad = "0"),
+    county_fips = str_c(
+      state_fips,
+      str_pad(as.character(COUNTY), 3, pad = "0")
+    ),
+    population = as.numeric(POPESTIMATE),
+    source_period = "2010–2020 intercensal"
+  )
+
+pep_2020_raw <- read_csv(
+  required_file(file.path(pep_dir, "co-est2025-alldata.csv")),
+  col_types = cols(
+    SUMLEV = col_character(), STATE = col_character(), COUNTY = col_character(),
+    .default = col_guess()
+  ),
+  progress = FALSE
+)
+
+pep_2020 <- pep_2020_raw |>
+  filter(SUMLEV == "050", STATE %in% us_state_fips) |>
+  transmute(
+    state_fips = STATE,
+    county_fips = str_c(STATE, COUNTY),
+    across(POPESTIMATE2020:POPESTIMATE2023)
+  ) |>
+  pivot_longer(
+    starts_with("POPESTIMATE"),
+    names_pattern = "POPESTIMATE(\\d{4})",
+    names_to = "year",
+    values_to = "population"
+  ) |>
+  mutate(year = as.integer(year), source_period = "2025 vintage")
+
+county_population_unclassified <- bind_rows(pep_2000, pep_2010, pep_2020) |>
+  arrange(year, county_fips)
+
+population_unmatched <- county_population_unclassified |>
+  distinct(county_fips) |>
+  anti_join(rucc_lookup, by = "county_fips")
+
+county_population <- county_population_unclassified |>
+  left_join(rucc_lookup, by = "county_fips")
+
+stopifnot(
+  nrow(population_unmatched) == 0L,
+  !anyDuplicated(county_population[c("year", "county_fips")]),
+  identical(sort(unique(county_population$year)), 2000:2023),
+  all(county_population$population > 0),
+  !anyNA(county_population$rurality)
+)
+
+state_subgroup_population <- county_population |>
+  group_by(year, state_fips, rurality) |>
+  summarise(population = sum(population), .groups = "drop")
+
+population_series <- bind_rows(
+  state_subgroup_population |>
+    filter(state_fips == "55") |>
+    transmute(year, geography = "Wisconsin", rurality, population),
+  state_subgroup_population |>
+    group_by(year, rurality) |>
+    summarise(population = sum(population), .groups = "drop") |>
+    mutate(geography = "United States", .before = rurality)
+) |>
+  mutate(
+    series = factor(
+      case_when(
+        geography == "Wisconsin" & rurality == "Urban/metro" ~ "Wisconsin urban",
+        geography == "Wisconsin" ~ "Wisconsin rural",
+        geography == "United States" & rurality == "Urban/metro" ~ "U.S. urban",
+        TRUE ~ "U.S. rural"
+      ),
+      levels = comparison_levels
+    )
+  )
+
+population_reconciliation <- county_population |>
+  group_by(year) |>
+  summarise(
+    counties_or_equivalents = n(),
+    input_population = sum(population),
+    classified_population = sum(population[!is.na(rurality)]),
+    difference = classified_population - input_population,
+    .groups = "drop"
+  )
+
+stopifnot(
+  nrow(population_series) == 24L * 4L,
+  all(population_series$population > 0),
+  all(population_reconciliation$difference == 0)
+)
+
+kable(
+  population_reconciliation |>
+    filter(year %in% c(2000L, 2009L, 2010L, 2019L, 2020L, 2023L)) |>
+    mutate(across(ends_with("population"), comma)),
+  caption = "County-population classification reconciliation"
+)
+```
+
+# Harmonized CRA county panel
+
+CRA source formats change twice between 2000 and 2023. The loader retains
+county FIPS through classification and converts amounts reported in thousands
+of dollars to dollars in 2000–2004 and 2019–2023.
+
+```{r cra-county-loader}
+load_cra_county_year <- function(year) {
+  if (year <= 2004L) {
+    raw <- read_delim(
+      required_file(file.path(
+        charlie_cra_dir, "aggr", sprintf("tract_%d.txt", year)
+      )),
+      delim = "|",
+      show_col_types = FALSE,
+      progress = FALSE
+    ) |>
+      filter(report_level == 200) |>
+      transmute(
+        state_fips = str_pad(as.character(state), 2, pad = "0"),
+        county_fips_original = str_c(
+          state_fips,
+          str_pad(as.character(county), 3, pad = "0")
+        ),
+        loans_u100k_num = num0(num_100k),
+        loans_100_250_num = num0(num_250k),
+        loans_250_1m_num = num0(num_1mil),
+        loans_u100k_amt = num0(vol_100k) * 1000,
+        loans_100_250_amt = num0(vol_250k) * 1000,
+        loans_250_1m_amt = num0(vol_1mil) * 1000
+      )
+  } else if (year <= 2018L) {
+    raw <- read_csv(
+      required_file(file.path(
+        charlie_cra_dir, "cra_old", sprintf("cra_%d.csv", year)
+      )),
+      show_col_types = FALSE,
+      progress = FALSE
+    ) |>
+      transmute(
+        county_fips_original = str_pad(as.character(fips), 5, pad = "0"),
+        state_fips = str_sub(county_fips_original, 1, 2),
+        loans_u100k_num = num0(loan_count_100k),
+        loans_100_250_num = num0(loan_count_250k),
+        loans_250_1m_num = num0(loan_count_1M),
+        loans_u100k_amt = num0(loan_vol_100k),
+        loans_100_250_amt = num0(loan_vol_250k),
+        loans_250_1m_amt = num0(loan_vol_1M)
+      )
+  } else {
+    raw <- read_fwf(
+      required_file(file.path(
+        charlie_cra_dir,
+        sprintf("%dexp_aggr", year - 2000L),
+        sprintf("cra%d_Aggr_A11.dat", year)
+      )),
+      col_positions = fwf_widths(cra_fixed_widths, cra_fixed_names),
+      show_col_types = FALSE,
+      progress = FALSE
+    ) |>
+      filter(as.character(Report_Level) == "200") |>
+      transmute(
+        state_fips = str_pad(as.character(State_FIPS), 2, pad = "0"),
+        county_fips_original = str_c(
+          state_fips,
+          str_pad(as.character(County_FIPS), 3, pad = "0")
+        ),
+        loans_u100k_num = num0(Loans_U100k_Num),
+        loans_100_250_num = num0(Loans_100_250_Num),
+        loans_250_1m_num = num0(Loans_250_1M_Num),
+        loans_u100k_amt = num0(Loans_U100k_Amt) * 1000,
+        loans_100_250_amt = num0(Loans_100_250_Amt) * 1000,
+        loans_250_1m_amt = num0(Loans_250_1M_Amt) * 1000
+      )
+  }
+
+  raw |>
+    filter(state_fips %in% us_state_fips) |>
+    mutate(
+      year = as.integer(year),
+      county_fips = if_else(
+        county_fips_original == "51780",
+        "51083",
+        county_fips_original
+      )
+    ) |>
+    group_by(year, state_fips, county_fips_original, county_fips) |>
+    summarise(across(starts_with("loans_"), sum), .groups = "drop")
+}
+
+cra_county_unclassified <- map_dfr(2000:2023, load_cra_county_year)
+
+cra_unmatched <- cra_county_unclassified |>
+  distinct(county_fips) |>
+  anti_join(rucc_lookup, by = "county_fips")
+
+cra_county <- cra_county_unclassified |>
+  left_join(rucc_lookup, by = "county_fips")
+
+cra_value_cols <- names(cra_county)[str_detect(names(cra_county), "^loans_")]
+
+stopifnot(
+  nrow(cra_unmatched) == 0L,
+  identical(sort(unique(cra_county$year)), 2000:2023),
+  !anyNA(cra_county$rurality),
+  all(as.matrix(cra_county[cra_value_cols]) >= 0),
+  all(cra_county$state_fips %in% us_state_fips)
+)
+
+cra_subgroups <- bind_rows(
+  cra_county |>
+    filter(state_fips == "55") |>
+    group_by(year, rurality) |>
+    summarise(across(all_of(cra_value_cols), sum), .groups = "drop") |>
+    mutate(geography = "Wisconsin", .before = rurality),
+  cra_county |>
+    group_by(year, rurality) |>
+    summarise(across(all_of(cra_value_cols), sum), .groups = "drop") |>
+    mutate(geography = "United States", .before = rurality)
+) |>
+  mutate(
+    series = factor(
+      case_when(
+        geography == "Wisconsin" & rurality == "Urban/metro" ~ "Wisconsin urban",
+        geography == "Wisconsin" ~ "Wisconsin rural",
+        geography == "United States" & rurality == "Urban/metro" ~ "U.S. urban",
+        TRUE ~ "U.S. rural"
+      ),
+      levels = comparison_levels
+    )
+  )
+
+cra_total_check <- cra_county |>
+  group_by(year, geography = if_else(state_fips == "55", "Wisconsin", "United States")) |>
+  summarise(across(all_of(cra_value_cols), sum), .groups = "drop")
+
+wi_frequency_reference <- load_cra_wi_frequency_series()
+wi_volume_reference <- load_cra_wi_volume_series()
+
+wi_generic <- cra_county |>
+  filter(state_fips == "55") |>
+  group_by(year) |>
+  summarise(across(all_of(cra_value_cols), sum), .groups = "drop")
+
+frequency_match <- isTRUE(all.equal(
+  wi_generic |>
+    select(year, loans_u100k_num, loans_100_250_num, loans_250_1m_num),
+  wi_frequency_reference |>
+    select(year, loans_u100k_num, loans_100_250_num, loans_250_1m_num),
+  check.attributes = FALSE
+))
+
+volume_match <- isTRUE(all.equal(
+  wi_generic |>
+    select(year, loans_u100k_amt, loans_100_250_amt, loans_250_1m_amt),
+  wi_volume_reference |>
+    select(year, loans_u100k_amt, loans_100_250_amt, loans_250_1m_amt),
+  check.attributes = FALSE
+))
+
+cra_loader_audit <- tibble(
+  check = c(
+    "All county-year records have RUCC",
+    "Wisconsin loan counts reproduce Figure 8 loader",
+    "Wisconsin loan volumes reproduce Figure 9 loader",
+    "Legacy South Boston records successor-mapped"
+  ),
+  passed = c(
+    nrow(cra_unmatched) == 0L,
+    frequency_match,
+    volume_match,
+    sum(cra_county_unclassified$county_fips_original == "51780") == 3L
+  )
+)
+
+stopifnot(all(cra_loader_audit$passed))
+kable(cra_loader_audit, caption = "CRA loader and geography audits")
+```
+
+## Subgroup normalization
+
+```{r cra-indexes}
+cra_normalized <- cra_subgroups |>
+  left_join(
+    population_series |>
+      select(year, geography, rurality, population),
+    by = c("year", "geography", "rurality")
+  ) |>
+  pivot_longer(
+    cols = all_of(cra_value_cols),
+    names_to = "measure_bucket",
+    values_to = "raw_value"
+  ) |>
+  mutate(
+    measure = if_else(str_ends(measure_bucket, "_num"), "Frequency", "Volume"),
+    bucket = case_when(
+      str_detect(measure_bucket, "u100k") ~ "Under $100K",
+      str_detect(measure_bucket, "100_250") ~ "$100K–$250K",
+      TRUE ~ "$250K–$1M"
+    ),
+    bucket = factor(bucket, levels = bucket_levels),
+    per_10k = safe_divide(raw_value, population) * 10000
+  ) |>
+  group_by(series, measure, bucket) |>
+  arrange(year, .by_group = TRUE) |>
+  mutate(index = per_10k / first(per_10k) * 100) |>
+  ungroup()
+
+index_audit <- cra_normalized |>
+  group_by(series, measure, bucket) |>
+  summarise(
+    years = n(),
+    first_year = min(year),
+    last_year = max(year),
+    base_index = first(index),
+    positive_denominators = all(population > 0),
+    .groups = "drop"
+  )
+
+stopifnot(
+  nrow(index_audit) == 4L * 2L * 3L,
+  all(index_audit$years == 24L),
+  all(index_audit$first_year == 2000L),
+  all(index_audit$last_year == 2023L),
+  all(abs(index_audit$base_index - 100) < 1e-10),
+  all(index_audit$positive_denominators)
+)
+```
+
+# Urban/rural heterogeneity
+
+## Wisconsin branches by county rurality
+
+```{r fdic-data}
+fdic_yearly <- map_dfr(2000:2024, function(year) {
+  sod <- load_fdic_sod(year) |>
+    mutate(
+      county_fips = str_pad(as.character(STCNTYBR), 5, pad = "0"),
+      branch_state = as.character(STALPBR)
+    )
+
+  wi_classified <- sod |>
+    filter(branch_state == "WI") |>
+    left_join(rucc_lookup, by = "county_fips")
+
+  if (anyNA(wi_classified$rurality)) {
+    stop("Unclassified Wisconsin FDIC county FIPS in ", year, call. = FALSE)
+  }
+
+  wi_counts <- wi_classified |>
+    count(rurality, name = "branches") |>
+    complete(
+      rurality = factor(rurality_levels, levels = rurality_levels),
+      fill = list(branches = 0L)
+    ) |>
+    mutate(year = year, .before = rurality)
+
+  national <- sod |>
+    filter(branch_state %in% us_state_abbr)
+
+  bind_rows(
+    wi_counts |>
+      mutate(metric = "wi_rurality", institutions = NA_integer_),
+    tibble(
+      year = year,
+      rurality = factor(NA_character_, levels = rurality_levels),
+      branches = nrow(national),
+      metric = "national_total",
+      institutions = n_distinct(national$CERT)
+    )
+  )
+})
+
+wi_branch_rurality <- fdic_yearly |>
+  filter(metric == "wi_rurality") |>
+  select(year, rurality, branches)
+
+wi_branch_share <- wi_branch_rurality |>
+  group_by(year) |>
+  mutate(total_branches = sum(branches)) |>
+  ungroup() |>
+  filter(rurality == "Rural/nonmetro") |>
+  transmute(year, rural_share = branches / total_branches)
+
+national_fdic <- fdic_yearly |>
+  filter(metric == "national_total") |>
+  select(year, institutions, branches)
+
+wi_fdic_total <- map_dfr(c(2000L, 2024L), function(year) {
+  wi <- load_fdic_sod(year) |> filter(STALPBR == "WI")
+  tibble(year, institutions = n_distinct(wi$CERT), branches = nrow(wi))
+})
+
+stopifnot(
+  nrow(wi_branch_rurality) == 25L * 2L,
+  all(wi_branch_share$rural_share >= 0 & wi_branch_share$rural_share <= 1),
+  identical(wi_fdic_total$institutions, c(365L, 193L)),
+  identical(wi_fdic_total$branches, c(2116L, 1661L)),
+  all(national_fdic$branches > 0),
+  all(national_fdic$institutions > 0)
+)
+```
+
+```{r wi-branch-rurality-figure, fig.width=10, fig.height=5}
+ggplot(
+  wi_branch_rurality,
+  aes(x = year, y = branches, color = rurality, shape = rurality)
+) +
+  geom_line(linewidth = 1.05) +
+  geom_point(size = 2.1) +
+  scale_color_manual(values = rurality_colors) +
+  scale_shape_manual(values = c("Urban/metro" = 16, "Rural/nonmetro" = 15)) +
+  scale_x_continuous(breaks = seq(2000, 2024, 2)) +
+  scale_y_continuous(labels = comma, expand = expansion(mult = c(0.02, 0.08))) +
+  labs(
+    title = "Wisconsin Bank Branches by County Rurality",
+    subtitle = "Branch location classified with RUCC 1–3 versus 4–9",
+    x = "Year", y = "Branches", color = NULL, shape = NULL,
+    caption = "Data: FDIC Summary of Deposits; USDA Rural-Urban Continuum Codes"
+  ) +
+  charlie_theme() +
+  theme(
+    legend.position = "right",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+```{r wi-rural-branch-share-figure, fig.width=10, fig.height=4.8}
+ggplot(wi_branch_share, aes(x = year, y = rural_share)) +
+  geom_line(color = rurality_colors[["Rural/nonmetro"]], linewidth = 1.1) +
+  geom_point(color = rurality_colors[["Rural/nonmetro"]], size = 2.2) +
+  scale_x_continuous(breaks = seq(2000, 2024, 2)) +
+  scale_y_continuous(labels = label_percent(accuracy = 1), limits = c(0, NA)) +
+  labs(
+    title = "Rural Share of Wisconsin Bank Branches",
+    subtitle = "Share of classified Wisconsin branch locations in RUCC 4–9 counties",
+    x = "Year", y = "Rural share",
+    caption = "Data: FDIC Summary of Deposits; USDA Rural-Urban Continuum Codes"
+  ) +
+  charlie_theme() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r wi-branch-endpoints}
+kable(
+  wi_branch_rurality |>
+    filter(year %in% c(2000L, 2024L)) |>
+    left_join(wi_branch_share, by = "year") |>
+    mutate(rural_share = percent(rural_share, accuracy = 0.1)),
+  caption = "Wisconsin branch rurality audit (endpoint years)"
+)
+```
+
+## Rural Wisconsin lending by original loan size, 2023
+
+```{r figure7-helper}
+build_figure7_table <- function(df) {
+  out <- tibble(
+    Category = factor(bucket_levels, levels = bucket_levels),
+    loans = c(
+      sum(df$loans_u100k_num),
+      sum(df$loans_100_250_num),
+      sum(df$loans_250_1m_num)
+    ),
+    volume = c(
+      sum(df$loans_u100k_amt),
+      sum(df$loans_100_250_amt),
+      sum(df$loans_250_1m_amt)
+    )
+  ) |>
+    mutate(
+      loan_share = loans / sum(loans),
+      volume_share = volume / sum(volume),
+      average_size = safe_divide(volume, loans)
+    )
+
+  bind_rows(
+    out,
+    tibble(
+      Category = factor("Total", levels = c(bucket_levels, "Total")),
+      loans = sum(out$loans),
+      volume = sum(out$volume),
+      loan_share = sum(out$loan_share),
+      volume_share = sum(out$volume_share),
+      average_size = safe_divide(sum(out$volume), sum(out$loans))
+    )
+  ) |>
+    mutate(Category = factor(as.character(Category), levels = c(bucket_levels, "Total")))
+}
+
+format_figure7 <- function(df) {
+  df |>
+    transmute(
+      Category,
+      `# of Loans` = comma(loans, accuracy = 1),
+      `% of Loans` = percent(loan_share, accuracy = 0.1),
+      Volume = dollar(volume, accuracy = 1, scale_cut = cut_short_scale()),
+      `% of Volume` = percent(volume_share, accuracy = 0.1),
+      `Avg. Size` = dollar(average_size, accuracy = 1)
+    )
+}
+
+rural_wi_2023 <- cra_county |>
+  filter(
+    year == 2023L,
+    state_fips == "55",
+    rurality == "Rural/nonmetro"
+  )
+
+rural_wi_figure7 <- build_figure7_table(rural_wi_2023)
+
+stopifnot(
+  nrow(rural_wi_figure7) == 4L,
+  abs(sum(rural_wi_figure7$loan_share[1:3]) - 1) < 1e-10,
+  abs(sum(rural_wi_figure7$volume_share[1:3]) - 1) < 1e-10,
+  all(rural_wi_2023$rucc %in% 4:9)
+)
+
+kable(
+  format_figure7(rural_wi_figure7),
+  align = c("l", "r", "r", "r", "r", "r"),
+  caption = "Rural Wisconsin CRA small-business lending by original loan size (2023)"
+)
+```
+
+## Wisconsin credit-union commercial loan size by headquarters rurality
+
+Credit unions are classified by headquarters county. The plotted average is a
+ratio of group totals: total commercial-loan amount divided by total
+commercial-loan count.
+
+```{r ncua-data}
+normalize_county_name <- function(x) {
+  x |>
+    str_to_upper() |>
+    str_replace_all("\\.", "") |>
+    str_replace(" COUNTY$", "") |>
+    str_squish()
+}
+
+wi_rucc_name_lookup <- read_excel(required_file(
+  file.path("0_inputs", "Ruralurbancontinuumcodes2023.xlsx")
+)) |>
+  filter(State == "WI") |>
+  transmute(
+    county_key = normalize_county_name(County_Name),
+    county_fips = str_pad(as.character(FIPS), 5, pad = "0"),
+    rucc = as.integer(RUCC_2023),
+    rurality = factor(
+      if_else(rucc <= 3L, "Urban/metro", "Rural/nonmetro"),
+      levels = rurality_levels
+    )
+  )
+
+ncua_results <- map(2017:2024, function(year) {
+  main_offices <- load_ncua_branch(year) |>
+    filter(MainOffice == "Yes") |>
+    distinct(CU_NUMBER, .keep_all = TRUE)
+
+  wi_main <- main_offices |>
+    filter(PhysicalAddressStateCode == "WI") |>
+    mutate(county_key = normalize_county_name(PhysicalAddressCountyName)) |>
+    left_join(wi_rucc_name_lookup, by = "county_key")
+
+  if (anyNA(wi_main$rurality)) {
+    missing_names <- wi_main |>
+      filter(is.na(rurality)) |>
+      distinct(PhysicalAddressCountyName) |>
+      pull()
+    stop(
+      "Unmatched Wisconsin NCUA headquarters county names in ", year, ": ",
+      paste(missing_names, collapse = ", "),
+      call. = FALSE
+    )
+  }
+
+  fs <- load_ncua_fs(year) |>
+    transmute(
+      CU_NUMBER,
+      commercial_amount = num0(ACCT_475A1),
+      commercial_count = num0(ACCT_090A1)
+    )
+
+  if (anyDuplicated(fs$CU_NUMBER)) {
+    stop("Duplicate NCUA financial-statement CU_NUMBER in ", year, call. = FALSE)
+  }
+
+  wi_groups <- wi_main |>
+    select(CU_NUMBER, rurality) |>
+    inner_join(fs, by = "CU_NUMBER") |>
+    group_by(rurality) |>
+    summarise(
+      amount = sum(commercial_amount),
+      count = sum(commercial_count),
+      credit_unions = n_distinct(CU_NUMBER),
+      .groups = "drop"
+    ) |>
+    mutate(year = year, average_size = safe_divide(amount, count), .before = rurality)
+
+  eligible_main <- main_offices |>
+    filter(PhysicalAddressStateCode %in% us_state_abbr)
+
+  geo_groups <- bind_rows(
+    wi_main |>
+      transmute(CU_NUMBER, geography = "Wisconsin"),
+    eligible_main |>
+      transmute(CU_NUMBER, geography = "United States")
+  ) |>
+    inner_join(fs, by = "CU_NUMBER") |>
+    group_by(geography) |>
+    summarise(
+      amount = sum(commercial_amount),
+      count = sum(commercial_count),
+      credit_unions = n_distinct(CU_NUMBER),
+      .groups = "drop"
+    ) |>
+    mutate(year = year, average_size = safe_divide(amount, count), .before = geography)
+
+  list(wi = wi_groups, geo = geo_groups)
+})
+
+cu_wi_rurality <- map_dfr(ncua_results, "wi") |>
+  mutate(rurality = factor(rurality, levels = rurality_levels))
+
+cu_geography <- map_dfr(ncua_results, "geo") |>
+  mutate(geography = factor(geography, levels = c("Wisconsin", "United States")))
+
+cu_wi_reference <- map_dfr(2017:2024, function(year) {
+  wi_ids <- wi_cu_main_offices(year)$CU_NUMBER
+  wi_fs <- load_ncua_fs(year) |> filter(CU_NUMBER %in% wi_ids)
+  tibble(
+    year,
+    amount = sum(num0(wi_fs$ACCT_475A1)),
+    count = sum(num0(wi_fs$ACCT_090A1))
+  )
+}) |>
+  mutate(average_size = safe_divide(amount, count))
+
+cu_wi_from_geo <- cu_geography |>
+  filter(geography == "Wisconsin") |>
+  arrange(year)
+
+stopifnot(
+  nrow(cu_wi_rurality) == 16L,
+  nrow(cu_geography) == 16L,
+  all(cu_wi_rurality$count > 0),
+  all(cu_geography$count > 0),
+  isTRUE(all.equal(
+    cu_wi_reference$average_size,
+    cu_wi_from_geo$average_size,
+    check.attributes = FALSE
+  )),
+  all(
+    cu_geography$amount[cu_geography$geography == "United States"] >=
+      cu_geography$amount[cu_geography$geography == "Wisconsin"]
+  )
+)
+```
+
+```{r wi-cu-rurality-figure, fig.width=10, fig.height=5.5}
+ggplot(
+  cu_wi_rurality,
+  aes(x = factor(year), y = average_size, fill = rurality)
+) +
+  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+  geom_text(
+    aes(label = short_dollar(average_size)),
+    position = position_dodge(width = 0.8),
+    vjust = -0.35,
+    size = 2.8
+  ) +
+  scale_fill_manual(values = rurality_colors) +
+  scale_y_continuous(labels = label_dollar(scale_cut = cut_short_scale()),
+                     expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Average Credit-Union Commercial Loan Size by Headquarters Rurality",
+    subtitle = "Wisconsin-headquartered credit unions, ratio of group totals",
+    x = "Year", y = "Average loan size", fill = NULL,
+    caption = "Data: NCUA Call Reports; USDA Rural-Urban Continuum Codes"
+  ) +
+  charlie_theme() +
+  theme(legend.position = "right")
+```
+
+# National comparisons
+
+## National institutions and branches
+
+```{r national-figure1, fig.width=10, fig.height=5.5}
+national_fdic_long <- national_fdic |>
+  transmute(year, Institutions = institutions, Branches = branches) |>
+  pivot_longer(c(Institutions, Branches), names_to = "series", values_to = "value") |>
+  mutate(series = factor(series, levels = c("Institutions", "Branches")))
+
+ggplot(national_fdic_long, aes(year, value, color = series, shape = series)) +
+  geom_line(linewidth = 1.05) +
+  geom_point(size = 2.1) +
+  scale_color_manual(values = c("Institutions" = "#BF4D28", "Branches" = "#2E75B6")) +
+  scale_shape_manual(values = c("Institutions" = 16, "Branches" = 15)) +
+  scale_x_continuous(breaks = seq(2000, 2024, 2)) +
+  scale_y_continuous(labels = comma, expand = expansion(mult = c(0.02, 0.08))) +
+  labs(
+    title = "U.S. Banking Institutions and Branches (2000–2024)",
+    subtitle = "Institutions operating at least one branch in the 50 states or DC",
+    x = "Year", y = "Count", color = NULL, shape = NULL,
+    caption = "Data: FDIC Summary of Deposits"
+  ) +
+  charlie_theme() +
+  theme(
+    legend.position = "right",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+## National institutions by number of branches, 2024
+
+```{r national-figure2-data}
+national_sod_2024 <- load_fdic_sod(2024) |>
+  filter(STALPBR %in% us_state_abbr)
+
+national_institution_branches <- national_sod_2024 |>
+  count(CERT, name = "branches")
+
+institution_bucket_levels <- c("1", "2–5", "6–10", "11–20", "21–50", "50+")
+
+national_figure2 <- national_institution_branches |>
+  mutate(
+    bucket = cut(
+      branches,
+      breaks = c(0, 2, 6, 11, 21, 51, Inf),
+      labels = institution_bucket_levels,
+      right = FALSE
+    )
+  ) |>
+  count(bucket, name = "institutions") |>
+  complete(
+    bucket = factor(institution_bucket_levels, levels = institution_bucket_levels),
+    fill = list(institutions = 0L)
+  )
+
+national_stats_text <- glue(
+  "Mean: {round(mean(national_institution_branches$branches), 1)}  |  ",
+  "Median: {round(median(national_institution_branches$branches), 0)}  |  ",
+  "Total: {comma(nrow(national_institution_branches))}"
+)
+
+stopifnot(
+  sum(national_figure2$institutions) == n_distinct(national_sod_2024$CERT),
+  all(!is.na(national_figure2$bucket))
+)
+```
+
+```{r national-figure2, fig.width=9.5, fig.height=5.5}
+ggplot(national_figure2, aes(bucket, institutions)) +
+  geom_col(fill = "#2E75B6", width = 0.7) +
+  geom_text(aes(label = comma(institutions)), vjust = -0.35, size = 3.1) +
+  annotate(
+    "label", x = 6, y = max(national_figure2$institutions) * 0.92,
+    label = national_stats_text, hjust = 1, size = 3, fill = "white"
+  ) +
+  scale_y_continuous(labels = comma, expand = expansion(mult = c(0, 0.12))) +
+  labs(
+    title = "U.S. Banking Institutions by Number of Branches (2024)",
+    x = "Number of branches", y = "Number of institutions",
+    caption = "Data: FDIC Summary of Deposits; geography is the 50 states plus DC"
+  ) +
+  charlie_theme()
+```
+
+## National lending by original loan size, 2023
+
+```{r national-figure7}
+national_figure7 <- cra_county |>
+  filter(year == 2023L) |>
+  build_figure7_table()
+
+stopifnot(
+  nrow(national_figure7) == 4L,
+  abs(sum(national_figure7$loan_share[1:3]) - 1) < 1e-10,
+  abs(sum(national_figure7$volume_share[1:3]) - 1) < 1e-10
+)
+
+kable(
+  format_figure7(national_figure7),
+  align = c("l", "r", "r", "r", "r", "r"),
+  caption = "U.S. CRA small-business lending by original loan size (2023)"
+)
+```
+
+## Lending frequency by geography and rurality
+
+Each line is loans per 10,000 residents living in the same RUCC subgroup,
+indexed to that line's own year-2000 value.
+
+```{r cra-frequency-figure, fig.width=10.5, fig.height=11}
+frequency_plot_data <- cra_normalized |>
+  filter(measure == "Frequency")
+
+ggplot(
+  frequency_plot_data,
+  aes(year, index, color = series, linetype = series)
+) +
+  geom_hline(yintercept = 100, linetype = "dashed", color = "grey55") +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.6) +
+  facet_wrap(vars(bucket), ncol = 1) +
+  scale_color_manual(values = comparison_colors, drop = FALSE) +
+  scale_linetype_manual(
+    values = c("solid", "dashed", "dotdash", "twodash"),
+    drop = FALSE
+  ) +
+  scale_x_continuous(breaks = seq(2000, 2023, 2)) +
+  scale_y_continuous(labels = label_number(accuracy = 1)) +
+  labs(
+    title = "CRA Small-Business Lending Frequency by Rurality",
+    subtitle = "Loans per 10,000 subgroup residents; each series indexed to 2000 = 100",
+    x = "Year", y = "Index (2000 = 100)", color = NULL, linetype = NULL,
+    caption = paste(
+      "Population: Census annual county resident estimates. Geography: 50 states + DC.",
+      "RUCC 1–3 = urban/metro; RUCC 4–9 = rural/nonmetro."
+    )
+  ) +
+  charlie_theme() +
+  theme(
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.text = element_text(face = "bold")
+  ) +
+  guides(color = guide_legend(nrow = 2), linetype = guide_legend(nrow = 2))
+```
+
+## Nominal lending volume by geography and rurality
+
+Each line is nominal loan dollars per 10,000 residents living in the same RUCC
+subgroup, indexed to that line's own year-2000 value. Dollar amounts are not
+inflation-adjusted, matching the report figure.
+
+```{r cra-volume-figure, fig.width=10.5, fig.height=11}
+volume_plot_data <- cra_normalized |>
+  filter(measure == "Volume")
+
+ggplot(
+  volume_plot_data,
+  aes(year, index, color = series, linetype = series)
+) +
+  geom_hline(yintercept = 100, linetype = "dashed", color = "grey55") +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.6) +
+  facet_wrap(vars(bucket), ncol = 1) +
+  scale_color_manual(values = comparison_colors, drop = FALSE) +
+  scale_linetype_manual(
+    values = c("solid", "dashed", "dotdash", "twodash"),
+    drop = FALSE
+  ) +
+  scale_x_continuous(breaks = seq(2000, 2023, 2)) +
+  scale_y_continuous(labels = label_number(accuracy = 1)) +
+  labs(
+    title = "CRA Small-Business Lending Volume by Rurality",
+    subtitle = "Nominal dollars per 10,000 subgroup residents; each series indexed to 2000 = 100",
+    x = "Year", y = "Index (2000 = 100)", color = NULL, linetype = NULL,
+    caption = paste(
+      "Population: Census annual county resident estimates. Geography: 50 states + DC.",
+      "Amounts are nominal. RUCC 1–3 = urban/metro; RUCC 4–9 = rural/nonmetro."
+    )
+  ) +
+  charlie_theme() +
+  theme(
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.text = element_text(face = "bold")
+  ) +
+  guides(color = guide_legend(nrow = 2), linetype = guide_legend(nrow = 2))
+```
+
+```{r cra-index-endpoints}
+kable(
+  cra_normalized |>
+    filter(year %in% c(2000L, 2023L)) |>
+    select(year, series, measure, bucket, population, per_10k, index) |>
+    mutate(
+      population = comma(population, accuracy = 1),
+      per_10k = number(per_10k, accuracy = 0.1),
+      index = number(index, accuracy = 0.1)
+    ),
+  caption = "CRA subgroup normalization audit (endpoint years)"
+)
+```
+
+## Wisconsin and U.S. credit-union commercial loan size
+
+The U.S. group includes Wisconsin and contains credit unions headquartered in
+the 50 states plus DC.
+
+```{r cu-national-figure, fig.width=10, fig.height=5.5}
+cu_geo_colors <- c("Wisconsin" = "#BF4D28", "United States" = "#2E75B6")
+
+ggplot(
+  cu_geography,
+  aes(x = factor(year), y = average_size, fill = geography)
+) +
+  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+  geom_text(
+    aes(label = short_dollar(average_size)),
+    position = position_dodge(width = 0.8),
+    vjust = -0.35,
+    size = 2.8
+  ) +
+  scale_fill_manual(values = cu_geo_colors) +
+  scale_y_continuous(labels = label_dollar(scale_cut = cut_short_scale()),
+                     expand = expansion(mult = c(0, 0.15))) +
+  labs(
+    title = "Average Credit-Union Commercial Loan Size",
+    subtitle = "Wisconsin versus the United States, ratio of group totals",
+    x = "Year", y = "Average loan size", fill = NULL,
+    caption = "Data: NCUA Call Reports; U.S. geography is the 50 states plus DC"
+  ) +
+  charlie_theme() +
+  theme(legend.position = "right")
+```
+
+```{r ncua-audit-table}
+kable(
+  cu_geography |>
+    filter(year %in% c(2017L, 2024L)) |>
+    mutate(
+      amount = dollar(amount, accuracy = 1, scale_cut = cut_short_scale()),
+      count = comma(count),
+      average_size = dollar(average_size, accuracy = 1),
+      credit_unions = comma(credit_unions)
+    ),
+  caption = "Credit-union commercial-loan audit (endpoint years)"
+)
+```
+
+# Methods summary
+
+- **Geography.** National outputs cover branch locations, CRA counties, or
+  credit-union headquarters in the 50 states plus the District of Columbia.
+  Wisconsin is included in the national benchmark.
+- **Rurality.** RUCC 1–3 are labeled urban/metro and RUCC 4–9 rural/nonmetro.
+  The lookup uses 2023 first, then 2013 and 2003 only for county FIPS absent
+  from newer vintages. South Boston (`51780`) maps to Halifax County (`51083`).
+- **Population.** CRA rates use annual Census county resident-population
+  estimates aggregated within the same geography and RUCC subgroup as each
+  numerator. Source series are final 2000–2010 and 2010–2020 intercensal
+  estimates plus Vintage 2025 estimates for 2020–2023.
+- **CRA amounts.** 2000–2004 and 2019–2023 source amounts are converted from
+  thousands of dollars to dollars; 2005–2018 amounts are already dollars.
+  Volume indexes remain nominal.
+- **Credit-union averages.** Average commercial loan size is the ratio of total
+  amount (`ACCT_475A1`) to total count (`ACCT_090A1`) within each plotted group,
+  not an unweighted average of institution-level means.
